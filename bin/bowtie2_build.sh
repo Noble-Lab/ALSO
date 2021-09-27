@@ -45,14 +45,16 @@ done
 [[ -z "${indices}" ]] && printUsage
 [[ -z "${prefix}" ]] && printUsage
 
-#  Check dependency
-command -v bowtie2 &>/dev/null ||
-        {
-            echo "Exiting: bowtie2 not found. Install Bowtie2."
-            exit 1
-        }
+. "./bin/auxiliary/auxiliary.sh" ||
+    {
+        echo "Exiting: Auxiliary information not found."
+        echo "Are you in the correct working directory," \
+        "\"2020_kga0_endothelial-diff\"?"
+        exit 1
+    }
 
-#  Check directories
+checkDependencyBowtie2
+
 [[ -d "${fasta}" ]] || 
     {
         echo "Exiting: The following directory does not exist: ${fasta}"
