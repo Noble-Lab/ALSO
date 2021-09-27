@@ -15,6 +15,7 @@
 # typeset array_resolution
 # typeset contact
 typeset deposit
+typeset environment
 # typeset job
 # typeset job_prefix
 typeset list_prefix
@@ -44,7 +45,22 @@ evaluateGreaterEqual() {
 
 
 #  Read in functions
+activateEnvironmentBowtie2() {
+    #TODO Documentation
+    case "${environment}" in
+        FALSE | false | F | f) \
+            # echo "Environment OFF."
+            :
+            ;;
+        *) \
+            echo "Environment ON: Bowtie 2 2.4.4."
+            conda activate bowtie2_env
+            ;;
+    esac
+}
+
 checkDependencyBowtie2() {
+    #TODO Documentation
     command -v bowtie2 &>/dev/null ||
         {
             echoErrOut "Exiting: bowtie2 not found. Install Bowtie2."
@@ -95,6 +111,12 @@ checkPresenceErr() {
         rm "${where_when_what}/${stderr}"
 }
 
+checkPresenceList() {
+    #  If present, remove "${list}" with same name
+    # [[ ! -e "${list}" ]] || rm "${list}"
+    [[ ! -e "${where_when_what}/${list}" ]] || rm "${where_when_what}/${list}"
+}
+
 checkPresenceOut() {
     #  If present, remove "${stdout}" with same name
     [[ ! -e "${where_when_what}/${stdout}" ]] || \
@@ -142,6 +164,20 @@ checkDirectoryPresenceWithdrawl() {
         echoErrOut "${withdraw}"
         exit 1
     }
+}
+
+checkSafeMode() {
+    #TODO Documentation
+    case ${safe_mode} in
+        TRUE | true | T | t) \
+            echo "Safe mode ON."
+            set -Eeuxo pipefail
+            ;;
+        *) \
+            # echo "Safe mode OFF."
+            :
+            ;;
+    esac
 }
 
 createOneLineLists() {
@@ -195,6 +231,17 @@ createOneLineLists() {
     done
 }
 
+findFa() {
+    #  Find *.fa(s) at the end of a user-defined path
+    find \
+    "${path_withdraw}" \
+    -type f \
+    -name "*.fa" \
+    -printf "%P\n" |
+        sed 's|^./||' |
+        sort -V
+}
+
 findMultiLineLists() {
     find \
     "./${where}" \
@@ -231,4 +278,22 @@ printSaveOut() {
     #+ one-liner is uncommented), then stdout is also printed to the screen
     # exec 1> "${where_when_what}/${stdout}"
     exec 1> >(tee -a "${where_when_what}/${stdout}")
+}
+
+reportExperimentStart() {
+    #TODO Documentation
+    # printf "\"%s\" started by \"$(whoami)\" on \"$(date)\" in\n\"$(pwd)\"\n\n" "${0}"
+    echoErrOut "${0} started by $(whoami) on $(date) in $(pwd)"
+}
+
+reportExperimentEnd() {
+    #TODO Documentation
+    # printf "\"%s\" completed by \"$(whoami)\" on \"$(date)\" in\n\"$(pwd)\"\n\n" "${0}"
+    echoErrOut "${0} completed by $(whoami) on $(date) in $(pwd)"
+}
+
+reportParallel() {
+    #TODO Documentation
+    # printf "Running \"%s\" jobs in parallel.\n\n" "${parallel}"
+    echoErrOut "Running ${parallel} jobs in parallel." 
 }

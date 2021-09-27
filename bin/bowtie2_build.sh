@@ -25,41 +25,58 @@ printUsage() {
     echo ""
     echo "Arguments:"
     echo "-h <print this help message and exit>"
-    echo "-f <unzipped fasta, including directory path (chr)>"
-    echo "-i <directory path for bowtie2 indices (chr)>"
-    echo "-p <prefix for bowtie2 indices (chr)>"
+    echo "-u <use safe mode: TRUE or FALSE (logical)>"
+    echo "-e <activate conda environment: TRUE or FALSE (logical)>"
+    echo "-p <number of jobs to run in parallel (int)>"
+    echo "-l <list from make_list_${0} (file)>"
     exit
 }
 
-while getopts "h:f:i:p:" opt; do
+while getopts "h:u:e:p:l:" opt; do
     case "${opt}" in
         h) printUsage ;;
-        f) fasta="${OPTARG}" ;;
-        i) indices="${OPTARG}" ;;
-        p) prefix="${OPTARG}" ;;
+        u) safe_mode="${OPTARG}" ;;
+        e) environment="${OPTARG}" ;;
+        p) parallel="${OPTARG}" ;;
+        l) list="${OPTARG}" ;;
         *) printUsage ;;
     esac
 done
 
-[[ -z "${fasta}" ]] && printUsage
-[[ -z "${indices}" ]] && printUsage
-[[ -z "${prefix}" ]] && printUsage
+[[ -z "${safe_mode}" ]] && printUsage
+[[ -z "${environment}" ]] && printUsage
+[[ -z "${parallel}" ]] && printUsage
+[[ -z "${list}" ]] && printUsage
 
+# shellcheck disable=SC1091
 . "./bin/auxiliary/auxiliary.sh" ||
     {
         echo "Exiting: Auxiliary information not found."
         echo "Are you in the correct working directory," \
-        "\"2020_kga0_endothelial-diff\"?"
+        "\"2021_kga0_4dn-mouse-cross\"?"
         exit 1
     }
+
+checkSafeMode
+
+activateEnvironmentBowtie2
+
+checkDependencyParallel
 
 checkDependencyBowtie2
 
-[[ -d "${fasta}" ]] || 
-    {
-        echo "Exiting: The following directory does not exist: ${fasta}"
-        exit 1
-    }
-[[ -d "${indices}" ]] || mkdir -p "${indices}"
+reportExperimentStart
 
-bowtie2-build "${fasta}" "${indices}/${prefix}"
+#  Log experiment
+parallel --header : --colsep " " -k -j 1 echo \
+"bowtie2-build {path_withdraw} {path_deposit}/{prefix}" \
+:::: "${list}"
+echo ""
+
+#  Run experiment
+parallel --header : --colsep " " -k -j "${parallel}" \
+"bowtie2-build {path_withdraw} {path_deposit}/{prefix}" \
+:::: "${list}"
+
+reportExperimentEnd
+exit 0
