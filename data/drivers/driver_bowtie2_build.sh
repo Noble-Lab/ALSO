@@ -99,12 +99,11 @@ typeset -a array_prefix=(
 # echo "array_prefix is ${array_prefix[*]}"
 
 #  Define variables for grid jobs ---------------------------------------------
-h_rt="7:59:59"
-mfree="8G"
-queue="noble-short.q"
+h_rt="24:00:00"
+mfree="16G"
+queue="noble-long.q"
 pe_serial="1"
 gnu_parallel_jobs="${pe_serial}"
-disk_free="5G"
 
 # safe_mode="TRUE"
 safe_mode="FALSE"
@@ -159,7 +158,6 @@ findMultiLineLists | while read -r job; do
     -l h_rt="${h_rt}" \
     -l mfree="${mfree}" \
     -l gpgpu=FALSE \
-    -l disk_free="${disk_free}" \
     -pe serial "${pe_serial}" \
     -q "${queue}" \
     -cwd \
