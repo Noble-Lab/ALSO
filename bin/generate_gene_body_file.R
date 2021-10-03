@@ -4,32 +4,51 @@
 #  Adapted, edited by KA
 
 library(rtracklayer)
-library(argparse)
+library(argparser)
 
 #  Avoid scientific notation
 options(scipen = 999)
 options(stringsAsFactors = FALSE)
 
-parser <- argparse::ArgumentParser(description = 'Makes a .bed file of gene bodies provided a GENCODE/Ensembl .gtf file.')
-parser$add_argument('input_file', help = 'GENCODE/Ensembl .gtf file.')
-parser$add_argument('output_file', help = 'Output gene body .bed file.')
-args <- parser$parse_args()
+#  Create a parser, add command-line arguments
+ap <- arg_parser(
+    "This script makes a gene-body .bed file from a GENCODE/Ensembl .gtf file."
+)
+ap <- add_argument(
+    ap,
+    "--infile",
+    type = "character",
+    help = "GENCODE/Ensembl .gtf file, including path <chr>"
+)
+ap <- add_argument(
+    ap,
+    "--outfile",
+    type = "character",
+    help = "Output gene-body .bed file, including path <chr>"
+)
 
-get_gene_body <- function(gene_ann) {
-    gene_ann <- subset(gene_ann, type == "gene")
-    gene_ann <- gene_ann[!duplicated(gene_ann$gene_id), ]
+#  Parse the arguments
+cl <- c(  # Use for interactive testing
+    "--infile", "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/doc/Mus_musculus_129s1svimj.129S1_SvImJ_v1.104.chr.gtf.gz",
+    "--outfile", "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/doc/129S1-SvImJ.gene-body.bed"
+)
+arguments <- parse_args(ap, cl)  # Use for interactive testing
+# arguments <- parse_args(ap)  # Use for command-line calls
+
+get_gene_body <- function(gene_annotation) {
+    gene_annotation <- subset(gene_annotation, type == "gene")
+    gene_annotation <- gene_annotation[!duplicated(gene_annotation$gene_id), ]
 
     #  Output .bed format
-    gene_ann[, "start"] <- gene_ann[, "start"] - 1
+    gene_annotation[, "start"] <- gene_annotation[, "start"] - 1
 
-    return(gene_ann)
+    return(gene_annotation)
 }
 
-gene_bodies <- get_gene_body(rtracklayer::readGFF(args$input_file))
+gene_bodies <- get_gene_body(rtracklayer::readGFF(arguments$infile))
 gene_bodies$score <- '.'
 write.table(
-    gene_bodies[,
-    c(
+    gene_bodies[, c(
         'seqid',
         'start',
         'end',
@@ -37,11 +56,11 @@ write.table(
         'score',
         'strand',
         'gene_name',
-        'gene_type'
+        'gene_biotype'
     )],
     quote = FALSE,
     row.names = FALSE,
     col.names = FALSE,
     sep = '\t',
-    file = args$output_file
+    file = arguments$outfile
 )
