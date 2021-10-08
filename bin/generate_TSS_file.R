@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-#  Chengxiang (CX) Qiu
+#  Andrew Hill
 #  Adapted, edited by KA
 
 library(rtracklayer)

@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-#  Chengxiang (CX) Qiu
+#  Andrew Hill
 #  Adapted, edited by KA
 
 library(rtracklayer)
@@ -28,14 +28,15 @@ ap <- add_argument(
 )
 
 #  Parse the arguments
-cl <- c(  # Use for interactive testing
-    "--infile", "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/doc/Mus_musculus_129s1svimj.129S1_SvImJ_v1.104.chr.gtf.gz",
-    "--outfile", "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/doc/129S1-SvImJ.gene-body.bed"
-)
-arguments <- parse_args(ap, cl)  # Use for interactive testing
-# arguments <- parse_args(ap)  # Use for command-line calls
+# cl <- c(  # Use for interactive testing
+#     "--infile", "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/doc/Mus_musculus_129s1svimj.129S1_SvImJ_v1.104.chr.gtf.gz",
+#     "--outfile", "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/doc/129S1-SvImJ.gene-body.bed"
+# )
+# arguments <- parse_args(ap, cl)  # Use for interactive testing
+arguments <- parse_args(ap)  # Use for command-line calls
 
 get_gene_body <- function(gene_annotation) {
+    #TODO Documentation, etc.
     gene_annotation <- subset(gene_annotation, type == "gene")
     gene_annotation <- gene_annotation[!duplicated(gene_annotation$gene_id), ]
 
