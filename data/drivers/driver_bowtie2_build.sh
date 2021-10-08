@@ -69,24 +69,24 @@ list_suffix="${when}.txt"
 
 path_base="/net/noble/vol1/home/kga0/genomes"
 typeset -a array_withdraw=(
-    "${path_base}/ENA.GCA_001624185.129S1-SvImJ/All-Seq-FASTA"
-    "${path_base}/ENA.GCA_001624445.CAST-EiJ/All-Seq-FASTA"
-    "${path_base}/ENA.GCA_001624865.SPRET-EiJ/All-Seq-FASTA"
-    "${path_base}/ENA.GCA_001632555.C57BL-6NJ/All-Seq-FASTA"
+    "${path_base}/Ensembl.129S1-SvImJ"
+    "${path_base}/Ensembl.CAST-EiJ"
+    "${path_base}/Ensembl.SPRET-EiJ"
+    "${path_base}/Ensembl.C57BL-6NJ"
 )
 # echo "array_withdraw is ${array_withdraw[*]}"
 
 typeset -a array_withdraw_basename
 for i in "${array_withdraw[@]}"; do
-    array_withdraw_basename+=( "$(basename "${i/\/All-Seq-FASTA/}")" )
+    array_withdraw_basename+=( "$(basename "${i}")" )
 done
 # echo "array_withdraw_basename is ${array_withdraw_basename[*]}"
 
 typeset -a array_deposit=(
-    "${path_base}/ENA.GCA_001624185.129S1-SvImJ/bowtie2"
-    "${path_base}/ENA.GCA_001624445.CAST-EiJ/bowtie2"
-    "${path_base}/ENA.GCA_001624865.SPRET-EiJ/bowtie2"
-    "${path_base}/ENA.GCA_001632555.C57BL-6NJ/bowtie2"
+    "${path_base}/Ensembl.129S1-SvImJ/bowtie2"
+    "${path_base}/Ensembl.CAST-EiJ/bowtie2"
+    "${path_base}/Ensembl.SPRET-EiJ/bowtie2"
+    "${path_base}/Ensembl.C57BL-6NJ/bowtie2"
 )
 # echo "array_deposit is ${array_deposit[*]}"
 
