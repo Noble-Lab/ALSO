@@ -54,7 +54,8 @@ activateEnvironmentBowtie2() {
             ;;
         *) \
             echo "Environment ON: Bowtie 2 2.4.4."
-            conda activate bowtie2_env
+            # conda activate bowtie2_env
+            conda activate pipeline-test_env
             ;;
     esac
 }
