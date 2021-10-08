@@ -73,6 +73,8 @@ typeset -a array_withdraw=(
     "${path_base}/Ensembl.CAST-EiJ"
     "${path_base}/Ensembl.SPRET-EiJ"
     "${path_base}/Ensembl.C57BL-6NJ"
+    "${path_base}/Ensembl.GRCm38"
+    "${path_base}/Ensembl.GRCm39"
 )
 # echo "array_withdraw is ${array_withdraw[*]}"
 
@@ -87,6 +89,8 @@ typeset -a array_deposit=(
     "${path_base}/Ensembl.CAST-EiJ/bowtie2"
     "${path_base}/Ensembl.SPRET-EiJ/bowtie2"
     "${path_base}/Ensembl.C57BL-6NJ/bowtie2"
+    "${path_base}/Ensembl.GRCm38/bowtie2"
+    "${path_base}/Ensembl.GRCm39/bowtie2"
 )
 # echo "array_deposit is ${array_deposit[*]}"
 
@@ -95,6 +99,8 @@ typeset -a array_prefix=(
     "CAST-EiJ"
     "SPRET-EiJ"
     "C57BL-6NJ"
+    "GRCm38"
+    "GRCm39"
 )
 # echo "array_prefix is ${array_prefix[*]}"
 
@@ -110,7 +116,7 @@ safe_mode="FALSE"
 conda_environment="TRUE"
 
 #  Maximum concurrent jobs on grid
-grid_jobs_max="4"
+grid_jobs_max="6"
 
 
 #  Create "master" lists ------------------------------------------------------
