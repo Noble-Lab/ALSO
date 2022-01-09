@@ -73,8 +73,8 @@ typeset -a array_withdraw=(
     "${path_base}/Ensembl.CAST-EiJ"
     "${path_base}/Ensembl.SPRET-EiJ"
     "${path_base}/Ensembl.C57BL-6NJ"
-    "${path_base}/Ensembl.GRCm38"
-    "${path_base}/Ensembl.GRCm39"
+    # "${path_base}/Ensembl.GRCm38"
+    # "${path_base}/Ensembl.GRCm39"
 )
 # echo "array_withdraw is ${array_withdraw[*]}"
 
@@ -89,8 +89,8 @@ typeset -a array_deposit=(
     "${path_base}/Ensembl.CAST-EiJ/bowtie2"
     "${path_base}/Ensembl.SPRET-EiJ/bowtie2"
     "${path_base}/Ensembl.C57BL-6NJ/bowtie2"
-    "${path_base}/Ensembl.GRCm38/bowtie2"
-    "${path_base}/Ensembl.GRCm39/bowtie2"
+    # "${path_base}/Ensembl.GRCm38/bowtie2"
+    # "${path_base}/Ensembl.GRCm39/bowtie2"
 )
 # echo "array_deposit is ${array_deposit[*]}"
 
@@ -99,13 +99,13 @@ typeset -a array_prefix=(
     "CAST-EiJ"
     "SPRET-EiJ"
     "C57BL-6NJ"
-    "GRCm38"
-    "GRCm39"
+    # "GRCm38"
+    # "GRCm39"
 )
 # echo "array_prefix is ${array_prefix[*]}"
 
 #  Define variables for grid jobs ---------------------------------------------
-h_rt="24:00:00"
+h_rt="18:00:00"
 mfree="16G"
 queue="noble-long.q"
 pe_serial="1"

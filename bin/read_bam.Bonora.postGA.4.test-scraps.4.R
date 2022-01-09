@@ -1,0 +1,721 @@
+#!/usr/bin/env Rscript
+
+library(ggplot2)
+library(scales)
+library(tidyverse)
+
+options(pillar.sigfig = 8, scipen = 10000)
+
+
+#  Set up work directories (locations to be changed) --------------------------
+directory_user <- "/Users/kalavattam"
+directory_base <- "Dropbox/My Mac (Kriss-MacBook-Pro.local)/Downloads/to-do"
+directory_work <- "get_unique_fragments/Bonora"
+
+path.1 <- paste0(directory_user, "/", directory_base, "/", directory_work)
+path.2 <- "segregatedReads.SNPTHRESH1.Q30"
+
+
+#  Set up functions -----------------------------------------------------------
+`%notin%` <- Negate(`%in%`)
+
+
+convertPercent <- function(x) {
+    if(is.numeric(x)) {
+        ifelse(is.na(x), x, paste0(round(x * 100L, 2), "%")) 
+    } else x 
+}
+
+
+evaluateOperation <- function(operation = operation) {
+    return(eval(parse(text = operation), envir = .GlobalEnv))
+}
+
+
+loadRDS <- readRDS
+
+
+loadTibbleFromRDS <- function(variable, file) {
+    command <- paste0(variable, " <- loadRDS(file = \"", file, "\")") %>% as.list()
+    return(eval(parse(text = command), envir = globalenv()))
+}
+
+
+makeOperation <- function(variable, command) {
+    operation <- paste(variable, command) #%>% paste(., collapse = "; ")
+    return(operation)
+}
+
+
+mungeTmpGB <- function(tbl) {
+    #  Rename and select columns of interest
+    tbl %>%
+        plyr::rename(c(
+                "rname" = "GB_rname",
+                "strand" = "GB_strand",
+                "pos" = "GB_pos",
+                "mrnm" = "GB_mrnm",
+                "mpos" = "GB_mpos"
+        )) %>% 
+        dplyr::select(
+            coordinate,
+            GB_rname,
+            GB_strand,
+            GB_pos,
+            GB_mrnm,
+            GB_mpos
+        )
+}
+
+
+#  Load tibbles (already sorted) from .rds files ------------------------------
+
+#  KA assignments ---------------------
+path.1 %>% setwd()
+
+# chromosome <- "chr1"
+chromosome <- "chrX"
+
+search <- paste0("\\.", chromosome, ".rds$")
+file <- c(list.files(path = ".", pattern = search))
+variable <- file %>% gsub("\\.rds$", "", .)
+loadTibbleFromRDS(variable = variable, file = file)
+#NOTE Remember, "alt" is "CAST", "ref" is "129"
+
+variable_KA <- c(
+    "KA.129S1",
+    "KA.CAST",
+    "KA.NA",
+    "KA.Ambiguous"
+)
+command <- paste0("<- ", variable)
+operation <- makeOperation(variable_KA, command)
+evaluateOperation(operation)
+
+operation <- paste0("rm(", variable, ")")
+evaluateOperation(operation)
+
+#  GB assignments ---------------------
+paste0(path.1, path.2) %>% setwd()
+
+search <- paste0("^(dedup.joint.*", chromosome, ".rds$)")
+file <- c(list.files(path = ".", pattern = search))
+variable <- file %>% gsub("\\.rds$", "", .)
+loadTibbleFromRDS(variable = variable, file = file)
+
+variable_GB <- c(
+    "GB.alt.CAST",
+    "GB.ambig",
+    "GB.contra",
+    "GB.ref.129S1"
+)
+command <- paste0("<- ", variable)
+operation <- makeOperation(variable_GB, command)
+evaluateOperation(operation)
+
+operation <- paste0("rm(", variable, ")")
+evaluateOperation(operation)
+
+rm(variable)
+
+#  Back-ups for testing
+# bak.KA.129S1 <- KA.129S1
+# bak.KA.CAST <- KA.CAST
+# bak.KA.Ambiguous <- KA.Ambiguous
+# bak.KA.NA <- KA.NA
+# 
+# KA.129S1 <- bak.KA.129S1
+# KA.CAST <- bak.KA.CAST
+# KA.Ambiguous <- bak.KA.Ambiguous
+# KA.NA <- bak.KA.NA
+
+
+#  Smart join of GB to KA tibbles, then munging -------------------------------
+joint.GB <- dplyr::bind_rows(GB.alt.CAST, GB.ref.129S1, GB.ambig, GB.contra)
+colnames(joint.GB) <- paste0(colnames(joint.GB), ".GB")
+colnames(joint.GB)[3] <- "coordinate"
+colnames(joint.GB)[colnames(joint.GB) %>% length()] <- "assignment_GB"
+
+KA.NA$assignment[is.na(KA.NA$assignment)] <- "NA"
+
+variable_joint <- variable_KA %>%
+    strsplit(., "\\.") %>%
+    lapply(., `[[`, 2) %>%
+    unlist() %>%
+    paste0("KA_GB.", .)
+command <- paste0(
+    "<- full_join(",
+        variable_KA, ", ",
+        "joint.GB %>% select(-ID.GB, -read.GB, -tag.XS.GB, -tag.NM.GB), ",
+        "by = \"coordinate\"",
+    ") %>% ",
+        "tidyr::drop_na(\"assignment\")"
+)
+operation <- makeOperation(variable_joint, command)
+evaluateOperation(operation)
+
+operation <- paste0(
+    variable_joint, "$assignment_GB[",
+        "is.na(", variable_joint, "$assignment_GB)",
+    "] <- \"GB.not_present\""
+)
+evaluateOperation(operation)
+
+command <- paste0(
+    "<- ", variable_joint, " %>% ",
+        "dplyr::rename(., GB_assignment.1 = assignment_GB)"
+)
+operation <- makeOperation(variable_joint, command)
+evaluateOperation(operation)
+
+#  Clean up
+operation <- paste0("rm(", variable_KA, ")")
+evaluateOperation(operation)
+
+
+#  Identify intersections between "assignment" and "dedup.joint" --------------
+for (i in 1:length(variable_joint)) {
+    command <- paste0(
+        "<- ifelse(",
+            variable_joint[i], "$coordinate %in% ", variable_GB[4], "$coordinate, ",
+            "'1', ",
+            "'0'",
+        ")"
+    )
+    operation <- makeOperation(
+        paste0(variable_joint[i], "$in_ref_129S1"), command
+    )
+    print(operation)
+    evaluateOperation(operation)
+
+    command <- paste0(
+        "<- ifelse(",
+            variable_joint[i], "$coordinate %in% ", variable_GB[1], "$coordinate, ",
+            "'1', ",
+            "'0'",
+        ")"
+    )
+    operation <- makeOperation(
+        paste0(variable_joint[i], "$in_alt_CAST"), command
+    )
+    print(operation)
+    evaluateOperation(operation)
+
+    command <- paste0(
+        "<- ifelse(",
+            variable_joint[i], "$coordinate %in% ", variable_GB[2], "$coordinate, ",
+            "'1', ",
+            "'0'",
+        ")"
+    )
+    operation <- makeOperation(
+        paste0(variable_joint[i], "$in_ambig"), command
+    )
+    print(operation)
+    evaluateOperation(operation)
+
+    command <- paste0(
+        "<- ifelse(",
+            variable_joint[i], "$coordinate %in% ", variable_GB[3], "$coordinate, ",
+            "'1', ",
+            "'0'",
+        ")"
+    )
+    operation <- makeOperation(
+        paste0(variable_joint[i], "$in_contra"), command
+    )
+    print(operation)
+    evaluateOperation(operation)
+
+    command <- paste0(
+        "<- paste0(",
+            variable_joint[i], "$in_ref_129S1, ",
+            variable_joint[i], "$in_alt_CAST, ",
+            variable_joint[i], "$in_ambig, ",
+            variable_joint[i], "$in_contra",
+        ")"
+    )
+    operation <- makeOperation(
+        paste0(variable_joint[i], "$GB_intersection"), command
+    )
+    print(operation)
+    evaluateOperation(operation)
+
+    command <- paste0(
+        "<- ", variable_joint[i], "$GB_intersection", " %>% ",
+            "as.factor()"
+    )
+    operation <- makeOperation(
+        paste0(variable_joint[i], "$GB_intersection"), command
+    )
+    print(operation)
+    evaluateOperation(operation)
+}
+
+#  Reorder the factor levels for column/variable GB_intersection
+order_intersection <- c("1000", "0100", "0010", "0001", "0000")
+command <- paste0(
+    "<- ", "forcats::fct_relevel(",
+        variable_joint, "$GB_intersection, order_intersection",
+    ")"
+)
+operation <- makeOperation(
+    paste0(variable_joint, "$GB_intersection"), command
+)
+evaluateOperation(operation)
+
+#  Copy the vector of binary names to a new variable; then, give them easier-
+#+ to-read names 
+command <- paste0("<- ", variable_joint, "$GB_intersection")
+operation <- makeOperation(
+    paste0(variable_joint, "$GB_assignment.2"), command
+)
+evaluateOperation(operation)
+
+command <- paste0(
+    "<- ", variable_joint, "$GB_assignment.2 %>% plyr::revalue(c(",
+        "'0000' = 'GB.Not_present', ",
+        "'0001' = 'GB.Contra', ",
+        "'0010' = 'GB.Ambiguous', ",
+        "'0100' = 'GB.CAST', ",
+        "'1000' = 'GB.129S1'",
+    "))"
+)
+operation <- makeOperation(
+    paste0(variable_joint, "$GB_assignment.2"), command
+)
+evaluateOperation(operation)
+
+command <- paste0(
+    "<- ", variable_joint, "$assignment %>% plyr::revalue(c(",
+        "'129S1-SvImJ' = 'KA.129S1', ",
+        "'CAST-EiJ' = 'KA.CAST', ",
+        "'Neutral' = 'KA.Ambiguous', ",
+        "'NA' = 'KA.NA'",
+    "))"
+)
+operation <- makeOperation(paste0(variable_joint, "$KA_assignment"), command)
+evaluateOperation(operation)  # The errors reported here are fine...
+
+
+#  Set up KA × GB assignment factors, KA × GB assignment factors --------------
+KA_GB.129S1$KA_GB_assignment <- paste0(
+    KA_GB.129S1$KA_assignment, ' × ', KA_GB.129S1$GB_assignment.2
+)
+KA_GB.CAST$KA_GB_assignment <- paste0(
+    KA_GB.CAST$KA_assignment, ' × ', KA_GB.CAST$GB_assignment.2
+)
+KA_GB.NA$KA_GB_assignment <- paste0(
+    KA_GB.NA$KA_assignment, ' × ', KA_GB.NA$GB_assignment.2
+)
+KA_GB.Ambiguous$KA_GB_assignment <- paste0(
+    KA_GB.Ambiguous$KA_assignment, ' × ', KA_GB.Ambiguous$GB_assignment.2
+)
+
+KA_GB.129S1$GB_KA_assignment <- paste0(
+    KA_GB.129S1$GB_assignment.2, ' × ', KA_GB.129S1$KA_assignment
+)
+KA_GB.CAST$GB_KA_assignment <- paste0(
+    KA_GB.CAST$GB_assignment.2, ' × ', KA_GB.CAST$KA_assignment
+)
+KA_GB.NA$GB_KA_assignment <- paste0(
+    KA_GB.NA$GB_assignment.2, ' × ', KA_GB.NA$KA_assignment
+)
+KA_GB.Ambiguous$GB_KA_assignment <- paste0(
+    KA_GB.Ambiguous$GB_assignment.2, ' × ', KA_GB.Ambiguous$KA_assignment
+)
+
+command <- paste0("<- ", variable_joint, "$KA_GB_assignment %>% as_factor()")
+operation <- makeOperation(
+    paste0(variable_joint, "$KA_GB_assignment"), command
+)
+evaluateOperation(operation)
+
+command <- paste0("<- ", variable_joint, "$GB_KA_assignment %>% as_factor()")
+operation <- makeOperation(
+    paste0(variable_joint, "$GB_KA_assignment"), command
+)
+evaluateOperation(operation)
+
+
+#  Generate table -------------------------------------------------------------
+command <- paste0(
+    "<- table(", variable_joint, "$GB_assignment.2) %>% ",
+        "as.data.frame() %>% ",
+        "as_tibble() %>%",
+        "dplyr::rename(c(GB.assignment = Var1, ", variable_joint, " = Freq))"
+)
+operation <- makeOperation(paste0(variable_joint, ".table"), command)
+evaluateOperation(operation)
+
+KA_GB.all.table <- full_join(
+    KA_GB.129S1.table, KA_GB.CAST.table, by = "GB.assignment"
+) %>%
+    full_join(., KA_GB.Ambiguous.table, by = "GB.assignment") %>%
+    full_join(., KA_GB.NA.table, by = "GB.assignment") %>%
+    purrr::map_df(rev)
+
+
+#  Generate table of proportions ----------------------------------------------
+command <- paste0(
+    "<- ", variable_joint, "$GB_assignment.2 %>% ",
+        "table() %>% ",
+        "prop.table() %>% ",
+        "as.data.frame() %>% ",
+        "as_tibble() %>% ",
+        "dplyr::rename(c(GB.assignment = ., ", variable_joint, " = Freq))"
+)
+operation <- makeOperation(paste0(variable_joint, ".table.prop"), command)
+evaluateOperation(operation)
+
+table.prop <- full_join(
+    KA_GB.129S1.table.prop, KA_GB.CAST.table.prop, by = "GB.assignment"
+) %>%
+    full_join(., KA_GB.Ambiguous.table.prop, by = "GB.assignment") %>%
+    full_join(., KA_GB.NA.table.prop, by = "GB.assignment") %>%
+    purrr::map_df(rev)
+
+
+#  Generate table of percentages ----------------------------------------------
+command <- paste0("<- ", variable_joint, ".table.prop")
+operation <- makeOperation(paste0(variable_joint, ".table.percent"), command)
+evaluateOperation(operation)
+
+command <- paste0(
+    "<- ", variable_joint, ".table.percent$", variable_joint, " %>% ",
+        "convertPercent()"
+)
+operation <- makeOperation(
+    paste0(variable_joint, ".table.percent$", variable_joint), command
+)
+evaluateOperation(operation)
+
+table.percent <- full_join(
+    KA_GB.129S1.table.percent, KA_GB.CAST.table.percent, by = "GB.assignment"
+) %>%
+    full_join(., KA_GB.Ambiguous.table.percent, by = "GB.assignment") %>%
+    full_join(., KA_GB.NA.table.percent, by = "GB.assignment") %>%
+    purrr::map_df(rev)
+
+
+#  Create a full table of counts, including row and column sums ---------------
+tmp.1 <- KA_GB.all.table %>% summarise(across(2:5, ~sum(.)))
+
+tmp.2 <- KA_GB.all.table %>%
+    select(colnames(.)[2:length(colnames(.))]) %>% 
+    rowSums() %>%
+    as_tibble_col()
+
+tmp.3 <- tmp.2 %>%
+    summarise(across(1, ~sum(.)))
+
+tmp.4 <- bind_rows(tmp.2, tmp.3)
+
+table.full <- bind_rows(KA_GB.all.table, tmp.1)
+table.full <- bind_cols(table.full, tmp.4)
+table.full$GB.assignment <- table.full$GB.assignment %>% as.character()
+table.full[6, 1] <- "GB.sum"
+table.full$GB.assignment <- table.full$GB.assignment %>% as_factor()
+table.full <- table.full %>% dplyr::rename(., sum.row = value)
+colnames(table.full)[6] <- "KA.sum"
+
+rm(tmp.1, tmp.2, tmp.3, tmp.4)
+
+
+#  Create a full table of proportions -----------------------------------------
+tmp.1 <- table.full$KA.sum[-6] %>% as_tibble_col()
+tmp.2 <- tmp.1 / colSums(tmp.1)
+
+table.prop.full <- cbind(table.prop, tmp.2) %>% as_tibble()
+colnames(table.prop.full)[6] <- "KA.sum"
+
+rm(tmp.1, tmp.2)
+
+
+#  Create a full table of percentages -----------------------------------------
+column <- c(
+    "KA_GB.129S1",
+    "KA_GB.CAST",
+    "KA_GB.Ambiguous",
+    "KA_GB.NA",
+    "KA.sum"
+)
+
+table.percent.full <- list()
+for (i in column) {
+    command <- paste0("<- table.prop.full$", i," %>% convertPercent()")
+    operation <- makeOperation(paste0("table.percent.full$", i), command)
+    print(operation)
+    evaluateOperation(operation)
+}
+table.percent.full <- table.percent.full %>%
+    tibble::as_tibble() %>%
+    purrr::map_df(rev)
+
+table.percent.full <- cbind(table.percent[, 1], table.percent.full) %>%
+    tibble::as_tibble()
+
+table.percent.full$GB.assignment <- table.percent.full$GB.assignment %>%
+    as.factor()
+
+
+#  Print the full tables ------------------------------------------------------
+table.full
+table.full.df <- data.frame(
+    table.full[, 2:5], row.names = table.full$GB.assignment
+)
+table.full.df <- table.full.df[-6, ]
+colnames(table.full.df) <- c("KA.129S1", "KA.CAST", "KA.Ambiguous", "KA.NA")
+table.full.df <- table.full.df[order(nrow(table.full.df):1), ]
+
+breaks <- seq(0, 50000, 100)
+pheatmap::pheatmap(
+    table.full.df,
+    main = paste0("KA × GB assignments, ", chromosome),
+    display_numbers = TRUE,
+    number_format = "%.0f",
+    color = colorRampPalette(c('white','red'))(length(breaks)),
+    breaks = breaks,
+    border_color = "#FFFFFF",
+    cluster_rows = FALSE,
+    cluster_cols = FALSE,
+    fontsize_number = 11
+)
+
+table.prop.full
+table.prop.full.df <- data.frame(
+    table.prop.full[, 2:5], row.names = table.prop.full$GB.assignment
+)
+colnames(table.prop.full.df) <- variable_KA
+table.prop.full.df <- table.prop.full.df[order(nrow(table.prop.full.df):1), ]
+pheatmap::pheatmap(
+    table.prop.full.df %>% as_tibble(),
+    main = paste0("KA × GB assignments, ", chromosome),
+    labels_row = table.prop.full$GB.assignment,
+    display_numbers = TRUE,
+    number_format = "%.2f",
+    color = colorRampPalette(c('white','red'))(100),
+    border_color = "#FFFFFF",
+    cluster_rows = FALSE,
+    cluster_cols = FALSE,
+    fontsize_number = 11
+)
+
+
+#  How effective was UCSC liftOver? -------------------------------------------
+setwd(path.1)
+
+liftOver.129S1 <- loadRDS(
+    paste0("dedup.129S1.", chromosome, ".post-liftOvers.rds")
+)
+liftOver.129S1$assembly <- "129S1-SvImJ"
+
+liftOver.CAST <- loadRDS(
+    paste0("dedup.CAST.", chromosome, ".post-liftOvers.rds")
+)
+liftOver.CAST$assembly <- "CAST-EiJ"
+
+liftOver.129S1$liftOver_reason %>% levels()
+
+#  Reorder liftOver_reason factor levels
+variable_reason <- paste0("liftOver.", c("129S1", "CAST"), "$liftOver_reason")
+order_reason <- c(
+    "liftOver successful",
+    "Deleted in new",
+    "Partially deleted in new",
+    "Split in new"
+)
+command <- paste0(
+    "<- forcats::fct_relevel(", variable_reason, ", order_reason)"
+)
+operation <- makeOperation(variable_reason, command)
+evaluateOperation(operation)
+
+#  Status of liftOver
+#DONE Make sure the levels are ordered the same way...
+liftOver.129S1 %>% ggplot(
+    ., aes(x = assembly, color = liftOver_reason, fill = liftOver_reason)
+) +
+    geom_bar(alpha = 0.5, width = 0.2) +
+    ggtitle("liftOver status:\n129S1-SvImJ to mm10") +
+    ylab("") +
+    xlab(chromosome) +
+    theme(legend.title = element_blank()) +
+    scale_y_continuous(labels = comma)
+
+liftOver.CAST %>% ggplot(
+    ., aes(x = assembly, color = liftOver_reason, fill = liftOver_reason)
+) +
+    geom_bar(alpha = 0.5, width = 0.2) +
+    ggtitle("liftOver status:\nCAST-EiJ to mm10") +
+    ylab("") +
+    xlab(chromosome) +
+    theme(legend.title = element_blank()) +
+    scale_y_continuous(labels = comma)
+
+
+#  How many chromosomes changed in liftOver? ----------------------------------
+variable <- c("liftOver.129S1", "liftOver.CAST")
+command <- paste0("<- (", variable, "$old_rname == ", variable, "$rname)")
+operation <- makeOperation(paste0(variable, "$liftOver_rname_equal"), command)
+evaluateOperation(operation)
+
+command <- paste0(
+    "<- ", variable, " %>% ",
+        "dplyr::relocate(liftOver_rname_equal, .after = liftOver_reason)"
+)
+operation <- makeOperation(variable, command)
+evaluateOperation(operation)
+
+# #DONE 1/3 Skip these analyses for now b/c need to go back and store liftOver,
+# #DONE 2/3 rname, pos, etc. info for both 129S1 and CAST; right now, only have
+# #DONE 3/3 info for 129S1
+# #  Neutral with regard to 129S1
+# variable <- c("tmp.final.Ambiguous")
+# command <- paste0(
+#     "<- (", variable, "$old_rname_129S1 == ", variable, "$rname)"
+# )
+# operation <- makeOperation(
+#     paste0(variable, "$liftOver_rname_129S1_equal"), command
+# )
+# evaluateOperation(operation)
+# 
+# command <- paste0(
+#     "<- ", variable, " %>% dplyr::relocate(",
+#         "liftOver_rname_129S1_equal, .after = liftOver_reason",
+#     ")"
+# )
+# operation <- makeOperation(variable, command)
+# evaluateOperation(operation)
+# 
+# #  Neutral with regard to CAST
+# command <- paste0(
+#     "<- (", variable, "$old_rname_CAST == ", variable, "$rname)"
+# )
+# operation <- makeOperation(
+#     paste0(variable, "$liftOver_rname_CAST_equal"), command
+# )
+# evaluateOperation(operation)
+# 
+# command <- paste0(
+#     "<- ", variable, " %>% ",
+#         "dplyr::relocate(",
+#             "liftOver_rname_CAST_equal, ",
+#             ".after = liftOver_rname_129S1_equal",
+#         ")"
+# )
+# operation <- makeOperation(variable, command)
+# evaluateOperation(operation)
+
+# #  Post-liftOver on the same chromosome? TRUE, FALSE, or NA
+# #NOTE No need to show this
+# liftOver.129S1 %>% ggplot(., aes(x = liftOver_rname_equal, color = liftOver_reason, fill = liftOver_reason)) +
+#     geom_bar(
+#         alpha = 0.5,
+#         position = position_dodge2(preserve = "single"),
+#         width = 0.9
+#     ) +
+#     ggtitle("liftOver status:\n129S1-SvImJ to mm10") +
+#     ylab("") +
+#     xlab(chromosome) +
+#     theme(legend.title = element_blank()) +
+#     scale_y_continuous(labels = comma)
+# 
+# liftOver.CAST %>% ggplot(., aes(x = liftOver_rname_equal, color = liftOver_reason, fill = liftOver_reason)) +
+#     geom_bar(
+#         alpha = 0.5,
+#         position = position_dodge2(preserve = "single"),
+#         width = 0.9
+#     ) +
+#     ggtitle("liftOver status:\nCAST-EiJ to mm10") +
+#     ylab("") +
+#     xlab(chromosome) +
+#     theme(legend.title = element_blank()) +
+#     scale_y_continuous(labels = comma)
+
+# #  Post-liftOver rnames per assembly
+# #NOTE No need to show this
+# liftOver.129S1 %>% ggplot(., aes(x = assembly, color = rname, fill = rname)) +
+#     geom_bar(
+#         alpha = 0.5,
+#         position = position_dodge2(preserve = "single"),
+#         width = 0.9
+#     ) +
+#     ggtitle("liftOver status:\n129S1-SvImJ to mm10") +
+#     ylab("") +
+#     xlab(chromosome) +
+#     theme(legend.title = element_blank()) +
+#     scale_y_continuous(labels = comma)
+# 
+# liftOver.CAST %>% ggplot(., aes(x = assembly, color = rname, fill = rname)) +
+#     geom_bar(
+#         alpha = 0.5,
+#         position = position_dodge2(preserve = "single"),
+#         width = 0.9
+#     ) +
+#     ggtitle("liftOver status:\nCAST-EiJ to mm10") +
+#     ylab("") +
+#     xlab(chromosome) +
+#     theme(legend.title = element_blank()) +
+#     scale_y_continuous(labels = comma)
+
+
+#  Examine what alignments were given what assignments ------------------------
+setwd(path.1)
+joint <- bind_rows(KA_GB.129S1, KA_GB.CAST, KA_GB.Ambiguous, KA_GB.NA)
+
+joint$assignment[is.na(joint$assignment)] <- "NA"
+joint$assignment <- joint$assignment %>%
+    as_factor() %>%
+    plyr::revalue(c("Neutral" = "Ambiguous"))
+
+#  Reorder trinary factor levels
+order_trinary <- c(
+    "010", "001", "011", "100", "110", "101", "111"
+)
+joint$trinary <- forcats::fct_relevel(joint$trinary, order_trinary)
+
+joint$trinary <- joint$trinary %>%
+    plyr::revalue(
+        c(
+            "010" = "129S1-SvImJ",
+            "001" = "CAST-EiJ",
+            "011" = "129S1-SvImJ, CAST-EiJ",
+            "100" = "mm10-N-masked",
+            "110" = "mm10-N-masked, 129S1-SvImJ",
+            "101" = "mm10-N-masked, CAST-EiJ",
+            "111" = "All"
+        )
+    )
+
+#  What are the numbers of assignments?
+ggplot(joint, aes(x = assignment)) +
+    geom_bar(alpha = 0.5) +
+    geom_text(
+        stat = "count",
+        aes(label = scales::comma(..count..)),
+        size = 3,
+        vjust = -0.5
+    ) +
+    ggtitle("What are the numbers of assignments?") +
+    ylab("") +
+    xlab(paste0("assignment, ", chromosome)) +
+    scale_y_continuous(labels = comma)
+
+#  What alignments comprise each assignment?
+#DONE Change the order of the levels
+ggplot(joint, aes(x = assignment, color = trinary, fill = trinary)) +
+    geom_bar(
+        alpha = 0.5,
+        position = position_dodge2(preserve = "single"),
+        width = 0.9
+    ) +
+    ggtitle("What alignments comprise each assignment?") +
+    ylab("") +
+    xlab(paste0("assignment, ", chromosome)) +
+    theme(legend.title = element_blank()) +
+    scale_y_continuous(labels = comma)
+
+
+#  Script is over; clean up the environment -----------------------------------
+rm(list = ls())
