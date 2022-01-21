@@ -7,13 +7,14 @@ library(tidyverse)
 options(pillar.sigfig = 8, scipen = 10000)
 
 
-#  Set up work directories (locations to be changed) --------------------------
+#  Set up work directory (locations TB∆) --------------------------------------
 directory_user <- "/Users/kalavattam"
 directory_base <- "Dropbox/My Mac (Kriss-MacBook-Pro.local)/Downloads/to-do"
 directory_work <- "get_unique_fragments/Bonora"
 
 path.1 <- paste0(directory_user, "/", directory_base, "/", directory_work)
 path.2 <- "segregatedReads.SNPTHRESH1.Q30"
+rm(directory_user, directory_base, directory_work)
 
 
 #  Set up functions -----------------------------------------------------------

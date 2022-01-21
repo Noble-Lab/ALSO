@@ -20,7 +20,7 @@ rm(directory_user, directory_base, directory_work)
 
 
 #  Script name ----------------------------------------------------------------
-script <- "test.PE-processing.2021-1221.2022-0106.part-1.R"
+script <- "test.PE-processing.2022-0117.mm10.part-1.R"
 
 
 #  Set up functions -----------------------------------------------------------
@@ -31,13 +31,16 @@ createTibbleFromTibbles <- function(vector_string_tibbles) {
     bind_rows(
         eval(parse(text = paste0(vector_string_tibbles)[1])),
         eval(parse(text = paste0(vector_string_tibbles)[2])),
-        eval(parse(text = paste0(vector_string_tibbles)[3])),
-        eval(parse(text = paste0(vector_string_tibbles)[4])),
-        eval(parse(text = paste0(vector_string_tibbles)[5])),
-        eval(parse(text = paste0(vector_string_tibbles)[6])),
-        eval(parse(text = paste0(vector_string_tibbles)[7])),
-        eval(parse(text = paste0(vector_string_tibbles)[8])),
-        eval(parse(text = paste0(vector_string_tibbles)[9]))
+        eval(parse(text = paste0(vector_string_tibbles)[3]))
+        # eval(parse(text = paste0(vector_string_tibbles)[1])),
+        # eval(parse(text = paste0(vector_string_tibbles)[2])),
+        # eval(parse(text = paste0(vector_string_tibbles)[3])),
+        # eval(parse(text = paste0(vector_string_tibbles)[4])),
+        # eval(parse(text = paste0(vector_string_tibbles)[5])),
+        # eval(parse(text = paste0(vector_string_tibbles)[6])),
+        # eval(parse(text = paste0(vector_string_tibbles)[7])),
+        # eval(parse(text = paste0(vector_string_tibbles)[8])),
+        # eval(parse(text = paste0(vector_string_tibbles)[9]))
     )
 }
 
@@ -103,20 +106,22 @@ testPosInMpos <- function(pos, mpos) {
 chromosome <- "chrX"
 
 file <- list.files(pattern = paste0("\\", chromosome, ".rmdup.bam$"))
-file <- file %>% stringr::str_subset("mm10\\.", negate = TRUE)
+file <- file %>% stringr::str_subset("mm10\\.", negate = FALSE)
 variable <- file %>%
-    strsplit(., "-") %>%
-    lapply(., `[[`, 1) %>% unlist() %>%
+    strsplit(., "\\.") %>%
+    lapply(., `[[`, 1) %>%
+    unlist() %>%
     paste0("dedup.", .)
 mapply(
     assign, variable, file, MoreArgs = list(envir = parent.frame())
 )
 
 file <- list.files(pattern = paste0("\\", chromosome, ".rmdup.bam.bai$"))
-file <- file %>% stringr::str_subset("mm10\\.", negate = TRUE)
+file <- file %>% stringr::str_subset("mm10\\.", negate = FALSE)
 index <- file %>%
-    strsplit(., "-") %>%
-    lapply(., `[[`, 1) %>% unlist() %>%
+    strsplit(., "\\.") %>%
+    lapply(., `[[`, 1) %>%
+    unlist() %>%
     paste0("index.", .)
 mapply(
     assign, index, file, MoreArgs = list(envir = parent.frame())

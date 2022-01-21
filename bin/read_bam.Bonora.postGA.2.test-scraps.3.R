@@ -7,17 +7,17 @@ library(tidyverse)
 options(pillar.sigfig = 8, scipen = 10000)
 
 
-# Set up work directory (location TB∆) ----------------------------------------
+#  Set up work directory (locations TB∆) --------------------------------------
 directory_user <- "/Users/kalavattam"
 directory_base <- "Dropbox/My Mac (Kriss-MacBook-Pro.local)/Downloads/to-do"
 directory_work <- "get_unique_fragments/Bonora"
 setwd(
     paste0(directory_user, "/", directory_base, "/", directory_work)
 )
-rm(directory_base, directory_work)
+rm(directory_user, directory_base, directory_work)
 
 
-# Set up functions ------------------------------------------------------------
+#  Set up functions -----------------------------------------------------------
 `%notin%` <- Negate(`%in%`)
 
 

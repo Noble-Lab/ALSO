@@ -14,7 +14,7 @@ options(pillar.sigfig = 8, scipen = 10000)
 set.seed(24)
 
 
-#  Set up work directories (locations to be changed) --------------------------
+#  Set up work directory (locations TB∆) --------------------------------------
 directory_user <- "/Users/kalavattam"
 directory_base <- "Dropbox/My Mac (Kriss-MacBook-Pro.local)/Downloads/to-do"
 directory_work <- "get_unique_fragments/Bonora"
@@ -24,8 +24,8 @@ setwd(
 )
 rm(directory_user, directory_base, directory_work)
 
-# -----------------------------------------------------------------------------
-#  Set up functions
+
+#  Set up functions -----------------------------------------------------------
 `%notin%` <- Negate(`%in%`)
 
 
@@ -377,7 +377,7 @@ j <- j %>% dplyr::rename(
 #TODO 2/2 back (to the preceding script, I think) to check on why/how this is
 
 
-# -----------------------------------------------------------------------------
+#  (Name of section TBD) ------------------------------------------------------
 j.assign <- j %>%
     dplyr::relocate(
         c(GB_assignment, KA_assignment), .before = AS.129S1
@@ -588,3 +588,7 @@ hist(
 # d.diff129S1_Ninserted <- sapply(
 #     row, diff129S1_lift, bam = bam, genome = MmusculusCAST129Inserted
 # )
+
+
+#  Script is completed; clean up environment ----------------------------------
+rm(list = ls())

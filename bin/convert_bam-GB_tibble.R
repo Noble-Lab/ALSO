@@ -16,17 +16,25 @@ for(i in packages) {
 rm(i, packages)
 
 
-# -----------------------------------------------------------------------------
+# Set up work directory (location TB∆) ----------------------------------------
+
 #  ...from read_bam.Bonora.4.R
+directory_user <- "/Users/kalavattam"
+directory_base <- "Dropbox/My Mac (Kriss-MacBook-Pro.local)/Downloads/to-do"
+directory_work <- "get_unique_fragments/Bonora/segregatedReads.SNPTHRESH1.Q30"
+setwd(
+    paste0(directory_user, "/", directory_base, "/", directory_work)
+)
+rm(directory_user, directory_base, directory_work)
 
-#  Temporary: Set up work directory (location TB∆)
-"/Users/kalavattam/Dropbox/My Mac (Kriss-MacBook-Pro.local)/Downloads/to-do/get_unique_fragments/Bonora/segregatedReads.SNPTHRESH1.Q30" %>% setwd()
-
-#  Files are from
-#+ /net/noble/vol2/home/gbonora/proj/2019_sciATAC_analysis/data/data_20191105_sciATAC_mouseDiff_Nmasked/segregatedReads.SNPTHRESH1.Q30
+#  Files are from...
+#+ /net/noble/vol2/home/gbonora/proj/2019_sciATAC_analysis/data/\
+#+ data_20191105_sciATAC_mouseDiff_Nmasked/segregatedReads.SNPTHRESH1.Q30
 #+ 
 #+ For more information, see the following script:
-#+ /net/noble/vol2/home/gbonora/proj/2019_sciATAC_analysis/results/gbonora/20191105_sciATAC_mouseDiff_Nmasked/20191105_sciATAC_mouseDiff_Nmasked_allelicSegregation_workflow.sh
+#+ /net/noble/vol2/home/gbonora/proj/2019_sciATAC_analysis/results/gbonora/\
+#+ 20191105_sciATAC_mouseDiff_Nmasked/\
+#+ 20191105_sciATAC_mouseDiff_Nmasked_allelicSegregation_workflow.sh
 
 
 #  Set up cluster -------------------------------------------------------------
@@ -50,13 +58,19 @@ file <- list.files(pattern = ".chr.")
 #  Run the pipeline, outputting .rds files for munged tibbles -----------------
 foreach::foreach(i = 1:length(file)) %dopar% {
     #  Assign .bam information as list
-    map_info <- c("qname", "flag", "rname", "strand", "pos", "mapq", "cigar", "mrnm", "mpos", "isize", "seq")
+    map_info <- c(
+        "qname", "flag", "rname", "strand", "pos", "mapq",
+        "cigar", "mrnm", "mpos", "isize", "seq"
+    )
     tag_info <- c("AS", "XS", "NM")
     map_params <- Rsamtools::ScanBamParam(what = map_info, tag = tag_info)
     intermediate <- Rsamtools::scanBam(file[i], param = map_params)
     
     #  Convert .bam information from list to dataframe to tibble
-    intermediate <- intermediate %>% as.data.frame() %>% tibble::as_tibble() %>% tibble::rowid_to_column("ID")
+    intermediate <- intermediate %>%
+        as.data.frame() %>%
+        tibble::as_tibble() %>%
+        tibble::rowid_to_column("ID")
     
     #  Reorder rname, mrnm factor levels
     chromosome <- c(paste0("chr", 1:19), "chrX", "chrY", "chrM")
@@ -84,18 +98,41 @@ foreach::foreach(i = 1:length(file)) %dopar% {
     #+ - Terminology change: "b_s" is now "read"
     #+ - Terminology change: "b_f" is now "coordinate"
     intermediate <- intermediate %>%
-        dplyr::relocate(pos_end, .after = pos) %>% dplyr::relocate(mpos_end, .after = mpos) %>%
+        dplyr::relocate(pos_end, .after = pos) %>%
+        dplyr::relocate(mpos_end, .after = mpos) %>%
         tidyr::unite(read, c("qname", "seq"), sep = "_", remove = FALSE) %>%
-        tidyr::unite(coordinate, c("qname", "rname", "pos", "pos_end"), sep = "_", remove = FALSE)
+        tidyr::unite(
+            coordinate,
+            c("qname", "rname", "pos", "pos_end"),
+            sep = "_",
+            remove = FALSE
+        )
     
     #  Order columns by coordinate, tag.AS, and mapq
-    intermediate <- intermediate[order(intermediate$coordinate, -intermediate$tag.AS, -intermediate$mapq), ]
+    intermediate <- intermediate[
+        order(
+            intermediate$coordinate,
+            -intermediate$tag.AS,
+            -intermediate$mapq
+        ), 
+    ]
     
     #  Save tibbles as compressed .rds files
-    name_prefix <- file[i] %>% strsplit(., "\\.") %>% lapply(., `[[`, 5) %>% unlist() %>% paste0("GB.", .)
-    name_suffix <- file[i] %>% strsplit(., "\\.") %>% lapply(., `[[`, 8) %>% unlist()
+    name_prefix <- file[i] %>%
+        strsplit(., "\\.") %>%
+        lapply(., `[[`, 5) %>%
+        unlist() %>%
+        paste0("GB.", .)
+    name_suffix <- file[i] %>%
+        strsplit(., "\\.") %>%
+        lapply(., `[[`, 8) %>%
+        unlist()
     name <- paste0(name_prefix, ".", name_suffix)
     saveRDS(intermediate, file = paste0(name, ".rds"), compress = TRUE)
 } %>% invisible()
 
 parallel::stopCluster(cl = cluster)
+
+
+#  Script is completed; clean up environment ----------------------------------
+rm(list = ls())

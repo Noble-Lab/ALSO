@@ -1,5 +1,14 @@
 #!/usr/bin/env Rscript
 
+#  This group handles deduplication of .rds files generated via
+#+ convert_bam-GB_tibble.R. First, it removes Picard MarkDuplicates flags.
+#+ Then, it remove duplicate rows based on $coordinate, a concatenation of
+#+ $qname, $rname, $pos, and $pos_end. Then, it jointly deduplicates
+#+ separate .rds files for each assignment from Giancarlo.
+
+#TODO Description to be continued.
+
+
 packages <- c(
     "Rsamtools",
     "tidyverse"
@@ -13,25 +22,32 @@ rm(i, packages)
 options(pillar.sigfig = 8, scipen = 10000)
 
 
-# Set up work directory (location TB∆) ----------------------------------------
+#  Set up work directory (locations TB∆) --------------------------------------
 directory_user <- "/Users/kalavattam"
 directory_base <- "Dropbox/My Mac (Kriss-MacBook-Pro.local)/Downloads/to-do"
 directory_work <- "get_unique_fragments/Bonora/segregatedReads.SNPTHRESH1.Q30"
 setwd(
     paste0(directory_user, "/", directory_base, "/", directory_work)
 )
-rm(directory_base, directory_work)
-
+rm(directory_user, directory_base, directory_work)
 
 #  Files are from...
-#+ /net/noble/vol2/home/gbonora/proj/2019_sciATAC_analysis/data/data_20191105_sciATAC_mouseDiff_Nmasked/segregatedReads.SNPTHRESH1.Q30
+#+ /net/noble/vol2/home/gbonora/proj/2019_sciATAC_analysis/data/\
+#+ data_20191105_sciATAC_mouseDiff_Nmasked/segregatedReads.SNPTHRESH1.Q30
 #+ 
 #+ For more information, see the following script:
-#+ /net/noble/vol2/home/gbonora/proj/2019_sciATAC_analysis/results/gbonora/20191105_sciATAC_mouseDiff_Nmasked/20191105_sciATAC_mouseDiff_Nmasked_allelicSegregation_workflow.sh
+#+ /net/noble/vol2/home/gbonora/proj/2019_sciATAC_analysis/results/gbonora/\
+#+ 20191105_sciATAC_mouseDiff_Nmasked/\
+#+ 20191105_sciATAC_mouseDiff_Nmasked_allelicSegregation_workflow.sh
 
 
 #  Set up functions -----------------------------------------------------------
 `%notin%` <- Negate(`%in%`)
+
+
+evaluateOperation <- function(operation = operation) {
+    return(eval(parse(text = operation), envir = .GlobalEnv))
+}
 
 
 loadRDS <- readRDS
@@ -40,11 +56,6 @@ loadRDS <- readRDS
 loadTibbleFromRDS <- function(variable, file) {
     command <- paste0(variable, " <- loadRDS(file = \"", file, "\")") %>% as.list()
     return(eval(parse(text = command), envir = globalenv()))
-}
-
-
-evaluateOperation <- function(operation = operation) {
-    return(eval(parse(text = operation), envir = .GlobalEnv))
 }
 
 
@@ -59,7 +70,6 @@ makeOperation <- function(variable, command) {
 #  Load tibbles (already sorted) from .rds files ------------------------------
 #+ 
 #+ .rds files come from convert_bam-GB_tibble.R
-
 chromosome <- "chrX"
 file <- list.files(pattern = paste0("\\.", chromosome, ".rds$"))
 variable <- file %>% gsub("\\.rds$", "", .) %>% str_subset(., "^GB")
@@ -402,7 +412,7 @@ j.2.same.mq_same.dedup <- j.2.same.mq_same %>%
 # rm(j.2.same.mq_same)
 
 
-# -----------------------------------------------------------------------------
+#  (Section name TBD) ---------------------------------------------------------
 dedup.joint.GB <- dplyr::bind_rows(
     j.nondup,
     j.2.diff.dedup,
@@ -455,7 +465,8 @@ evaluateOperation(operation)
 command <- paste0(
     "<- ", variable_dedup_joint, "[",
         "order(",
-            variable_dedup_joint, "$rname, ", variable_dedup_joint, "$pos), ",
+            variable_dedup_joint, "$rname, ", variable_dedup_joint, "$pos",
+        "), ",
     "]"
 )
 operation <- makeOperation(variable_dedup_joint, command)
@@ -475,4 +486,6 @@ evaluateOperation(command)
 
 # }
 
+
+#  Script is completed; clean up environment ----------------------------------
 rm(list = ls())

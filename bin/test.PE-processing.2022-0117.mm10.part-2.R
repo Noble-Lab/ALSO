@@ -18,12 +18,12 @@ rm(directory_user, directory_base, directory_work)
 
 
 #  Having run part 1 first, load part-1 .Rdata into environment ---------------
-load("test.PE-processing.2021-1221.2022-0106.part-1.Rdata")
+load("test.PE-processing.2022-0117.mm10.part-1.Rdata")
 #  Doing so loads in appropriate functions, variables, etc.
 
 
 #  Script name ----------------------------------------------------------------
-script <- "test.PE-processing.2021-1221.2022-0106.part-2.R"
+script <- "test.PE-processing.2022-0117.mm10.part-2.R"
 
 
 #  Add row numbers to sub.* tibbles -------------------------------------------
@@ -511,61 +511,61 @@ operation <- makeOperation(paste0("discrepancy.", variable), command)
 evaluateOperation(operation)
 
 
-#TODO Some automated way to do the following
-#  Manually correct filter.a.ambiguous.dedup.CAST -----------------------------
-filter.a.ambiguous.dedup.CAST[paste0("584", c(19, 20, 21, 22, 23, 24)), ] <-
-    discrepancy.filter.a.ambiguous.dedup.CAST
+# #TODO Some automated way to do the following
+# #  Manually correct filter.a.ambiguous.dedup.CAST -----------------------------
+# filter.a.ambiguous.dedup.CAST[paste0("584", c(19, 20, 21, 22, 23, 24)), ] <-
+#     discrepancy.filter.a.ambiguous.dedup.CAST
+# 
+# #  Check
+# filter.a.ambiguous.dedup.CAST[c(58419:58429), ]
+# filter.a.ambiguous.dedup.CAST$row_n[c(58419:58429)]
+# # [1] 58419 58420 58421 58424 58422 58423 58425 58426 58427 58428 58429
+# 
+# #  Re-label $row_n
+# filter.a.ambiguous.dedup.CAST$row_n <- seq.int(
+#     nrow(filter.a.ambiguous.dedup.CAST)
+# )
+# filter.a.ambiguous.dedup.CAST[c(58419:58429), ]
+# filter.a.ambiguous.dedup.CAST$row_n[c(58419:58429)]
+# # [1] 58419 58420 58421 58422 58423 58424 58425 58426 58427 58428 58429
 
-#  Check
-filter.a.ambiguous.dedup.CAST[c(58419:58429), ]
-filter.a.ambiguous.dedup.CAST$row_n[c(58419:58429)]
-# [1] 58419 58420 58421 58424 58422 58423 58425 58426 58427 58428 58429
 
-#  Re-label $row_n
-filter.a.ambiguous.dedup.CAST$row_n <- seq.int(
-    nrow(filter.a.ambiguous.dedup.CAST)
-)
-filter.a.ambiguous.dedup.CAST[c(58419:58429), ]
-filter.a.ambiguous.dedup.CAST$row_n[c(58419:58429)]
-# [1] 58419 58420 58421 58422 58423 58424 58425 58426 58427 58428 58429
-
-
-#  Correct filter.a.mated.dedup.129S1 -----------------------------------------
-desired_order <- paste0("343", c(79, 80, 81, 83, 82, 84))
-discrepancy.filter.a.mated.dedup.129S1.adjust <-
-    discrepancy.filter.a.mated.dedup.129S1 %>%
-        dplyr::mutate(row_n = factor(row_n, levels = desired_order)) %>%
-        dplyr::arrange(row_n)
-discrepancy.filter.a.mated.dedup.129S1.adjust$row_n
-
-discrepancy.filter.a.mated.dedup.129S1.adjust$row_n <-
-    discrepancy.filter.a.mated.dedup.129S1.adjust$row_n %>%
-        as.character() %>%
-        as.integer()
-
-filter.a.mated.dedup.129S1[discrepancy.filter.a.mated.dedup.129S1$row_n, ] <-
-    discrepancy.filter.a.mated.dedup.129S1.adjust
-
-discrepancy.filter.a.mated.dedup.129S1 <-
-    discrepancy.filter.a.mated.dedup.129S1.adjust
-
-#  Check
-filter.a.mated.dedup.129S1[c(34379:34389), ]
-filter.a.mated.dedup.129S1$row_n[c(34379:34389)]
-# [1] 34379 34380 34381 34383 34382 34384 34385 34386 34387 34388 34389
-
-#  Re-label $row_n
-filter.a.mated.dedup.129S1$row_n <- seq.int(
-    nrow(filter.a.mated.dedup.129S1)
-)
-
-#  Check
-filter.a.mated.dedup.129S1[c(34379:34389), ]
-filter.a.mated.dedup.129S1$row_n[c(34379:34389)]
-# [1] 34379 34380 34381 34382 34383 34384 34385 34386 34387 34388 34389
-
-#  Remove unneeded variables
-rm(desired_order, discrepancy.filter.a.mated.dedup.129S1.adjust)
+# #  Correct filter.a.mated.dedup.129S1 -----------------------------------------
+# desired_order <- paste0("343", c(79, 80, 81, 83, 82, 84))
+# discrepancy.filter.a.mated.dedup.129S1.adjust <-
+#     discrepancy.filter.a.mated.dedup.129S1 %>%
+#     dplyr::mutate(row_n = factor(row_n, levels = desired_order)) %>%
+#     dplyr::arrange(row_n)
+# discrepancy.filter.a.mated.dedup.129S1.adjust$row_n
+# 
+# discrepancy.filter.a.mated.dedup.129S1.adjust$row_n <-
+#     discrepancy.filter.a.mated.dedup.129S1.adjust$row_n %>%
+#     as.character() %>%
+#     as.integer()
+# 
+# filter.a.mated.dedup.129S1[discrepancy.filter.a.mated.dedup.129S1$row_n, ] <-
+#     discrepancy.filter.a.mated.dedup.129S1.adjust
+# 
+# discrepancy.filter.a.mated.dedup.129S1 <-
+#     discrepancy.filter.a.mated.dedup.129S1.adjust
+# 
+# #  Check
+# filter.a.mated.dedup.129S1[c(34379:34389), ]
+# filter.a.mated.dedup.129S1$row_n[c(34379:34389)]
+# # [1] 34379 34380 34381 34383 34382 34384 34385 34386 34387 34388 34389
+# 
+# #  Re-label $row_n
+# filter.a.mated.dedup.129S1$row_n <- seq.int(
+#     nrow(filter.a.mated.dedup.129S1)
+# )
+# 
+# #  Check
+# filter.a.mated.dedup.129S1[c(34379:34389), ]
+# filter.a.mated.dedup.129S1$row_n[c(34379:34389)]
+# # [1] 34379 34380 34381 34382 34383 34384 34385 34386 34387 34388 34389
+# 
+# #  Remove unneeded variables
+# rm(desired_order, discrepancy.filter.a.mated.dedup.129S1.adjust)
 
 
 #  Clean up unneeded variables before setting up new ones ---------------------
@@ -761,15 +761,15 @@ rm(
 )
 
 command <- paste0("rm(",
-    paste0("z.check.", c(
-        "0.change", "0.equal",
-        "1.MIP", "1.PIM",
-        "2.PeqM", "2.PgtM", "2.PltM",
-        "sub.0.MIP", "sub.0.PIM", "sub.1.VMP", "sub.2.VA",
-        "filter.1.VMP", "filter.2.VA",
-        "adjust.1.VMP", "adjust.2.VA"
-    )),
-")")
+                      paste0("z.check.", c(
+                          "0.change", "0.equal",
+                          "1.MIP", "1.PIM",
+                          "2.PeqM", "2.PgtM", "2.PltM",
+                          "sub.0.MIP", "sub.0.PIM", "sub.1.VMP", "sub.2.VA",
+                          "filter.1.VMP", "filter.2.VA",
+                          "adjust.1.VMP", "adjust.2.VA"
+                      )),
+                  ")")
 evaluateOperation(command)
 
 
@@ -806,6 +806,7 @@ for (i in 1:length(variable)) {
     n_occur <- data.frame(table(eval(parse(text = variable[i]))$groupid_2))
     print(n_occur[n_occur$Freq > 2, ])
 }
+rm(i)
 
 rm(df, odd, odd.seq, even, n_occur)
 
@@ -818,12 +819,6 @@ bindRows <- function(tbl) {
     )
 }
 
-tbl <- stringr::str_subset(variable, "129S1")
-tbl.129S1 <- bindRows(tbl)
-
-tbl <- stringr::str_subset(variable, "CAST")
-tbl.CAST <- bindRows(tbl)
-
 tbl <- stringr::str_subset(variable, "mm10")
 tbl.mm10 <- bindRows(tbl)
 
@@ -832,7 +827,7 @@ rm(tbl, bindRows)
 
 
 #  Generate groupid.* variables for combination mated/ambiguous tibbles -------
-variable_tbl <- paste0("tbl.", c("129S1", "CAST", "mm10"))
+variable_tbl <- paste0("tbl.", "mm10")
 
 for (i in 1:length(variable_tbl)) {
     #  Assign tibble of interest to variable 'df'

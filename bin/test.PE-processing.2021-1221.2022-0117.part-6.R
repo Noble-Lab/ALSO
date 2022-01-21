@@ -10,22 +10,13 @@ library(MmusculusCAST129Inserted)
 library(Mmusculus129Nmasked)
 library(MmusculusCASTNmasked)
 library(MmusculusCAST129Nmasked)
+library(magrittr)
 library(pheatmap)
 library(Rsamtools)
 library(scales)
 library(tidyverse)
 
 options(pillar.sigfig = 8, scipen = 10000)
-
-
-#  Set up work directory (locations TB∆) --------------------------------------
-directory_user <- "/Users/kalavattam"
-directory_base <- "Dropbox/My Mac (Kriss-MacBook-Pro.local)/Downloads/to-do"
-directory_work <- "get_unique_fragments/Bonora"
-
-path.1 <- paste0(directory_user, "/", directory_base, "/", directory_work)
-path.2 <- "segregated_reads.thresh_SNP_1.thresh_Q_30"
-rm(directory_user, directory_base, directory_work)
 
 
 #  Set up functions -----------------------------------------------------------
@@ -59,6 +50,24 @@ makeOperation <- function(variable, command) {
 }
 
 
+#  Set up work directory, etc. (locations TB∆) --------------------------------
+directory_user <- "/Users/kalavattam"
+directory_project <- "Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross"
+directory_bam <- "results/kga0/2022-0121_segregated_reads.thresh_SNP_1.thresh_Q_30"
+directory_data <- "data/kga0"
+path.1 <- paste0(directory_user, "/", directory_project)
+path.2 <- paste0(directory_bam)
+path.3 <- paste0(directory_data)
+
+rm(directory_bam, directory_data, directory_project, directory_user)
+
+setwd(paste0(path.1))
+
+
+#  Script name ----------------------------------------------------------------
+script <- "test.PE-processing.2021-1221.2022-0117.part-5.R"
+
+
 #  Set up what to query from .bam files ---------------------------------------
 map_info <- c(
     "qname", "flag", "rname", "pos", "mapq", "cigar",
@@ -68,16 +77,12 @@ map_params <- Rsamtools::ScanBamParam(what = map_info)
 
 
 #  Munge the KA-generated GB .bam files ---------------------------------------
-paste0(path.1, "/", path.2) %>% setwd()
+setwd(paste0(path.1, "/", path.2))
 
 # chromosome <- "chr1"
 chromosome <- "chrX"
 
-search <- paste0("segregated_reads\\.", ".*\\.", chromosome, ".*\\.bam$")
-file <- c(list.files(path = ".", pattern = search))
-# variable_GB <- file %>%
-#     gsub("\\.bam$", "", .) %>%
-#     gsub("segregated_reads.thresh_SNP_1.thresh_Q_30.", "", .)
+file <- list.files(pattern = "\\.bam")
 variable_GB <- c(
     "GB.alt.CAST",
     "GB.ambig",
@@ -89,7 +94,6 @@ variable_GB <- c(
 mapply(
     assign, variable_GB, file, MoreArgs = list(envir = parent.frame())
 )
-#NOTE Remember, "alt" is "CAST", "ref" is "129"
 
 
 #  Assign .bam information as list --------------------------------------------
@@ -111,21 +115,6 @@ command <- paste0(
 )
 operation <- makeOperation(variable_GB, command)
 evaluateOperation(operation)
-
-
-# #  Removal of Picard MarkDuplicates flags -------------------------------------
-# GB.ambig$flag %>% table()
-# .
-#    83    99   147   163 
-# 46154 46470 46339 46081
-
-# duplicate_flags <- c(1107, 1123, 1171, 1187)
-# command <- paste0(
-#     "<- ", variable_GB, " %>% ",
-#         "dplyr::filter(flag %notin% duplicate_flags)"
-# )
-# operation <- makeOperation(variable_GB, command)
-# evaluateOperation(operation)
 
 
 #  Reorder rname factor levels ------------------------------------------------
@@ -172,72 +161,20 @@ operation <- makeOperation(variable_GB, command)
 evaluateOperation(operation)
 
 
-#  Order columns by coordinate, tag.AS, and mapq ------------------------------
-command <- paste0(
-    # "<- ", variable_GB, "[",
-    #     "order(",
-    #         variable_GB, "$qname, ",
-    #         variable_GB, "$rname, ",
-    #         variable_GB, "$pos, ",
-    #         variable_GB, "$mpos, ",
-    #         "-", variable_GB, "$AS, ",
-    #         "-", variable_GB, "$mapq",
-    #     "), ",
-    # "]"
-    "<- ", variable_GB, "[",
-        "order(",
-            variable_GB, "$qname, ",
-            variable_GB, "$rname, ",
-            variable_GB, "$pos, ",
-            variable_GB, "$mpos, ",
-            "-", variable_GB, "$mapq",
-        "), ",
-    "]"
-)
-operation <- makeOperation(variable_GB, command)
-evaluateOperation(operation)
-
-
 #  Create a "temporary tag" for use in distinguishing entries
 command <- paste0(
     "<- ", variable_GB, " %>% ",
         "tidyr::unite(",
             "coordinate, ",
-            "c(\"qname\", \"rname\", \"pos\", \"pos_end\"), ",
+            "c(\"qname\", \"rname\", \"pos\"), ",
+            # "c(\"qname\", \"rname\", \"pos\", \"pos_end\"), ",
             "sep = \"_\", ",
             "remove = FALSE",
         ") %>% ",
-        "dplyr::relocate(coordinate, .before = qname)"
+            "dplyr::relocate(coordinate, .before = qname)"
 )
 operation <- makeOperation(variable_GB, command)
 evaluateOperation(operation)
-
-
-# #  Based on coordinate value, identify if a given row is a duplicate ----------
-# command <- paste0(
-#     "<- ave(",
-#         variable_GB, "$coordinate, ",
-#         variable_GB, "$coordinate, FUN = length",
-#     ") > 1L"
-# )
-# operation <- makeOperation(paste0(variable_GB, "$duplicated"), command)
-# evaluateOperation(operation)
-
-# GB.alt.CAST$duplicated %>% as_factor() %>% table()
-# GB.ref.129S1$duplicated %>% as_factor() %>% table()
-# GB.ambig$duplicated %>% as_factor() %>% table()
-# GB.contra$duplicated %>% as_factor() %>% table()
-# #  No duplicates!
-
-
-# #  Filter out all rows without unique coordinates -----------------------------
-# command <- paste0(
-#     "<- ", variable_GB, " %>% ",
-#         "dplyr::distinct(coordinate, .keep_all = TRUE)"
-# )
-# operation <- makeOperation(variable_GB, command)
-# evaluateOperation(operation)
-# #  No changes!
 
 
 #  Assignments and then smart join of GB tibbles ------------------------------
@@ -259,31 +196,108 @@ colnames(joint.GB)[colnames(joint.GB) %>% length()] <- "assignment_GB"
 
 
 #  Load in the "KA assignments" -----------------------------------------------
-path.1 %>% setwd()
+setwd(paste0(path.1, "/", path.3))
+
+#  Having run part 5 first, load part-5 .Rdata into environment
+load("test.PE-processing.2021-1221.2022-0117.part-5.Rdata")
 
 # chromosome <- "chr1"
 chromosome <- "chrX"
 
-search <- paste0("\\.", chromosome, ".rds$")
-file <- c(list.files(path = ".", pattern = search))
-# variable_KA <- file %>% gsub("\\.rds$", "", .)
+
+#  Create factor levels for NA entries ----------------------------------------
+AS.pmin$assignment <- AS.pmin$assignment %>% as.character()
+AS.pmin$assignment[is.na(AS.pmin$assignment)] <- "NA"
+AS.pmin$assignment <- AS.pmin$assignment %>% forcats::as_factor()
+AS.pmin$assignment %>% levels()
+
+AS.pmin$assignment <- AS.pmin$assignment %>% plyr::revalue(
+    c("Neutral" = "Ambiguous")
+)
+
+#  Deconcatenate the AS.pmin tibble -------------------------------------------
+df <- AS.pmin %>%
+    dplyr::select(
+        -trinary, -trinary.r,
+        -assignment_trinary, -assignment_trinary.r
+    )
+
+df <- df %>% dplyr::mutate(
+    AS.mm10.odd = AS.mm10,
+    AS.129S1.odd = AS.129S1,
+    AS.CAST.odd = AS.CAST,
+    assignment.odd = assignment,
+    AS.mm10.even = AS.mm10,
+    AS.129S1.even = AS.129S1,
+    AS.CAST.even = AS.CAST,
+    assignment.even = assignment
+) %>%
+    dplyr::select(-AS.mm10, -AS.129S1, -AS.CAST, -assignment)
+
+#  Split the uniline tibbles by odd or even status
+odd <- df[stringr::str_subset(colnames(df), "\\.odd")]
+even <- df[stringr::str_subset(colnames(df), "\\.even")]
+
+#  Strip suffixes from column names
+colnames(odd) <- str_replace_all(colnames(odd), "\\.odd", "")
+colnames(even) <- str_replace_all(colnames(even), "\\.even", "")
+
+#  Odd tibble is tibble #1, even tibble is tibble #2
+odd$tibble <- "1"
+even$tibble <- "2"
+
+#  Again, interleave the odd/even rows, then arrange them by group ID and
+#+ tibble number; save results to initial "tbl.*" variables
+command <- paste0(
+    "<- odd %>%",
+        "dplyr::mutate(groupid = row_number()) %>% ",
+        "dplyr::bind_rows(even %>% mutate(groupid = row_number())) %>% ",
+        "dplyr::arrange(groupid, tibble) %>% ",
+        "dplyr::select(-tibble)"
+)
+operation <- makeOperation(paste0("AS.pmin"), command)
+evaluateOperation(operation)
+
+# #  Again, check to make sure that there are no more than two entries per
+# #+ group ID
+# n_occur <- data.frame(table(eval(parse(text = paste0("AS.pmin")))$groupid))
+# print(n_occur[n_occur$Freq > 2, ])
+
+#  Clean up
+rm(df, n_occur, even, odd)
+
+AS.pmin.split <- AS.pmin %>%
+    dplyr::group_by(assignment) %>%
+    dplyr::group_split()
+# [[1]]  NA
+# A tibble: 13,856 x 6
+# [[2]] Neutral
+# A tibble: 139,840 x 6
+# [[3]] 129S1-SvImJ
+# A tibble: 50,460 x 6
+# [[4]] CAST-EiJ
+# A tibble: 47,726 x 6
+
 variable_KA <- c(
-    "KA.129S1",
-    "KA.CAST",
     "KA.NA",
-    "KA.Ambiguous"
+    "KA.Ambiguous",
+    "KA.129S1",
+    "KA.CAST"
 )
-
-#  Check that the correct files will be assigned to the correct variables
-mapply(
-    assign, variable_KA, file, MoreArgs = list(envir = parent.frame())
-)
-
-loadTibbleFromRDS(variable = variable_KA, file = file)
+KA.NA <- AS.pmin.split[[1]]
+KA.Ambiguous <- AS.pmin.split[[2]]
+KA.129S1 <- AS.pmin.split[[3]]
+KA.CAST <- AS.pmin.split[[4]]
 
 
-#  Munge the "KA assignments" in preparation for... ---------------------------
-KA.NA$assignment[is.na(KA.NA$assignment)] <- "NA"
+#  Join the KA and GB data sets -----------------------------------------------
+
+#  Strip the final field from GB.*$coordinate (to match KA.*$coordinate)
+GB.alt.CAST$coordinate <- gsub('(.*)_\\w+', '\\1', GB.alt.CAST$coordinate)
+GB.ambig$coordinate <- gsub('(.*)_\\w+', '\\1', GB.ambig$coordinate)
+GB.contra$coordinate <- gsub('(.*)_\\w+', '\\1', GB.contra$coordinate)
+GB.ref.129S1$coordinate <- gsub('(.*)_\\w+', '\\1', GB.ref.129S1$coordinate)
+joint.GB$coordinate <- gsub('(.*)_\\w+', '\\1', joint.GB$coordinate)
 
 variable_joint <- variable_KA %>%
     strsplit(., "\\.") %>%
@@ -402,7 +416,7 @@ for (i in 1:length(variable_joint)) {
 order_intersection <- c("1000", "0100", "0010", "0001", "0000")
 command <- paste0(
     "<- ", "forcats::fct_relevel(",
-    variable_joint, "$GB_intersection, order_intersection",
+        variable_joint, "$GB_intersection, order_intersection",
     ")"
 )
 operation <- makeOperation(
@@ -994,7 +1008,7 @@ diffNinserted <- function(bam, row, genome = MmusculusCAST129Inserted) {
 
 
 #  Set up liftOver chains -----------------------------------------------------
-liftover_directory <- "../../2021-1105-1107/liftOver"
+liftover_directory <- "liftOver"
 
 #  129S1
 chain_129S1_to_mm10 <- paste0(
@@ -1055,18 +1069,27 @@ j <- dplyr::bind_rows(KA_GB.129S1, KA_GB.CAST, KA_GB.Ambiguous, KA_GB.NA)
 #  Check on the number of GB.* entries in the join
 j$GB_assignment.1 %>% table()
 # .
-# GB.129S1   GB.Ambiguous        GB.CAST      GB.Contra GB.not_present 
-#    29070         185044          32636             50          41335
+#       GB.129S1   GB.Ambiguous        GB.CAST      GB.Contra GB.not_present 
+#          32680         171106          30817             20          17259
 #  It checks out...
 
 j$GB_assignment.2 %>% table()
 # .
-# GB.129S1        GB.CAST   GB.Ambiguous      GB.Contra GB.Not_present 
-#    29070          32636         185044             50          41335
+#       GB.129S1        GB.CAST   GB.Ambiguous      GB.Contra GB.Not_present 
+#          32680          30817         171106             20          17259
 #  It checks out...
 
+j$KA_assignment <- j$KA_assignment %>%
+    plyr::revalue(
+        c("Ambiguous" = "KA.Ambiguous")
+    )
+j$KA_assignment %>% table()
+# .
+#        KA.NA KA.Ambiguous     KA.129S1      KA.CAST 
+#        13856       139840        50460        47726
+
 j <- j %>% dplyr::rename(
-    c(GB_assignment = GB_assignment.2)
+        c(GB_assignment = GB_assignment.2)
     ) %>%  # new_name = old_name
     dplyr::select(sort(dplyr::current_vars())) %>%
     dplyr::select(
@@ -1089,15 +1112,15 @@ j.assign
 #  Indices beginning with KA.Ambiguous: [[11:15]]
 #+ - 11: KA.Ambiguous × GB.Ambiguous
 #+ - 12: KA.Ambiguous × GB.129S1
-#+ - 13: KA.Ambiguous × GB.CAST
-#+ - 14: KA.Ambiguous × GB.Not_present
-#+ - 15: KA.Ambiguous × GB.Contra
+#+ - 13: KA.Ambiguous × GB.Not_present
+#+ - 14: KA.Ambiguous × GB.Contra
+#+ - 15: KA.Ambiguous × GB.CAST
 
 #  Indices beginning with GB.Ambiguous: [[3, 8, 11, 18]]
-#+ - 03: GB.Ambiguous × KA.129S1
-#+ - 08: GB.Ambiguous × KA.CAST
+#+ - 01: GB.Ambiguous × KA.129S1
+#+ - 07: GB.Ambiguous × KA.CAST
 #+ - 11: GB.Ambiguous × KA.Ambiguous
-#+ - 17: GB.Ambiguous × KA.NA
+#+ - 16: GB.Ambiguous × KA.NA
 
 
 #  ----------------------------------------------------------------------------
@@ -1111,7 +1134,7 @@ bam <- j.assign[[12]] %>% dplyr::select(sort(dplyr::current_vars()))
 # bam <- j.assign[[2]] %>% dplyr::select(sort(dplyr::current_vars()))
 
 bam <- bam %>%
-    dplyr::arrange(rname.liftOver_129S1_mm10, pos.liftOver_129S1_mm10) %>%
+    # dplyr::arrange(rname.liftOver_129S1_mm10, pos.liftOver_129S1_mm10) %>%
     dplyr::rename(c(AS.Nmasked = AS.mm10)) %>%  # new_name = old_name
     dplyr::select(-tidyselect::contains(c("CAST", ".mm10"))) %>%
     tibble::rowid_to_column() %>%
@@ -1121,9 +1144,19 @@ bam <- bam %>%
 # bam.bak <- bam
 bam <- bam.bak
 
-bam <- bam[sample(1:nrow(bam), 500, replace = FALSE), ]  # If commented out, then process all observations in tibble
+bam <- bam[
+    sample(
+        1:nrow(bam),
+        if (nrow(bam) < 500) {
+            nrow(bam)
+        } else {
+            500
+        },
+        replace = FALSE
+    ), 
+]  # If commented out, then process all observations in tibble
 bam <- bam %>%
-    dplyr::arrange(rname.liftOver_129S1_mm10, pos.liftOver_129S1_mm10) %>%
+    # dplyr::arrange(rname.liftOver_129S1_mm10, pos.liftOver_129S1_mm10) %>%
     tibble::rowid_to_column() %>%
     dplyr::rename(ID.post_sample = rowid)
 
@@ -1189,186 +1222,3 @@ paste0(
 ) %>% 
     cat()
 
-
-#  Test differences -----------------------------------------------------------
-d.diff129S1 <- sapply(
-    row, diff129S1, bam = bam
-)
-d.diffNmasked <- sapply(
-    row, diffNmasked, bam = bam
-)
-d.diffNinserted <- sapply(
-    row, diffNinserted, bam = bam
-)
-
-#  Find the largest number of differences across the three vectors
-int <- max(c(d.diff129S1, d.diffNmasked, d.diffNinserted))
-
-#  hist(...) uses right-closed intervals by default. To separate 0 from 1,
-#+ set the 'right' argument to FALSE.
-#+ 
-#+ See stackoverflow.com/questions/24332534/r-hist-function-aggregates-zero-and-1-values-into-one-bin
-hist(
-    d.diff129S1,
-    breaks = int,
-    main = "129S1/SvImJ",
-    xlab = "differences",
-    right = FALSE
-)
-hist(
-    d.diffNmasked,
-    breaks = int,
-    main = "mm10, N-masked",
-    xlab = "differences",
-    right = FALSE
-)
-hist(
-    d.diffNinserted,
-    breaks = int,
-    main = "mm10, N-inserted",
-    xlab = "differences",
-    right = FALSE
-)
-
-# d.diff129S1_Nmasked <- sapply(
-#     row, diff129S1_lift, bam = bam, genome = MmusculusCAST129Nmasked
-# )
-# d.diff129S1_Ninserted <- sapply(
-#     row, diff129S1_lift, bam = bam, genome = MmusculusCAST129Inserted
-# )
-
-
-#  ----------------------------------------------------------------------------
-#  13. KA.Ambiguous × GB.CAST
-# bam <- j.assign[[13]] %>% dplyr::select(sort(dplyr::current_vars()))
-
-#  08. GB.Ambiguous × KA.CAST
-# bam <- j.assign[[8]] %>% dplyr::select(sort(dplyr::current_vars()))
-
-#  06. GB.CAST × KA.CAST
-bam <- j.assign[[6]] %>% dplyr::select(sort(dplyr::current_vars()))
-
-bam <- bam %>%
-    dplyr::arrange(rname.liftOver_129S1_mm10, pos.liftOver_129S1_mm10) %>%
-    dplyr::rename(c(AS.Nmasked = AS.mm10)) %>%  # new_name = old_name
-    dplyr::select(-tidyselect::contains(c("129S1", ".mm10"))) %>%
-    tibble::rowid_to_column() %>%
-    dplyr::rename(ID = rowid)  # new_name = old_name
-
-#  Back-ups for testing...
-# bam.bak <- bam
-bam <- bam.bak
-
-#  If the below line is commented out, then process all observations in tibble
-bam <- bam[sample(1:nrow(bam), 500, replace = FALSE), ]
-bam <- bam %>%
-    dplyr::arrange(rname.liftOver_CAST_mm10, pos.liftOver_CAST_mm10) %>%
-    tibble::rowid_to_column() %>%
-    dplyr::rename(ID.post_sample = rowid)
-
-row <- bam$ID.post_sample %>% as.double()
-
-
-#  Test comparisons -----------------------------------------------------------
-c.compCAST <- sapply(
-    row, compCAST, bam = bam
-)
-
-c.compNmasked <- sapply(
-    row, compNmasked, bam = bam
-)
-c.compNinserted <- sapply(
-    row, compNinserted, bam = bam
-)
-
-# c.compCAST_Nmasked <- sapply(
-#     row, compCAST_lift, bam = bam, genome = MmusculusCAST129Nmasked
-# )
-# c.compCAST_Ninserted <- sapply(
-#     row, compCAST_lift, bam = bam, genome = MmusculusCAST129Inserted
-# )
-
-
-# -----------------
-#  c.compCAST vs. c.compNmasked vs. c.compNinserted
-#  Direct comparisonss
-c.compCAST %>% paste0("\n\n", .) %>% cat()
-c.compNmasked %>% paste0("\n\n", .) %>% cat()
-c.compNinserted %>% paste0("\n\n", .) %>% cat()
-
-#  Number of differences (vs. *Nmasked)
-c.compCAST[c.compCAST != c.compNmasked] %>% paste0("\n\n", .) %>% cat()
-c.compNmasked[c.compCAST != c.compNmasked] %>% paste0("\n\n", .) %>% cat()
-
-#  Number of differences (vs. *N-inserted)
-c.compCAST[c.compCAST != c.compNinserted] %>% paste0("\n\n", .) %>% cat()
-c.compNinserted[c.compCAST != c.compNinserted] %>% paste0("\n\n", .) %>% cat()
-
-#  Number of differences (w/r/t *Nmasked)
-c.compCAST[c.compCAST != c.compNmasked] %>% paste0("\n\n", .) %>% cat()
-c.compNmasked[c.compCAST != c.compNmasked] %>% paste0("\n\n", .) %>% cat()
-c.compNinserted[c.compCAST != c.compNmasked] %>% paste0("\n\n", .) %>% cat()
-
-
-paste0(
-    "\n\n# ----------------------------------------------------\n",
-    "mm10 assembly, N-masked at sites of 129S1-SvImJ and CAST-EiJ SNPs;",
-    "\ncoordinates selected by GB's approach\n",
-    "# ----------------------\n",
-    c.compNmasked[c.compCAST != c.compNmasked],
-    "\n\nmm10 assembly, 129S1-SvImJ and CAST-EiJ SNPs inserted;",
-    "\ncoordinates selected by GB's approach\n",
-    "# ----------------------\n",
-    c.compNinserted[c.compCAST != c.compNmasked],
-    "\n\nCAST-EiJ assembly;",
-    "\ncoordinates selected by KA's approach\n",
-    "# ----------------------\n",
-    c.compCAST[c.compCAST != c.compNmasked],
-    "\n\n"
-) %>% 
-    cat()
-
-paste0(
-    "\n\n# ----------------------------------------------------\n",
-    "mm10 assembly, N-masked at sites of 129S1-SvImJ and CAST-EiJ SNPs;",
-    "\ncoordinates selected by GB's approach\n",
-    "# ----------------------\n",
-    c.compNmasked[20],
-    "\n\nmm10 assembly, 129S1-SvImJ and CAST-EiJ SNPs inserted;",
-    "\ncoordinates selected by GB's approach\n",
-    "# ----------------------\n",
-    c.compNinserted[20],
-    "\n\nCAST-EiJ assembly;",
-    "\ncoordinates selected by KA's approach\n",
-    "# ----------------------\n",
-    c.compCAST[20],
-    "\n\n"
-) %>% 
-    cat()
-
-
-#  Test differences -----------------------------------------------------------
-d.diffCAST <- sapply(
-    row, diffCAST, bam = bam
-)
-d.diffNmasked <- sapply(
-    row, diffNmasked, bam = bam
-)
-d.diffNinserted <- sapply(
-    row, diffNinserted, bam = bam
-)
-
-hist(d.diffCAST, breaks = 6, xlab = "differences")
-hist(d.diffNmasked, breaks = 6, xlab = "differences")
-hist(d.diffNinserted, breaks = 6, xlab = "differences")
-
-# d.diffCAST_Nmasked <- sapply(
-#     row, diffCAST_lift, bam = bam, genome = MmusculusCAST129Nmasked
-# )
-# d.diffCAST_Ninserted <- sapply(
-#     row, diffCAST_lift, bam = bam, genome = MmusculusCAST129Inserted
-# )
-
-
-#  Script is finished; clean up the environment -------------------------------
-rm(list = ls())
