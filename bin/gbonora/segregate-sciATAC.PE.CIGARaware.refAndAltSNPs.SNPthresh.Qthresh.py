@@ -28,7 +28,8 @@ USAGE = """USAGE: ~.py <*.bam> ...
 
 #############################################################################
 # Used to take the complement of a string.
-complement = string.maketrans('ATCGN', 'TAGCN')
+# complement = string.maketrans('ATCGN', 'TAGCN')  # GB original
+complement = str.maketrans('ATCGN', 'TAGCN')  # KA
 
 def reverseComplement(sequence):
     return sequence.upper().translate(complement)[::-1]
@@ -72,7 +73,8 @@ Qthresh = int(sys.argv[6])
 
 # Read the ref SNP file into a dictionary.
 refsnps = {}  # key = (chrom, position), value = (ref allele, alt allele)
-refsnpFile = gzip.open(refsnpFileName, "r")
+# refsnpFile = gzip.open(refsnpFileName, "r")  # GB original
+refsnpFile = gzip.open(refsnpFileName, "rt")  # KA
 # tally=0
 for line in refsnpFile:
     if (line[0] == '#'):
@@ -92,7 +94,8 @@ sys.stderr.write("Read %d SNPs from %s.\n" % (len(refsnps), refsnpFileName))
 
 # Read the alt SNP file into a dictionary.
 altsnps = {}  # key = (chrom, position), value = (ref allele, alt allele)
-altsnpFile = gzip.open(altsnpFileName, "r")
+# altsnpFile = gzip.open(altsnpFileName, "r")  # GB original
+altsnpFile = gzip.open(altsnpFileName, "rt")  # KA
 # tally=0
 for line in altsnpFile:
     if (line[0] == '#'):
@@ -180,7 +183,8 @@ while True:
     readSAMLine = process.stdout.readline()
     if not readSAMLine: break
     readSAMLine = readSAMLine.strip()
-    readLine = inputStream.next()
+    # readLine = inputStream.next()  # GB original
+    readLine = next(inputStream)  # KA, 2-to-3
     lineNumber += 1
 
     # Skip header lines.
@@ -191,35 +195,41 @@ while True:
         contraFile.write(readSAMLine)
         continue
 
-    # Read in mate pair
+  # Read in mate pair
     readSAMLinePE = process.stdout.readline()
     readSAMLinePE = readSAMLinePE.strip()
-    readLinePE = inputStream.next()
+    # readLinePE = inputStream.next()  # GB original
+    readLinePE = next(inputStream)  # KA, 2-to-3
     lineNumber += 1
     readPairTally += 1
-    # sys.stderr.write("\n~~~\n%d:\t%s\n"% (lineNumber, readSAMLine))
-    # sys.stderr.write("%d:\t%s\n"% (lineNumber, readSAMLinePE))
-    # sys.stderr.write("~~~\n%d:\t%s\n"% (lineNumber, readLine))
-    # sys.stderr.write("%d:\t%s\n"% (lineNumber, readLinePE))
+    # sys.stderr.write("\n~~~\n%d:\t%s\n"% (lineNumber, readSAMLine))  # KA, Temporarily unhashed
+    # sys.stderr.write("%d:\t%s\n"% (lineNumber, readSAMLinePE))  # KA, Temporarily unhashed
+    # sys.stderr.write("~~~\n%d:\t%s\n"% (lineNumber, readLine))  # KA, Temporarily unhashed
+    # sys.stderr.write("%d:\t%s\n"% (lineNumber, readLinePE))  # KA, Temporarily unhashed
 
     # Verify that we have the right number of fields.
-    readWords = readSAMLine.split("\t")
+    # readWords = readSAMLine.split(b"\t")  # GB original
+    # readWords = readSAMLine.split(b"\t")  # KA 1
+    readWords = readSAMLine.decode().split("\t")  # KA 2
     if (len(readWords) < 11):
         sys.stderr.write("Error parsing line %d from %s.\n%s"
                          % (lineNumber, sciATACbam, readSAMLine))
         sys.exit(1)
 
     # Verify that we have the right number of fields.
-    readWordsPE = readSAMLinePE.split("\t")
+    # readWordsPE = readSAMLinePE.split("\t")  # GB original
+    # readWordsPE = readSAMLinePE.split(b"\t")  # KA 1
+    readWordsPE = readSAMLinePE.decode().split("\t")  # KA 2
     if (len(readWords) < 11):
         sys.stderr.write("Error parsing line %d from %s.\n%s"
                          % (lineNumber, sciATACbam, readSAMLine))
         sys.exit(1)
 
-    # Verify that the two lines are for the same read.
+    # Verify that the two lines are for the same read.  # Commented out by KA b/c/o issues with flags?  #TODO Look into this later
     if (readWords[0] != readWordsPE[0]):
         sys.stderr.write("Read mismatch at line %d. readWords != readWordsPE. (%s != %s).\n"
-                         % (readPair, readWords[0], readWordsPE[0]))
+                         # % (readPair, readWords[0], readWordsPE[0]))  # GB original: NameError: name 'readPair' is not defined
+                         % (readPairTally, readWords[0], readWordsPE[0]))  # KA
         sys.exit(1)
 
     # # For testing
@@ -272,7 +282,8 @@ while True:
     if E1cigar != '*':
         firstFlag = True
         while len(E1cigar)>0:
-            m = re.search('^(\d+)(\D)', E1cigar)
+            m = re.search('^(\d+)(\D)', E1cigar)  # GB original
+            # m = re.decode().search('^(\d+)(\D)', E1cigar)  # KA; does not work
             mcount = int(m.group(1))
             mtype = m.group(2)
             if mtype in ['M', '=', 'X']:
@@ -290,7 +301,8 @@ while True:
             elif mtype in ['D', 'N']:
                 E1ReadCIGARsed = E1ReadCIGARsed + 'N' * mcount
                 E1QualCIGARsed = E1QualCIGARsed + 'N' * mcount
-            E1cigar = E1cigar.replace(m.group(0), '', 1)
+            E1cigar = E1cigar.replace(m.group(0), '', 1)  # GB original
+            # E1cigar = E1cigar.decode().replace(m.group(0), '', 1)  # KA; does not work
             firstFlag = False
     else:
         E1ReadCIGARsed = E1Read
@@ -376,7 +388,8 @@ while True:
 
     for offset in range(0, E1ReadCIGARsedLength):
         key = (E1chrom, E1startPositionCIGARsed + offset)
-        if altsnps.has_key(key):
+        # if altsnps.has_key(key):  # GB original
+        if key in altsnps:  # KA, 2-to-3
             numE1CoveredBases += 1
             if Illumina18_Qscore(E1QualCIGARsed[offset]) <= Qthresh:
                 numE1LowQualAltBases += 1
@@ -387,7 +400,8 @@ while True:
                 # sys.stderr.write("E1 alt SNP %s at offset %d, position %d.\n"
                 #                  % (E1ReadCIGARsed[offset], offset, E1startPositionCIGARsed + offset))
             # Check to see if a ref SNP occurs at the same position.
-            elif refsnps.has_key(key) and (refsnps[key][1] == E1ReadCIGARsed[offset]):
+            # elif refsnps.has_key(key) and (refsnps[key][1] == E1ReadCIGARsed[offset]):  # GB original
+            elif key in refsnps and (refsnps[key][1] == E1ReadCIGARsed[offset]):  # KA, 2-to-3
                 E1truRefSNP += 1 # True 129 SNP
             # Neither Cast nor 129 SNP
             elif altsnps[key][0] == E1ReadCIGARsed[offset]:
@@ -395,7 +409,8 @@ while True:
             else:
                 E1huhAltSNP += 1 # This should not happen as it should either be a Cast or 129/B6 base.
         # If not an alt SNP, check whether its a ref SNP.
-        elif refsnps.has_key(key):
+        # elif refsnps.has_key(key):  # GB original
+        elif key in refsnps:  # KA, 2-to-3
             numE1CoveredBases += 1
             if Illumina18_Qscore(E1QualCIGARsed[offset]) <= Qthresh:
                 numE1LowQualRefBases += 1
@@ -440,7 +455,8 @@ while True:
 
     for offset in range(0, E2ReadCIGARsedLength):
         key = (E2chrom, E2startPositionCIGARsed + offset)
-        if altsnps.has_key(key):
+        # if altsnps.has_key(key):  # GB original
+        if key in altsnps:  # KA, 2-to-3
             numE2CoveredBases += 1
             if Illumina18_Qscore(E2QualCIGARsed[offset]) <= Qthresh:
                 numE2LowQualAltBases += 1
@@ -451,7 +467,8 @@ while True:
                 # sys.stderr.write("E2 alt SNP %s at offset %d, position %d.\n"
                 #                  % (E2ReadCIGARsed[offset], offset, E2startPositionCIGARsed + offset))
             # Check to see if a ref SNP occurs at the same position.
-            elif refsnps.has_key(key) and (refsnps[key][1] == E2ReadCIGARsed[offset]):
+            # elif refsnps.has_key(key) and (refsnps[key][1] == E2ReadCIGARsed[offset]):  # GB original
+            elif key in refsnps and (refsnps[key][1] == E2ReadCIGARsed[offset]):  # KA, 2-to-3
                 E2truRefSNP += 1 # True 129 SNP
             # Neither Cast nor 129 SNP
             elif altsnps[key][0] == E2ReadCIGARsed[offset]:
@@ -459,7 +476,8 @@ while True:
             else:
                 E2huhAltSNP += 1 # This should not happen as it should either be a Cast or 129/B6 base.
         # If not an alt SNP, check whether its a ref SNP.
-        elif refsnps.has_key(key):
+        # elif refsnps.has_key(key):  # GB original
+        elif key in refsnps:  # KA, 2-to-3
             numE2CoveredBases += 1
             if Illumina18_Qscore(E2QualCIGARsed[offset]) <= Qthresh:
                 numE2LowQualRefBases += 1
