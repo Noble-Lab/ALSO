@@ -27,7 +27,7 @@ returnObjectName <- function(object) {
 
 
 #  Having run part 3 first, load part-3 .Rdata into environment ---------------
-load("test.PE-processing.2021-1221.2022-0108.part-3.Rdata")
+load("test.PE-processing.part-3.Rdata")
 #  Doing so loads in appropriate functions, variables, etc.
 
 #  Clean up environment
@@ -54,7 +54,7 @@ rm(
 
 
 #  Script name ----------------------------------------------------------------
-script <- "test.PE-processing.2021-1221.2022-0108.part-4.R"
+script <- "test.PE-processing.part-4.R"
 
 
 #  Create $coordinate columns from pertinent liftOver values ------------------

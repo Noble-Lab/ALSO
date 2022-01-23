@@ -20,7 +20,7 @@ rm(directory_user, directory_base, directory_work)
 
 
 #  Script name ----------------------------------------------------------------
-script <- "test.PE-processing.2021-1221.2022-0106.part-1.R"
+script <- "test.PE-processing.part-1.R"
 
 
 #  Set up functions -----------------------------------------------------------

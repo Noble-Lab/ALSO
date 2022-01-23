@@ -18,12 +18,12 @@ rm(directory_user, directory_base, directory_work)
 
 
 #  Having run part 1 first, load part-1 .Rdata into environment ---------------
-load("test.PE-processing.2021-1221.2022-0106.part-1.Rdata")
+load("test.PE-processing.part-1.Rdata")
 #  Doing so loads in appropriate functions, variables, etc.
 
 
 #  Script name ----------------------------------------------------------------
-script <- "test.PE-processing.2021-1221.2022-0106.part-2.R"
+script <- "test.PE-processing.part-2.R"
 
 
 #  Add row numbers to sub.* tibbles -------------------------------------------

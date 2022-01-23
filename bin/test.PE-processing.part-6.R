@@ -188,7 +188,7 @@ setwd(paste0(path.1))
 
 
 #  Script name ----------------------------------------------------------------
-script <- "test.PE-processing.2021-1221.2022-0121.part-5.R"
+script <- "test.PE-processing.part-6.R"
 
 
 #  Set up what to query from .bam files ---------------------------------------
