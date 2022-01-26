@@ -11,9 +11,9 @@
 # library(MmusculusCAST129Nmasked)
 
 library(ggplot2)
+library(scales)
 library(stringr)
 library(tidyverse)
-library(scales)
 
 options(pillar.sigfig = 8, scipen = 10000)
 set.seed(24)
@@ -139,69 +139,193 @@ suffix <- variable_m %>%
     lapply(., `[[`, 2) %>%
     unlist()
 
-# #  129, CAST
-# command <- paste0(
-#     "<- ", variable[stringr::str_detect(variable, "mm10", negate = TRUE)], " %>% ",
-#         "dplyr::select(",
-#             "coordinate.odd, groupid.odd, AS.odd, ",
-#             "coordinate.even, groupid.even, AS.even, ",
-#             "flag.odd, seq.odd, flag.even, seq.even, ",
-#             "lO_rname.odd, lO_pos.odd, lO_pos_end.odd, ",
-#             "lO_mrnm.odd, lO_mpos.odd, lO_mpos_end.odd, ",
-#             "lO_rname.even, lO_pos.even, lO_pos_end.even, ",
-#             "lO_mrnm.even, lO_mpos.even, lO_mpos_end.even",
-#         ")", " %>% ",
-#         "dplyr::rename(AS.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = AS.odd)", " %>% ",
-#         "dplyr::rename(AS.even.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = AS.even)", " %>% ",
-#         "dplyr::rename(groupid.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = groupid.odd)", " %>% ",
-#         "dplyr::rename(groupid.even.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = groupid.even)", " %>% ",
-#         "dplyr::rename(flag.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = flag.odd)", " %>% ",
-#         "dplyr::rename(flag.even.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = flag.even)", " %>% ",
-#         "dplyr::rename(seq.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = seq.odd)", " %>% ",
-#         "dplyr::rename(seq.even.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = seq.even)", " %>% ",
-#         "dplyr::rename(rname.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_rname.odd)", " %>% ",
-#         "dplyr::rename(rname.even.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_rname.even)", " %>% ",
-#         "dplyr::rename(pos.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_pos.odd)", " %>% ",
-#         "dplyr::rename(pos.even.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_pos.even)", " %>% ",
-#         "dplyr::rename(pos_end.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_pos_end.odd)", " %>% ",
-#         "dplyr::rename(pos_end.even.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_pos_end.even)", " %>% ",
-#         "dplyr::rename(mrnm.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_mrnm.odd)", " %>% ",
-#         "dplyr::rename(mrnm.even.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_mrnm.even)", " %>% ",
-#         "dplyr::rename(mpos.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_mpos.odd)", " %>% ",
-#         "dplyr::rename(mpos.even.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_mpos.even)", " %>% ",
-#         "dplyr::rename(mpos_end.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_mpos_end.odd)", " %>% ",
-#         "dplyr::rename(mpos_end.even.", suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)], " = lO_mpos_end.even)"
-# )
-# operation <- makeOperation(variable_m[stringr::str_detect(variable_m, "mm10", negate = TRUE)], command)
-# evaluateOperation(operation)
-# 
-# #  mm10
-# command <- paste0(
-#     "<- ", variable[stringr::str_detect(variable, "mm10", negate = FALSE)], " %>% ",
-#         "dplyr::select(",
-#             "coordinate.odd, groupid.odd, AS.odd, ",
-#             "coordinate.even, groupid.even, AS.even, ",
-#             "flag.odd, seq.odd, flag.even, seq.even, ",
-#             "rname.odd, pos.odd, pos_end.odd, ",
-#             "mrnm.odd, mpos.odd, mpos_end.odd, ",
-#             "rname.even, pos.even, pos_end.even, ",
-#             "mrnm.even, mpos.even, mpos_end.even",
-#         ")", " %>% ",
-#         "dplyr::rename(AS.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)], " = AS.odd)", " %>% ",
-#         "dplyr::rename(AS.even.", suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)], " = AS.even)", " %>% ",
-#         "dplyr::rename(groupid.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)], " = groupid.odd)", " %>% ",
-#         "dplyr::rename(groupid.even.", suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)], " = groupid.even)", " %>% ",
-#         "dplyr::rename(flag.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)], " = flag.odd)", " %>% ",
-#         "dplyr::rename(flag.even.", suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)], " = flag.even)", " %>% ",
-#         "dplyr::rename(seq.odd.", suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)], " = seq.odd)", " %>% ",
-#         "dplyr::rename(seq.even.", suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)], " = seq.even)"
-# )
-# operation <- makeOperation(variable_m[stringr::str_detect(variable_m, "mm10", negate = FALSE)], command)
-# evaluateOperation(operation)
-
-#  129, CAST, mm10
+#  129, CAST --------------------------
 command <- paste0(
-    "<- ", variable, " %>% ",
+    "<- ",
+        variable[stringr::str_detect(variable, "mm10", negate = TRUE)], " %>% ",
+        "dplyr::select(",
+            "coordinate.odd, groupid.odd, AS.odd, ",
+            "coordinate.even, groupid.even, AS.even, ",
+            "flag.odd, seq.odd, flag.even, seq.even, ",
+            "rname.odd, pos.odd, pos_end.odd, ",
+            "mrnm.odd, mpos.odd, mpos_end.odd, ",
+            "rname.even, pos.even, pos_end.even, ",
+            "mrnm.even, mpos.even, mpos_end.even, ",
+            "lO_rname.odd, lO_pos.odd, lO_pos_end.odd, ",
+            "lO_mrnm.odd, lO_mpos.odd, lO_mpos_end.odd, ",
+            "lO_rname.even, lO_pos.even, lO_pos_end.even, ",
+            "lO_mrnm.even, lO_mpos.even, lO_mpos_end.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "AS.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = AS.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "AS.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = AS.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "groupid.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = groupid.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "groupid.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = groupid.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "flag.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = flag.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "flag.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = flag.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "seq.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = seq.odd",
+        ")", " %>% ",
+        "dplyr::rename(", 
+            "seq.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = seq.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "rname.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = rname.odd",
+        ")", " %>% ",
+        "dplyr::rename(", 
+            "rname.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = rname.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "pos.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = pos.odd",
+        ")", " %>% ",
+        "dplyr::rename(", 
+            "pos.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = pos.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "pos_end.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = pos_end.odd",
+        ")", " %>% ",
+        "dplyr::rename(", 
+            "pos_end.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = pos_end.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mrnm.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = mrnm.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mrnm.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = mrnm.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mpos.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = mpos.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mpos.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = mpos.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mpos_end.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = mpos_end.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mpos_end.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = mpos_end.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_rname.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_rname.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_rname.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_rname.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_pos.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_pos.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_pos.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_pos.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_pos_end.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_pos_end.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_pos_end.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_pos_end.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_mrnm.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_mrnm.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_mrnm.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_mrnm.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_mpos.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_mpos.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_mpos.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_mpos.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_mpos_end.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_mpos_end.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "lO_mpos_end.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = TRUE)],
+            " = lO_mpos_end.even",
+        ")"
+)
+operation <- makeOperation(
+    variable_m[stringr::str_detect(variable_m, "mm10", negate = TRUE)],
+    command
+)
+evaluateOperation(operation)
+
+#  mm10 -------------------------------
+command <- paste0(
+    "<- ", variable[stringr::str_detect(variable, "mm10", negate = FALSE)], " %>% ",
         "dplyr::select(",
             "coordinate.odd, groupid.odd, AS.odd, ",
             "coordinate.even, groupid.even, AS.even, ",
@@ -211,28 +335,111 @@ command <- paste0(
             "rname.even, pos.even, pos_end.even, ",
             "mrnm.even, mpos.even, mpos_end.even",
         ")", " %>% ",
-        "dplyr::rename(AS.odd.", suffix, " = AS.odd)", " %>% ",
-        "dplyr::rename(AS.even.", suffix, " = AS.even)", " %>% ",
-        "dplyr::rename(groupid.odd.", suffix, " = groupid.odd)", " %>% ",
-        "dplyr::rename(groupid.even.", suffix, " = groupid.even)", " %>% ",
-        "dplyr::rename(flag.odd.", suffix, " = flag.odd)", " %>% ",
-        "dplyr::rename(flag.even.", suffix, " = flag.even)", " %>% ",
-        "dplyr::rename(seq.odd.", suffix, " = seq.odd)", " %>% ",
-        "dplyr::rename(seq.even.", suffix, " = seq.even)", " %>% ",
-        "dplyr::rename(rname.odd.", suffix, " = rname.odd)", " %>% ",
-        "dplyr::rename(rname.even.", suffix, " = rname.even)", " %>% ",
-        "dplyr::rename(pos.odd.", suffix, " = pos.odd)", " %>% ",
-        "dplyr::rename(pos.even.", suffix, " = pos.even)", " %>% ",
-        "dplyr::rename(pos_end.odd.", suffix, " = pos_end.odd)", " %>% ",
-        "dplyr::rename(pos_end.even.", suffix, " = pos_end.even)", " %>% ",
-        "dplyr::rename(mrnm.odd.", suffix, " = mrnm.odd)", " %>% ",
-        "dplyr::rename(mrnm.even.", suffix, " = mrnm.even)", " %>% ",
-        "dplyr::rename(mpos.odd.", suffix, " = mpos.odd)", " %>% ",
-        "dplyr::rename(mpos.even.", suffix, " = mpos.even)", " %>% ",
-        "dplyr::rename(mpos_end.odd.", suffix, " = mpos_end.odd)", " %>% ",
-        "dplyr::rename(mpos_end.even.", suffix, " = mpos_end.even)"
+        "dplyr::rename(",
+            "AS.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = AS.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "AS.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = AS.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "groupid.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = groupid.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "groupid.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = groupid.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "flag.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = flag.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "flag.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = flag.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "seq.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = seq.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "seq.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = seq.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "rname.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = rname.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "rname.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = rname.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "pos.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = pos.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "pos.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = pos.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "pos_end.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = pos_end.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "pos_end.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = pos_end.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mrnm.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = mrnm.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mrnm.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = mrnm.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mpos.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = mpos.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mpos.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = mpos.even",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mpos_end.odd.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = mpos_end.odd",
+        ")", " %>% ",
+        "dplyr::rename(",
+            "mpos_end.even.",
+            suffix[stringr::str_detect(suffix, "mm10", negate = FALSE)],
+            " = mpos_end.even",
+        ")"
 )
-operation <- makeOperation(variable_m, command)
+operation <- makeOperation(
+    variable_m[stringr::str_detect(variable_m, "mm10", negate = FALSE)],
+    command
+)
 evaluateOperation(operation)
 
 #  Sort and deconcatenate uniline tibbles for 129, CAST
@@ -262,16 +469,8 @@ b.full <- full_join(b.mm10, b.129S1, by = "coordinate") %>%
             "groupid.",
             c("mm10", "2.mm10", "129S1", "2.129S1", "CAST", "2.CAST")
         ),
-        .after = "mpos_end.CAST"
+        .after = "lO_mpos_end.CAST"
     )
-
-#%>%
-    # dplyr::rename("rname.mm10" = "rname") %>%
-    # dplyr::rename("pos.mm10" = "pos") %>%
-    # dplyr::rename("pos_end.mm10" = "pos_end") %>%
-    # dplyr::rename("mrnm.mm10" = "mrnm") %>%
-    # dplyr::rename("mpos.mm10" = "mpos") %>%
-    # dplyr::rename("mpos_end.mm10" = "mpos_end")
 
 
 #  b.full tibble: Concatenate even row to preceding odd row -------------------
@@ -346,15 +545,21 @@ operation <- makeOperation(paste0(variable_uniline, "$AS.CAST.pmin"), command)
 evaluateOperation(operation)
 
 #  Check
-(uniline.b.full$seq.mm10.odd == uniline.b.full$seq.129S1.odd) %>% table()
-(uniline.b.full$seq.mm10.odd == uniline.b.full$seq.CAST.odd) %>% table()
-(uniline.b.full$seq.129S1.odd == uniline.b.full$seq.CAST.odd) %>% table()
-(uniline.b.full$seq.mm10.even == uniline.b.full$seq.129S1.even) %>% table()
-(uniline.b.full$seq.mm10.even == uniline.b.full$seq.CAST.even) %>% table()
-(uniline.b.full$seq.129S1.even == uniline.b.full$seq.CAST.even) %>% table()
+(uniline.b.full$seq.mm10.odd == uniline.b.full$seq.129S1.odd) %>%
+    table(useNA = "ifany")
+(uniline.b.full$seq.mm10.odd == uniline.b.full$seq.CAST.odd) %>%
+    table(useNA = "ifany")
+(uniline.b.full$seq.129S1.odd == uniline.b.full$seq.CAST.odd) %>%
+    table(useNA = "ifany")
+(uniline.b.full$seq.mm10.even == uniline.b.full$seq.129S1.even) %>%
+    table(useNA = "ifany")
+(uniline.b.full$seq.mm10.even == uniline.b.full$seq.CAST.even) %>%
+    table(useNA = "ifany")
+(uniline.b.full$seq.129S1.even == uniline.b.full$seq.CAST.even) %>%
+    table(useNA = "ifany")
 
 
-#  Create minimal tibbles for AS.*.pmin and AS.*.pmax values ------------------
+#  Create minimal tibbles for AS.*.pmin values --------------------------------
 AS.pmin <- uniline.b.full %>%
     dplyr::select(
         coordinate.odd, coordinate.even,
@@ -369,14 +574,22 @@ AS.pmin <- uniline.b.full %>%
         rname.mm10.even, pos.mm10.even, pos_end.mm10.even,
         rname.129S1.odd, pos.129S1.odd, pos_end.129S1.odd,
         rname.129S1.even, pos.129S1.even, pos_end.129S1.even,
+        lO_rname.129S1.odd, lO_pos.129S1.odd, lO_pos_end.129S1.odd,
+        lO_rname.129S1.even, lO_pos.129S1.even, lO_pos_end.129S1.even,
         rname.CAST.odd, pos.CAST.odd, pos_end.CAST.odd,
         rname.CAST.even, pos.CAST.even, pos_end.CAST.even,
+        lO_rname.CAST.odd, lO_pos.CAST.odd, lO_pos_end.CAST.odd,
+        lO_rname.CAST.even, lO_pos.CAST.even, lO_pos_end.CAST.even,
         mrnm.mm10.odd, mpos.mm10.odd, mpos_end.mm10.odd,
         mrnm.mm10.even, mpos.mm10.even, mpos_end.mm10.even,
         mrnm.129S1.odd, mpos.129S1.odd, mpos_end.129S1.odd,
         mrnm.129S1.even, mpos.129S1.even, mpos_end.129S1.even,
+        lO_mrnm.129S1.odd, lO_mpos.129S1.odd, lO_mpos_end.129S1.odd,
+        lO_mrnm.129S1.even, lO_mpos.129S1.even, lO_mpos_end.129S1.even,
         mrnm.CAST.odd, mpos.CAST.odd, mpos_end.CAST.odd,
-        mrnm.CAST.even, mpos.CAST.even, mpos_end.CAST.even
+        mrnm.CAST.even, mpos.CAST.even, mpos_end.CAST.even,
+        lO_mrnm.CAST.odd, lO_mpos.CAST.odd, lO_mpos_end.CAST.odd,
+        lO_mrnm.CAST.even, lO_mpos.CAST.even, lO_mpos_end.CAST.even
     )
 colnames(AS.pmin) <- gsub(".pmin", "", colnames(AS.pmin))
 
@@ -385,7 +598,7 @@ colnames(AS.pmin) <- gsub(".pmin", "", colnames(AS.pmin))
 #+ 
 #+ Initially assign categories to the difference based on values w/r/t/the
 #+ variable int (see below)
-int <- 0 %>% as.integer()  #TODO Make the integer an argument
+int <- 0L
 AS.pmin <- AS.pmin %>% 
     dplyr::mutate(difference = AS.129S1 - AS.CAST) %>% 
     dplyr::mutate(
@@ -430,14 +643,22 @@ AS.pmin <- AS.pmin %>%
         rname.mm10.even, pos.mm10.even, pos_end.mm10.even,
         rname.129S1.odd, pos.129S1.odd, pos_end.129S1.odd,
         rname.129S1.even, pos.129S1.even, pos_end.129S1.even,
+        lO_rname.129S1.odd, lO_pos.129S1.odd, lO_pos_end.129S1.odd,
+        lO_rname.129S1.even, lO_pos.129S1.even, lO_pos_end.129S1.even,
         rname.CAST.odd, pos.CAST.odd, pos_end.CAST.odd,
         rname.CAST.even, pos.CAST.even, pos_end.CAST.even,
+        lO_rname.CAST.odd, lO_pos.CAST.odd, lO_pos_end.CAST.odd,
+        lO_rname.CAST.even, lO_pos.CAST.even, lO_pos_end.CAST.even,
         mrnm.mm10.odd, mpos.mm10.odd, mpos_end.mm10.odd,
         mrnm.mm10.even, mpos.mm10.even, mpos_end.mm10.even,
         mrnm.129S1.odd, mpos.129S1.odd, mpos_end.129S1.odd,
         mrnm.129S1.even, mpos.129S1.even, mpos_end.129S1.even,
+        lO_mrnm.129S1.odd, lO_mpos.129S1.odd, lO_mpos_end.129S1.odd,
+        lO_mrnm.129S1.even, lO_mpos.129S1.even, lO_mpos_end.129S1.even,
         mrnm.CAST.odd, mpos.CAST.odd, mpos_end.CAST.odd,
-        mrnm.CAST.even, mpos.CAST.even, mpos_end.CAST.even
+        mrnm.CAST.even, mpos.CAST.even, mpos_end.CAST.even,
+        lO_mrnm.CAST.odd, lO_mpos.CAST.odd, lO_mpos_end.CAST.odd,
+        lO_mrnm.CAST.even, lO_mpos.CAST.even, lO_mpos_end.CAST.even
     )
 
 
@@ -509,14 +730,22 @@ AS.pmin <- AS.pmin %>%
         rname.mm10.even, pos.mm10.even, pos_end.mm10.even,
         rname.129S1.odd, pos.129S1.odd, pos_end.129S1.odd,
         rname.129S1.even, pos.129S1.even, pos_end.129S1.even,
+        lO_rname.129S1.odd, lO_pos.129S1.odd, lO_pos_end.129S1.odd,
+        lO_rname.129S1.even, lO_pos.129S1.even, lO_pos_end.129S1.even,
         rname.CAST.odd, pos.CAST.odd, pos_end.CAST.odd,
         rname.CAST.even, pos.CAST.even, pos_end.CAST.even,
+        lO_rname.CAST.odd, lO_pos.CAST.odd, lO_pos_end.CAST.odd,
+        lO_rname.CAST.even, lO_pos.CAST.even, lO_pos_end.CAST.even,
         mrnm.mm10.odd, mpos.mm10.odd, mpos_end.mm10.odd,
         mrnm.mm10.even, mpos.mm10.even, mpos_end.mm10.even,
         mrnm.129S1.odd, mpos.129S1.odd, mpos_end.129S1.odd,
         mrnm.129S1.even, mpos.129S1.even, mpos_end.129S1.even,
+        lO_mrnm.129S1.odd, lO_mpos.129S1.odd, lO_mpos_end.129S1.odd,
+        lO_mrnm.129S1.even, lO_mpos.129S1.even, lO_mpos_end.129S1.even,
         mrnm.CAST.odd, mpos.CAST.odd, mpos_end.CAST.odd,
-        mrnm.CAST.even, mpos.CAST.even, mpos_end.CAST.even
+        mrnm.CAST.even, mpos.CAST.even, mpos_end.CAST.even,
+        lO_mrnm.CAST.odd, lO_mpos.CAST.odd, lO_mpos_end.CAST.odd,
+        lO_mrnm.CAST.even, lO_mpos.CAST.even, lO_mpos_end.CAST.even
     )
 
 
