@@ -401,46 +401,60 @@ rm(i)
 variable_uniline <- paste0("uniline.", variable) %>%
     stringr::str_subset("mm10", negate = FALSE)
 
-for (i in 1:length(variable_uniline)) {
-    df <- eval(parse(text = variable_uniline[i]))
-    
-    #  Sort the uniline tibbles by rname, pos, mpos
-    df <- df %>% dplyr::arrange(rname.odd, pos.odd, mpos.odd)
-    
-    #  Split the uniline tibbles by odd or even status
-    odd <- df[stringr::str_subset(colnames(df), "\\.odd")]
-    even <- df[stringr::str_subset(colnames(df), "\\.even")]
-    
-    #  Strip suffixes from column names
-    colnames(odd) <- str_replace_all(colnames(odd), "\\.odd", "")
-    colnames(even) <- str_replace_all(colnames(even), "\\.even", "")
-    
-    #  Odd tibble is tibble #1, even tibble is tibble #2
-    odd$tibble <- "1"
-    even$tibble <- "2"
-    
-    #  Again, interleave the odd/even rows, then arrange them by group ID and
-    #+ tibble number; save results to initial "tbl.*" variables
-    command <- paste0(
-        "<- odd %>%",
-        "dplyr::mutate(groupid = row_number()) %>% ",
-        "dplyr::bind_rows(even %>% mutate(groupid = row_number())) %>% ",
-        "dplyr::arrange(groupid, tibble) %>% ",
-        "dplyr::relocate(groupid, .after = qmpos) %>% ",
-        "dplyr::select(-tibble)"
-    )
-    operation <- makeOperation(variable[i], command)
-    evaluateOperation(operation)
-    
-    #  Again, check to make sure that there are no more than two entries per
-    #+ group ID
-    n_occur <- data.frame(table(eval(parse(text = variable[i]))$groupid))
-    print(n_occur[n_occur$Freq > 2, ])
-    
-    #  Clean up
-    rm(df, n_occur, even, odd)
-}
-rm(i)
+df <- eval(parse(text = variable_uniline))
+
+#  Sort the uniline tibbles by rname, pos, mpos
+df <- df %>% dplyr::arrange(rname.odd, pos.odd, mpos.odd)
+
+#  Split the uniline tibbles by odd or even status
+odd <- df[stringr::str_subset(colnames(df), "\\.odd")]
+even <- df[stringr::str_subset(colnames(df), "\\.even")]
+
+#  Strip suffixes from column names
+colnames(odd) <- str_replace_all(colnames(odd), "\\.odd", "")
+colnames(even) <- str_replace_all(colnames(even), "\\.even", "")
+
+#  Odd tibble is tibble #1, even tibble is tibble #2
+odd$tibble <- "1"
+even$tibble <- "2"
+
+#  Again, interleave the odd/even rows, then arrange them by group ID and
+#+ tibble number; save results to initial "tbl.*" variables
+command <- paste0(
+    "<- odd %>%",
+    "dplyr::mutate(groupid = row_number()) %>% ",
+    "dplyr::bind_rows(even %>% mutate(groupid = row_number())) %>% ",
+    "dplyr::arrange(groupid, tibble) %>% ",
+    "dplyr::relocate(groupid, .after = qmpos) %>% ",
+    "dplyr::select(-tibble)"
+)
+operation <- makeOperation(
+    variable %>% stringr::str_subset("mm10", negate = FALSE),
+    command
+)
+evaluateOperation(operation)
+
+#  Again, check to make sure that there are no more than two entries per
+#+ group ID
+n_occur <- data.frame(table(eval(parse(text = variable[i]))$groupid))
+print(n_occur[n_occur$Freq > 2, ])
+
+#  Clean up
+rm(df, n_occur, even, odd)
+
+#  Add "proper" labels for MD and AS
+command <- paste0(
+    "<- ", "paste0(\"MD:Z:\", ", variable, "$tag.MD)"
+)
+operation <- makeOperation(paste0(variable, "$tag.MD.proper"), command)
+evaluateOperation(operation)
+
+#  Add "proper" labels for AS
+command <- paste0(
+    "<- ", "paste0(\"AS:i:\", ", variable, "$tag.AS)"
+)
+operation <- makeOperation(paste0(variable, "$tag.AS.proper"), command)
+evaluateOperation(operation)
 
 #  Create sam.*.tbl for 1291, CAST
 variable_sam <- paste0(
@@ -453,7 +467,8 @@ command <- paste0(
     "<- ", variable, " %>% ",
         "dplyr::select(",
             "qname, flag, rname, pos, mapq, cigar, ",
-            "mrnm, mpos, isize, seq, qual",
+            # "mrnm, mpos, isize, seq, qual",
+            "mrnm, mpos, isize, seq, qual, tag.MD.proper, tag.AS.proper",
         ")"
 )
 operation <- makeOperation(variable_sam, command)
@@ -470,7 +485,8 @@ command <- paste0(
     "<- ", variable, " %>% ",
     "dplyr::select(",
         "qname, flag, rname, pos, mapq, cigar, ",
-        "mrnm, mpos, isize, seq, qual",
+        # "mrnm, mpos, isize, seq, qual",
+        "mrnm, mpos, isize, seq, qual, tag.MD.proper, tag.AS.proper",
     ")"
 )
 operation <- makeOperation(variable_sam, command)
@@ -505,7 +521,9 @@ for (i in 1:length(variable_sam)) {
 
 
 #  Add headers to the .sam files ----------------------------------------------
-file <- list.files(pattern = paste0("\\", chromosome, ".rmdup.bam$"))
+file <- list.files(pattern = paste0(
+    "\\", chromosome, ".rmdup.extendedCIGAR.bam$"
+))
 file <- file %>% stringr::str_subset("mm10\\.", negate = TRUE)
 variable_bam_initial <- file %>%
     strsplit(., "-") %>%

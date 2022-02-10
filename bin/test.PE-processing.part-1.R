@@ -7,6 +7,28 @@ library(tidyverse)
 
 options(pillar.sigfig = 8, scipen = 10000)
 
+#  Change to appropriate working directory
+project <- "2021_kga0_4dn-mouse-cross"
+default <- "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross"
+current <- stringr::str_split(getwd(), "/")[[1]][
+    length(stringr::str_split(getwd(), "/")[[1]])
+]
+if(current != project) {
+    if(dir.exists(default)) {
+        setwd(default)
+    } else {
+        setwd(
+            readline(
+                prompt = paste0(
+                    "Enter path to and including the project directory, ",
+                    project, ":"
+                )
+            )
+        )
+    }
+}
+rm(project, default, current)
+
 
 #  Set up work directory (locations TB∆) --------------------------------------
 directory_user <- "/Users/kalavattam"
@@ -102,7 +124,10 @@ testPosInMpos <- function(pos, mpos) {
 # chromosome <- "chr1"
 chromosome <- "chrX"
 
-file <- list.files(pattern = paste0("\\", chromosome, ".rmdup.bam$"))
+#  .bam files
+file <- list.files(pattern = paste0(
+    "\\", chromosome, ".rmdup.extendedCIGAR.bam$"
+))
 file <- file %>% stringr::str_subset("mm10\\.", negate = TRUE)
 variable <- file %>%
     strsplit(., "-") %>%
@@ -112,7 +137,10 @@ mapply(
     assign, variable, file, MoreArgs = list(envir = parent.frame())
 )
 
-file <- list.files(pattern = paste0("\\", chromosome, ".rmdup.bam.bai$"))
+#  .bai files
+file <- list.files(pattern = paste0(
+    "\\", chromosome, ".rmdup.extendedCIGAR.bam.bai$"
+))
 file <- file %>% stringr::str_subset("mm10\\.", negate = TRUE)
 index <- file %>%
     strsplit(., "-") %>%
@@ -133,8 +161,8 @@ command <- paste0(
 operation <- makeOperation(paste0(variable, ".full"), command)
 evaluateOperation(operation)
 
-#  Load in .bam AS field
-map_params <- Rsamtools::ScanBamParam(tag = "AS")
+#  Load in .bam AS and MD fields
+map_params <- Rsamtools::ScanBamParam(tag = c("AS", "MD"))
 command <- paste0(
     "<- ", variable, " %>% ",
         "Rsamtools::BamFile(., index = ", index, ", asMates = TRUE)", " %>% ",
@@ -146,7 +174,7 @@ operation <- makeOperation(variable, command)
 evaluateOperation(operation)
 rm(map_params)
 
-#  Join the standard and AS fields
+#  Join the standard, AS, and MD fields
 command <- paste0(
     "<- dplyr::bind_cols(", variable, ".full, ", variable, ")"
 )
@@ -372,7 +400,8 @@ command <- paste0(
         "dplyr::relocate(mrnm, .after = rname) %>% ",
         "dplyr::relocate(isize, .after = mpos_end) %>% ",
         "dplyr::relocate(criteria, .before = groupid) %>% ",
-        "dplyr::relocate(AS, .after = cigar) %>% ",
+        "dplyr::relocate(tag.MD, .after = cigar) %>% ",
+        "dplyr::relocate(tag.AS, .after = tag.MD) %>% ",
         "dplyr::relocate(qpos, .after = criteria) %>% ",
         "dplyr::relocate(qmpos, .after = qpos) %>% ",
         "dplyr::relocate(qname, .after = qual) %>% ",
@@ -380,11 +409,6 @@ command <- paste0(
 )
 operation <- makeOperation(variable, command)
 evaluateOperation(operation)
-
-# #  Convert $groupid to factor
-# command <- paste0("<- ", variable, "$groupid %>% as_factor()")
-# operation <- makeOperation(paste0(variable, "$groupid"), command)
-# evaluateOperation(operation)
 
 #  To survey duplicates, split out entries in which $qpos is the same as
 #+ $qmpos, i.e., entries in which each member of the pair maps to the same
@@ -406,7 +430,7 @@ evaluateOperation(operation)
 
 #QUESTION?  Does the below leave one of the entries post deduplication? Yes.
 #+
-#+  Deduplicate the main tibbles based on $criteria: There should be no more
+#+ Deduplicate the main tibbles based on $criteria: There should be no more
 #+ than one entry with a given $criteria value (combination of $qname, $flag,
 #+ $pos, and $mpos)
 command <- paste0(

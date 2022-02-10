@@ -176,7 +176,7 @@ testPosInMpos <- function(pos, mpos) {
 #  Set up work directory, etc. (locations TB∆) --------------------------------
 directory_user <- "/Users/kalavattam"
 directory_project <- "Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross"
-directory_bam <- "results/kga0/2022-0121_segregated_reads.thresh_SNP_1.thresh_Q_30"
+directory_bam <- "results/kga0/2022-0207_segregated_reads.thresh_SNP_1.thresh_Q_30"
 directory_data <- "data/kga0"
 path.1 <- paste0(directory_user, "/", directory_project)
 path.2 <- paste0(directory_bam)
@@ -190,6 +190,10 @@ setwd(paste0(path.1))
 #  Script name ----------------------------------------------------------------
 script <- "test.PE-processing.part-6.R"
 
+#  Make sure have run 'test.PE-processing.part-4.R',
+#+ 'run_GB-assignment-pipeline.2022-0207.sh',
+#+ 'generate-sam2pairwise-files_4dn-mouse-cross_GB.sh', and
+#+ 'copy-important-files.sh' before running the rest of this script
 
 #  Set up what to query from .bam files ---------------------------------------
 map_info <- c(

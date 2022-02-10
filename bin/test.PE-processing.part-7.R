@@ -20,6 +20,28 @@ library(tidyverse)
 options(pillar.sigfig = 8, scipen = 10000)
 set.seed(24)
 
+#  Change to appropriate working directory
+project <- "2021_kga0_4dn-mouse-cross"
+default <- "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross"
+current <- stringr::str_split(getwd(), "/")[[1]][
+    length(stringr::str_split(getwd(), "/")[[1]])
+]
+if(current != project) {
+    if(dir.exists(default)) {
+        setwd(default)
+    } else {
+        setwd(
+            readline(
+                prompt = paste0(
+                    "Enter path to and including the project directory, ",
+                    project, ":"
+                )
+            )
+        )
+    }
+}
+rm(project, default, current)
+
 
 #  Set up functions -----------------------------------------------------------
 `%notin%` <- Negate(`%in%`)
@@ -300,7 +322,7 @@ joinAndSelectWorst <- function(
         )
     rm(i)
     
-    #  Subsection: Written explanation
+    #  Subsection: #TODO Written explanation
     tbl.join$contains_N.select <- vector(
         mode = "logical", length = nrow(tbl.join)
     )
@@ -407,7 +429,7 @@ joinAndSelectWorst <- function(
         )
     rm(i)
     
-    #  Subsection: Written explanation
+    #  Subsection: #TODO Written explanation
     tbl.join$contains_N.both <- vector(
         mode = "logical", length = nrow(tbl.join)
     )
@@ -455,7 +477,7 @@ loadTibbleFromRDS <- function(variable, file) {
 
 
 makeOperation <- function(variable, command) {
-    operation <- paste(variable, command) #%>% paste(., collapse = "; ")
+    operation <- paste(variable, command)
     return(operation)
 }
 
@@ -472,10 +494,6 @@ path.3 <- paste0(directory_data)
 rm(directory_bam, directory_data, directory_project, directory_user)
 
 setwd(paste0(path.1, "/", path.3))
-
-
-#  Script name ----------------------------------------------------------------
-script <- "test.PE-processing.part-7.R"
 
 
 #  Load in the KA and GB datasets ---------------------------------------------
@@ -499,6 +517,10 @@ operation <- paste0(
 evaluateOperation(operation)
 
 rm(suffix, variable, variable_b, variable_m, variable_uniline)
+
+
+#  Script name ----------------------------------------------------------------
+script <- "test.PE-processing.part-7.R"
 
 
 #  Rename variables to make things clearer ------------------------------------
@@ -560,12 +582,12 @@ odd$tibble <- "1"
 even$tibble <- "2"
 
 #  Again, interleave the odd/even rows, then arrange them by group ID and
-#+ tibble number; save results to initial "tbl.*" variables
+#+ tibble number; save results to initial "bi.AS.pmin" variable
 command <- paste0(
-    "<- odd %>%",
-        "dplyr::mutate(groupid = row_number()) %>% ",
-        "dplyr::bind_rows(even %>% mutate(groupid = row_number())) %>% ",
-        "dplyr::arrange(groupid, tibble) %>% ",
+    "<- ", "odd", " %>%",
+        "dplyr::mutate(groupid = row_number())", " %>% ",
+        "dplyr::bind_rows(even %>% mutate(groupid = row_number()))", " %>% ",
+        "dplyr::arrange(groupid, tibble)", " %>% ",
         "dplyr::select(-tibble)"
 )
 operation <- makeOperation(paste0("bi.AS.pmin"), command)
@@ -788,372 +810,480 @@ rm(example, example.table)
 
 
 ###############################################################################
-# #  Set up liftOver chains -----------------------------------------------------
-# liftover_directory <- "liftOver"
-# 
-# #  129S1
-# chain_129S1_to_mm10 <- paste0(
-#     liftover_directory, "/", "129S1-SvImJ-to-mm10.over.chain.munged"
-# ) %>%
-#     rtracklayer::import.chain()
-# chain_mm10_to_129S1 <- paste0(
-#     liftover_directory, "/", "mm10-to-129S1-SvImJ.over.chain.munged"
-# ) %>%
-#     rtracklayer::import.chain()
-# 
-# #  CAST
-# chain_CAST_to_mm10 <- paste0(
-#     liftover_directory, "/", "CAST-EiJ-to-mm10.over.chain.munged"
-# ) %>%
-#     rtracklayer::import.chain()
-# chain_mm10_to_CAST <- paste0(
-#     liftover_directory, "/", "mm10-to-CAST-EiJ.over.chain.munged"
-# ) %>%
-#     rtracklayer::import.chain()
+#  Read in sam2pairwise files in order to reconstruct CIGAR sequences ---------
 
+# Switch to location of sam2pairwise files for GB .bam files
+setwd(paste0(path.1, "/", path.2))
 
-#  Set up Python code ---------------------------------------------------------
-reticulate::use_condaenv(
-    "/Users/kalavattam/miniconda3/envs/r41_env",
-    required = TRUE
+#  sam2pairwise files for .bam files output by GB's allele assignment script
+file <- list.files(pattern = paste0("\\.sam2pairwise.munged.all.txt$"))
+variable <- file %>%
+    strsplit(., "\\.") %>%
+    lapply(., `[[`, 4) %>% unlist() %>%
+    paste0("sam2pairwise.GB.", .)
+mapply(
+    assign, variable, file, MoreArgs = list(envir = parent.frame())
 )
 
-python_code <- 
-"
-def compare(string_1, string_2, no_match_c=' ', match_c='|'):
-    if len(string_2) < len(string_1):
-        string_1, string_2 = string_2, string_1
-    result = ''
-    n_diff = 0
-    for c1, c2 in zip(string_1, string_2):
-        if c1 == c2:
-            result += match_c
-        else:
-            result += no_match_c
-            n_diff += 1
-    delta = len(string_2) - len(string_1)
-    result += delta * no_match_c
-    n_diff += delta
-    return (result, n_diff)
+command <- paste0("<- readr::read_tsv(", variable, ")")
+operation <- makeOperation(variable, command)
+evaluateOperation(operation)
+
+#  Save the sam2pairwise variables for GB .bam files
+variable.tmp <- variable
 
 
-string_1 = r.string_1
-string_2 = r.string_2
-result, n_diff = compare(string_1, string_2, no_match_c='*')
-"
+#  Switch to location of sam2pairwise files for KA .bam files
+setwd(paste0(path.1, "/", path.3))
+
+#  sam2pairwise files for .bam files output by KA's allele assignment script
+file <- list.files(pattern = paste0("\\.rmdup.extendedCIGAR.sam2pairwise.munged.txt$"))
+variable <- file %>%
+    strsplit(., "-") %>%
+    lapply(., `[[`, 1) %>% unlist() %>%
+    paste0("sam2pairwise.KA.", .)
+mapply(
+    assign, variable, file, MoreArgs = list(envir = parent.frame())
+)
+
+command <- paste0("<- readr::read_tsv(", variable, ")")
+operation <- makeOperation(variable, command)
+evaluateOperation(operation)
+variable.tmp.2 <- variable
 
 
-#  Create version of 'joint' with tibble for each "KA.* × GB.*" entry ---------
-joint.assign <- joint %>%
+#  Create a variable for the sam2pairwise variables for GB and KA .bam files
+variable <- c(variable.tmp, variable.tmp.2)
+rm(variable.tmp, variable.tmp.2)
+
+
+#  From sam2pairwise variables, filter out rows with mapq less than 30 --------
+command <- paste0("<- ", variable, "[", variable, "$mapq >= 30, ]")
+operation <- makeOperation(variable, command)
+evaluateOperation(operation)
+
+
+#  Prior to sorting, deduplicate and mate-label the tibbles -------------------
+
+#  Set up $criteria, a variable needed for sorting: qname, flag, pos, mpos
+command <- paste0(
+    "<- paste0(",
+        variable, "$qname, ", "'_', ",
+        variable, "$flag, ", "'_', ",
+        variable, "$pos, ", "'_', ",
+        variable, "$mpos",
+    ")"
+)
+operation <- makeOperation(paste0(variable, "$criteria"), command)
+evaluateOperation(operation)
+
+#  Set up $coordinate, a variable needed for sorting too: qname, rname, pos
+command <- paste0(
+    "<- paste0(",
+            variable, "$qname, ", "'_', ",
+            variable, "$rname, ", "'_', ",
+            variable, "$pos",
+    ")"
+)
+operation <- makeOperation(paste0(variable, "$coordinate"), command)
+evaluateOperation(operation)
+
+#  Set up $qpos, a variable needed for sorting
+command <- paste0(
+    "<- paste0(",
+        variable, "$qname, ", "'_', ",
+        variable, "$pos",
+    ")"
+)
+operation <- makeOperation(paste0(variable, "$qpos"), command)
+evaluateOperation(operation)
+
+#  Set up $qmpos, a variable needed for sorting
+command <- paste0(
+    "<- paste0(",
+        variable, "$qname, ", "'_', ",
+        variable, "$mpos",
+    ")"
+)
+operation <- makeOperation(paste0(variable, "$qmpos"), command)
+evaluateOperation(operation)
+
+#  To survey duplicates, split out entries in which $qpos is the same as
+#+ $qmpos, i.e., entries in which each member of the pair maps to the same
+#+ location
+command <- paste0(
+    "<- ", variable, "[", variable, "$qpos == ", variable, "$qmpos, ]"
+)
+operation <- makeOperation(paste0("same.", variable), command)
+evaluateOperation(operation)
+
+#  Regarding the main tibbles, remove entries in which $qpos is the same as
+#+ $qmpos, i.e., entries in which each member of the pair maps to the same
+#+ location
+command <- paste0(
+    "<- ", variable, "[!(", variable, "$qpos == ", variable, "$qmpos), ]"
+)
+operation <- makeOperation(variable, command)
+evaluateOperation(operation)
+
+#  Remove variables entries in which $qpos is the same as $qmpos, i.e., entries
+#+ in which each member of the pair maps to the same location
+operation <- paste0("rm(", "same.", variable, ")")
+evaluateOperation(operation)
+
+#QUESTION?  Does the below leave one of the entries post deduplication? Yes.
+#+
+#+ Deduplicate the main tibbles based on $criteria: There should be no more
+#+ than one entry with a given $criteria value (combination of $qname, $flag,
+#+ $pos, and $mpos)
+command <- paste0(
+    "<- ", variable, "[!duplicated(", variable, "$criteria), ]"
+)
+operation <- makeOperation(variable, command)
+evaluateOperation(operation)
+
+# #  Create an .Rdata image prior to testing...
+# save.image(file = "test.Rdata")
+# load(file = "test.Rdata")
+
+
+# -----------------------------------------------------------------------------
+test <- joint
+
+
+# -----------------------------------------------------------------------------
+sam2pairwise.GB <- dplyr::bind_rows(
+    sam2pairwise.GB.alt,
+    sam2pairwise.GB.ambig,
+    sam2pairwise.GB.contra,
+    sam2pairwise.GB.ref
+)
+
+
+# -----------------------------------------------------------------------------
+getSam2pairwiseGBodd <- function(tibble) {
+    tbl <- tibble %>%
+    dplyr::select(
+        coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.GB.odd = coordinate,
+        cigar.GB.odd = cigar,
+        read_sequence.GB.odd = read_sequence,
+        matches.GB.odd = matches,
+        reference_sequence.GB.odd = reference_sequence
+    )
+    return(tbl)
+}
+
+
+getSam2pairwiseGBeven <- function(tibble) {
+    tbl <- tibble %>%
+    dplyr::select(
+        coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.GB.even = coordinate,
+        cigar.GB.even = cigar,
+        read_sequence.GB.even = read_sequence,
+        matches.GB.even = matches,
+        reference_sequence.GB.even = reference_sequence
+    )
+    return(tbl)
+}
+
+test <- dplyr::left_join(
+    test,
+    getSam2pairwiseGBodd(sam2pairwise.GB),
+    by = "coordinate.GB.odd"
+) %>% dplyr::rename(
+        cigar.GB.odd.2 = cigar.GB.odd.y
+    ) %>% dplyr::rename(
+        cigar.GB.odd.1 = cigar.GB.odd.x
+    )
+
+test <- dplyr::left_join(
+    test,
+    getSam2pairwiseGBeven(sam2pairwise.GB),
+    by = "coordinate.GB.even"
+) %>% dplyr::rename(
+        cigar.GB.even.2 = cigar.GB.even.y
+    ) %>% dplyr::rename(
+        cigar.GB.even.1 = cigar.GB.even.x
+    )
+
+# test$cigar.GB.odd.2 %>% table(useNA = "ifany")
+# test$cigar.GB.even.2 %>% table(useNA = "ifany")
+
+
+# -----------------------------------------------------------------------------
+test$coordinate.KA.129S1.odd <- paste0(
+    stringr::str_split(test$coordinate.KA.odd, "_") %>%
+        lapply(., `[[`, 1) %>%
+        unlist(), "_",
+    test$rname.129S1.odd, "_",
+    test$pos.129S1.odd
+)
+test$coordinate.KA.129S1.even <- paste0(
+    stringr::str_split(test$coordinate.KA.even, "_") %>%
+        lapply(., `[[`, 1) %>%
+        unlist(), "_",
+    test$rname.129S1.even, "_",
+    test$pos.129S1.even
+)
+test$coordinate.KA.CAST.odd <- paste0(
+    stringr::str_split(test$coordinate.KA.odd, "_") %>%
+        lapply(., `[[`, 1) %>%
+        unlist(), "_",
+    test$rname.CAST.odd, "_",
+    test$pos.CAST.odd
+)
+test$coordinate.KA.CAST.even <- paste0(
+    stringr::str_split(test$coordinate.KA.even, "_") %>%
+        lapply(., `[[`, 1) %>%
+        unlist(), "_",
+    test$rname.CAST.even, "_",
+    test$pos.CAST.even
+)
+test$coordinate.KA.mm10.odd <- paste0(
+    stringr::str_split(test$coordinate.KA.odd, "_") %>%
+        lapply(., `[[`, 1) %>%
+        unlist(), "_",
+    test$rname.mm10.odd, "_",
+    test$pos.mm10.odd
+)
+test$coordinate.KA.mm10.even <- paste0(
+    stringr::str_split(test$coordinate.KA.even, "_") %>%
+        lapply(., `[[`, 1) %>%
+        unlist(), "_",
+    test$rname.mm10.even, "_",
+    test$pos.mm10.even
+)
+
+test <- test %>%
+    dplyr::relocate(
+        c(
+            coordinate.KA.129S1.odd,
+            coordinate.KA.129S1.even,
+            coordinate.KA.CAST.odd,
+            coordinate.KA.CAST.even,
+            coordinate.KA.mm10.odd,
+            coordinate.KA.mm10.even
+        ),
+        .after = coordinate.KA.even
+    )
+
+
+# -----------------------------------------------------------------------------
+test.assign <- test %>%
+    dplyr::group_by(assignment.KA.odd) %>%
+    dplyr::group_split()
+
+# test.assign[[1]] %>% head()  # 129
+# test.assign[[2]] %>% head()  # CAST
+# test.assign[[3]] %>% head()  # Ambiguous
+# test.assign[[4]] %>% head()  # NA
+
+test.129 <- test.assign[[1]]  # 25230
+test.CAST <- test.assign[[2]]  # 23863
+test.Ambiguous <- test.assign[[3]]  # 69920
+test.NA <- test.assign[[4]]  # 6928
+
+# nrow(test.assign[[1]]) + nrow(test.assign[[2]]) + nrow(test.assign[[3]]) + nrow(test.assign[[4]])  # 125941
+# nrow(test.129) + nrow(test.CAST) + nrow(test.Ambiguous) + nrow(test.NA)  # 125941
+
+rm(test.assign)
+
+
+# -----------------------------------------------------------------------------
+tbl <- sam2pairwise.KA.129S1 %>%
+    dplyr::select(
+        coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.KA.129S1.odd = coordinate,
+        cigar.KA.odd = cigar,
+        read_sequence.KA.odd = read_sequence,
+        matches.KA.odd = matches,
+        reference_sequence.KA.odd = reference_sequence
+    )
+test.129 <- test.129 %>% dplyr::left_join(
+    dplyr::distinct(
+        tbl,
+        coordinate.KA.129S1.odd,
+        .keep_all = TRUE
+    )
+)
+
+tbl <- sam2pairwise.KA.129S1 %>%
+    dplyr::select(
+        coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.KA.129S1.even = coordinate,
+        cigar.KA.even = cigar,
+        read_sequence.KA.even = read_sequence,
+        matches.KA.even = matches,
+        reference_sequence.KA.even = reference_sequence
+    )
+test.129 <- test.129 %>% dplyr::left_join(
+    dplyr::distinct(
+        tbl,
+        coordinate.KA.129S1.even,
+        .keep_all = TRUE
+    )
+)
+
+
+# -----------------------------------------------------------------------------
+tbl <- sam2pairwise.KA.CAST %>%
+    dplyr::select(
+        coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.KA.CAST.odd = coordinate,
+        cigar.KA.odd = cigar,
+        read_sequence.KA.odd = read_sequence,
+        matches.KA.odd = matches,
+        reference_sequence.KA.odd = reference_sequence
+    )
+test.CAST <- test.CAST %>% dplyr::left_join(
+    dplyr::distinct(
+        tbl,
+        coordinate.KA.CAST.odd,
+        .keep_all = TRUE
+    )
+)
+
+tbl <- sam2pairwise.KA.CAST %>%
+    dplyr::select(
+        coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.KA.CAST.even = coordinate,
+        cigar.KA.even = cigar,
+        read_sequence.KA.even = read_sequence,
+        matches.KA.even = matches,
+        reference_sequence.KA.even = reference_sequence
+    )
+test.CAST <- test.CAST %>% dplyr::left_join(
+    dplyr::distinct(
+        tbl,
+        coordinate.KA.CAST.even,
+        .keep_all = TRUE
+    )
+)
+
+
+# -----------------------------------------------------------------------------
+tbl <- sam2pairwise.KA.mm10 %>%
+    dplyr::select(
+        coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.KA.mm10.odd = coordinate,
+        cigar.KA.odd = cigar,
+        read_sequence.KA.odd = read_sequence,
+        matches.KA.odd = matches,
+        reference_sequence.KA.odd = reference_sequence
+    )
+test.Ambiguous <- test.Ambiguous %>% dplyr::left_join(
+    dplyr::distinct(
+        tbl,
+        coordinate.KA.mm10.odd
+    )
+)
+
+tbl <- sam2pairwise.KA.mm10 %>%
+    dplyr::select(
+        coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.KA.mm10.even = coordinate,
+        cigar.KA.even = cigar,
+        read_sequence.KA.even = read_sequence,
+        matches.KA.even = matches,
+        reference_sequence.KA.even = reference_sequence
+    )
+test.Ambiguous <- test.Ambiguous %>% dplyr::left_join(
+    dplyr::distinct(
+        tbl,
+        coordinate.KA.mm10.even
+    )
+)
+
+
+# -----------------------------------------------------------------------------
+tbl <- sam2pairwise.KA.mm10 %>%
+    dplyr::select(
+        coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.KA.mm10.odd = coordinate,
+        cigar.KA.odd = cigar,
+        read_sequence.KA.odd = read_sequence,
+        matches.KA.odd = matches,
+        reference_sequence.KA.odd = reference_sequence
+    )
+test.NA <- test.NA %>% dplyr::left_join(
+    dplyr::distinct(
+        tbl,
+        coordinate.KA.mm10.odd
+    )
+)
+
+tbl <- sam2pairwise.KA.mm10 %>%
+    dplyr::select(
+        coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.KA.mm10.even = coordinate,
+        cigar.KA.even = cigar,
+        read_sequence.KA.even = read_sequence,
+        matches.KA.even = matches,
+        reference_sequence.KA.even = reference_sequence
+    )
+test.NA <- test.NA %>% dplyr::left_join(
+    dplyr::distinct(
+        tbl,
+        coordinate.KA.mm10.even
+    )
+)
+
+rm(tbl)
+
+
+# -----------------------------------------------------------------------------
+test <- dplyr::bind_rows(
+    test.129,
+    test.CAST,
+    test.Ambiguous,
+    test.NA
+)
+colnames(test)
+
+#  Remove unneeded variables
+rm(
+    bi.AS.pmin, bi.joint.GB, joint,
+    test.129, test.Ambiguous, test.CAST, test.NA,
+    sam2pairwise.GB, uni.AS.pmin, uni.joint.GB
+)
+
+operation <- paste0("rm(", variable, ")")
+evaluateOperation(operation)
+
+
+#  Divide main variable into list variable, listed by KA_by_GB categories -----
+categories <- test %>%
     dplyr::group_by(KA_by_GB) %>%
     dplyr::group_split()
 
-#  Clean out unneeded variables
-# rm(bi.AS.pmin, bi.joint.GB, uni.AS.pmin, uni.joint.GB)
+
+#  Save the image -------------------------------------------------------------
+save.image(stringr::str_remove(script, ".R") %>% paste0(., ".Rdata"))
 
 
-#  Cell-wise analyses of SNPs, etc. for [[5]] KA.129 × GB.NA ------------------
-bam <- joint.assign[[5]] %>% dplyr::select(sort(dplyr::current_vars()))
+#  Script is completed; clean up environment ----------------------------------
+rm(list = ls())
 
-#  Randomly sample 'int' number of rows from tibble 'bam'; if commented out,
-#+ then process all observations in the tibble
-# int <- 5L
-# int <- 100L
-# int <- 500L
-int <- 1000L
-bam <- bam[
-    sample(
-        1:nrow(bam),
-        if (nrow(bam) < int) {
-            nrow(bam)
-        } else {
-            int
-        },
-        replace = FALSE
-    ), 
-]
-bam <- bam %>%
-    tibble::rowid_to_column() %>%
-    dplyr::rename(ID.post_sample = rowid)
-
-row <- bam$ID.post_sample %>% as.double()
-rm(int)
-
-# colnames(bam)
-
-#  Generate tibble of comparisons, metrics, etc. for [[5]] KA.129 × GB.NA
-sample.1000.Mmusculus129S1SvImJ <- joinAndSelectWorst(
-    row = row,
-    genome = Mmusculus129S1SvImJ,
-    rname.odd = bam$rname.129S1.odd,
-    pos.odd = bam$pos.129S1.odd,
-    pos_end.odd = bam$pos_end.129S1.odd,
-    seq.odd = bam$seq.129S1.odd,
-    rname.even = bam$rname.129S1.even,
-    pos.even = bam$pos.129S1.even,
-    pos_end.even = bam$pos_end.129S1.even,
-    seq.even = bam$seq.129S1.even
-)
-
-sample.1000.Mmusculus129Nmasked <- joinAndSelectWorst(
-    row = row,
-    genome = Mmusculus129Nmasked,
-    rname.odd = bam$lO_rname.129S1.odd,
-    pos.odd = bam$lO_pos.129S1.odd,
-    pos_end.odd = bam$lO_pos.129S1.odd + 49,
-    seq.odd = bam$seq.129S1.odd,
-    rname.even = bam$lO_rname.129S1.even,
-    pos.even = bam$lO_pos.129S1.even,
-    pos_end.even = bam$lO_pos.129S1.even + 49,
-    seq.even = bam$seq.129S1.even
-    
-    # pos_end.odd = bam$lO_pos_end.129S1.odd,
-    # pos_end.even = bam$lO_pos_end.129S1.even,
-)
-
-#  Histograms for '*.both'
-hist(
-    sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both,
-    # breaks = max(sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both),
-    main = "129 alignments compared to 129 assembly",
-    xlab = "Mismatches",
-    right = FALSE
-)
-
-hist(
-    sample.1000.Mmusculus129Nmasked$no_difference.sum.both,
-    # breaks = max(sample.1000.Mmusculus129Nmasked$no_difference.sum.both),
-    main = "129 alignments lifted to mm10 coordinates; then,\nlifted alignments compared to mm10 assembly\nN-masked at 129 SNPs",
-    xlab = "Mismatches",
-    right = FALSE
-)
-
-hist(
-    sample.1000.Mmusculus129Nmasked$no_diff_not_N.both,
-    # breaks = max(sample.1000.Mmusculus129Nmasked$no_difference.sum.both),
-    main = "129 alignments lifted to mm10 coordinates; then,\nlifted alignments compared to mm10 assembly\nN-masked at 129 SNPs",
-    xlab = "Mismatches (not including SNPs)",
-    right = FALSE
-)
-
-hist(
-    sample.1000.Mmusculus129Nmasked$no_N.both,
-    breaks = max(sample.1000.Mmusculus129Nmasked$no_N.both),
-    main = "129 alignments lifted to mm10 coordinates; then,\nlifted alignments compared to mm10 assembly\nN-masked at 129 SNPs",
-    xlab = "Numbers of N-masked SNPs",
-    right = FALSE
-)
-
-
-out <- paste0(
-    "\n#######################################################################################################\n",
-    "129 alignments compared to the 129 assembly", "\n",
-    "-------------------------------------------------------------------------------------------------------", "\n",
-    sample.1000.Mmusculus129S1SvImJ$seq_query.both, "\n",
-    sample.1000.Mmusculus129S1SvImJ$seq_match.both, "\n",
-    sample.1000.Mmusculus129S1SvImJ$seq_genome.both, "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both, " total difference(s)", "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_difference.both, " total difference(s)", "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_diff_not_N.both, " difference(s) that are not N-related", "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_N.both, " difference(s) that *are* N-related", "\n",
-    "\n",
-    "129 alignments lifted to mm10 coordinates; then, lifted alignments compared to mm10 assembly N-masked at 129 SNPs", "\n",
-    "-------------------------------------------------------------------------------------------------------", "\n",
-    sample.1000.Mmusculus129Nmasked$seq_query.both, "\n",
-    sample.1000.Mmusculus129Nmasked$seq_match.both, "\n",
-    sample.1000.Mmusculus129Nmasked$seq_genome.both, "\n",
-    sample.1000.Mmusculus129Nmasked$no_difference.sum.both, " total difference(s)", "\n",
-    sample.1000.Mmusculus129Nmasked$no_difference.both, " total difference(s)", "\n",
-    sample.1000.Mmusculus129Nmasked$no_diff_not_N.both, " difference(s) that are not N-related", "\n",
-    sample.1000.Mmusculus129Nmasked$no_N.both, " difference(s) that *are* N-related", "\n",
-    "\n"
-)
-write.table(
-    out,
-    "2022-0124.sample.1000.sample.1000.Mmusculus129S1SvImJ.sample.1000.Mmusculus129Nmasked.txt",
-    row.names = FALSE,
-    col.names = FALSE
-)
-rm(out)
-
-#  sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10
-out <- paste0(
-    "\n#######################################################################################################\n",
-    "129 alignments compared to the 129 assembly", "\n",
-    "-------------------------------------------------------------------------------------------------------", "\n",
-    sample.1000.Mmusculus129S1SvImJ$seq_query.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129S1SvImJ$seq_match.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129S1SvImJ$seq_genome.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], " total difference(s)", "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_difference.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], " total difference(s)", "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_diff_not_N.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], " difference(s) that are not N-related", "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_N.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], " difference(s) that *are* N-related", "\n",
-    "\n",
-    "129 alignments lifted to mm10 coordinates; then, lifted alignments compared to mm10 assembly N-masked at 129 SNPs", "\n",
-    "-------------------------------------------------------------------------------------------------------", "\n",
-    sample.1000.Mmusculus129Nmasked$seq_query.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129Nmasked$seq_match.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129Nmasked$seq_genome.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129Nmasked$no_difference.sum.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], " total difference(s)", "\n",
-    sample.1000.Mmusculus129Nmasked$no_difference.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], " total difference(s)", "\n",
-    sample.1000.Mmusculus129Nmasked$no_diff_not_N.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], " difference(s) that are not N-related", "\n",
-    sample.1000.Mmusculus129Nmasked$no_N.both[sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10], " difference(s) that *are* N-related", "\n",
-    "\n"
-)
-write.table(
-    out,
-    "2022-0124.sample.1000.sample.1000.Mmusculus129S1SvImJ.sample.1000.Mmusculus129Nmasked.Mmusculus129Nmasked-gt-10-differences.txt",
-    row.names = FALSE,
-    col.names = FALSE
-)
-rm(out)
-
-
-#  sample.1000.Mmusculus129Nmasked$no_difference.sum.both > 10
-out <- paste0(
-    "\n#######################################################################################################\n",
-    "129 alignments compared to the 129 assembly", "\n",
-    "-------------------------------------------------------------------------------------------------------", "\n",
-    sample.1000.Mmusculus129S1SvImJ$seq_query.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129S1SvImJ$seq_match.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129S1SvImJ$seq_genome.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], " total difference(s)", "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_difference.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], " total difference(s)", "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_diff_not_N.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], " difference(s) that are not N-related", "\n",
-    sample.1000.Mmusculus129S1SvImJ$no_N.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], " difference(s) that *are* N-related", "\n",
-    "\n",
-    "129 alignments lifted to mm10 coordinates; then, lifted alignments compared to mm10 assembly N-masked at 129 SNPs", "\n",
-    "-------------------------------------------------------------------------------------------------------", "\n",
-    sample.1000.Mmusculus129Nmasked$seq_query.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129Nmasked$seq_match.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129Nmasked$seq_genome.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], "\n",
-    sample.1000.Mmusculus129Nmasked$no_difference.sum.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], " total difference(s)", "\n",
-    sample.1000.Mmusculus129Nmasked$no_difference.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], " total difference(s)", "\n",
-    sample.1000.Mmusculus129Nmasked$no_diff_not_N.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], " difference(s) that are not N-related", "\n",
-    sample.1000.Mmusculus129Nmasked$no_N.both[sample.1000.Mmusculus129S1SvImJ$no_difference.sum.both > 10], " difference(s) that *are* N-related", "\n",
-    "\n"
-)
-write.table(
-    out,
-    "2022-0124.sample.1000.sample.1000.Mmusculus129S1SvImJ.sample.1000.Mmusculus129Nmasked.Mmusculus129S1SvImJ-gt-10-differences.txt",
-    row.names = FALSE,
-    col.names = FALSE
-)
-rm(out)
-
-
-#  Cell-wise analyses of SNPs, etc. for [[17]] KA.NA × GB.Ambiguous -----------
-bam <- joint.assign[[17]] %>% dplyr::select(sort(dplyr::current_vars()))
-
-#  Randomly sample 'int' number of rows from tibble 'bam'; if commented out,
-#+ then process all observations in the tibble
-# int <- 5L
-# int <- 100L
-# int <- 500L
-int <- 1000L
-bam <- bam[
-    sample(
-        1:nrow(bam),
-        if (nrow(bam) < int) {
-            nrow(bam)
-        } else {
-            int
-        },
-        replace = FALSE
-    ), 
-]
-bam <- bam %>%
-    tibble::rowid_to_column() %>%
-    dplyr::rename(ID.post_sample = rowid)
-
-row <- bam$ID.post_sample %>% as.double()
-rm(int)
-
-# colnames(bam)
-
-
-#  Generate tibble of comparisons, metrics, etc. for [[17]] KA.NA × GB.Ambiguous
-sample.1000.MmusculusCAST129Nmasked <- joinAndSelectWorst(
-    row = row,
-    genome = MmusculusCAST129Nmasked,
-    rname.odd = bam$rname.GB.odd,
-    pos.odd = bam$pos.GB.odd,
-    pos_end.odd = bam$pos_end.GB.odd,
-    seq.odd = bam$seq.GB.odd,
-    rname.even = bam$rname.GB.even,
-    pos.even = bam$pos.GB.even,
-    pos_end.even = bam$pos_end.GB.even,
-    seq.even = bam$seq.GB.even
-)
-
-sample.1000.MmusculusCAST129Inserted <- joinAndSelectWorst(
-    row = row,
-    genome = MmusculusCAST129Inserted,
-    rname.odd = bam$rname.GB.odd,
-    pos.odd = bam$pos.GB.odd,
-    pos_end.odd = bam$pos_end.GB.odd,
-    seq.odd = bam$seq.GB.odd,
-    rname.even = bam$rname.GB.even,
-    pos.even = bam$pos.GB.even,
-    pos_end.even = bam$pos_end.GB.even,
-    seq.even = bam$seq.GB.even
-)
-
-#  Histograms for '*.both'
-hist(
-    sample.1000.MmusculusCAST129Nmasked$no_difference.sum.both,
-    breaks = max(sample.1000.MmusculusCAST129Nmasked$no_difference.sum.both),
-    main = "Alignments to mm10 reference N-masked at 129 and CAST SNPs\ncompared to mm10 assembly N-masked at 129 and CAST SNPs",
-    xlab = "Mismatches",
-    right = FALSE
-)
-
-hist(
-    sample.1000.MmusculusCAST129Inserted$no_difference.sum.both,
-    breaks = max(sample.1000.MmusculusCAST129Inserted$no_difference.sum.both),
-    main = "Alignments to mm10 reference N-masked at 129 and CAST SNPs\ncompared to mm10 assembly that includes 129 and CAST SNPs",
-    xlab = "Mismatches",
-    right = FALSE
-)
-
-
-out <- paste0(
-    "\n#######################################################################################################\n",
-    "Alignments to mm10 reference N-masked at 129 and CAST SNPs compared to mm10 assembly N-masked at 129 and CAST SNPs", "\n",
-    "-------------------------------------------------------------------------------------------------------", "\n",
-    sample.1000.MmusculusCAST129Nmasked$seq_query.both, "\n",
-    sample.1000.MmusculusCAST129Nmasked$seq_match.both, "\n",
-    sample.1000.MmusculusCAST129Nmasked$seq_genome.both, "\n",
-    sample.1000.MmusculusCAST129Nmasked$no_difference.sum.both, " total difference(s)", "\n",
-    sample.1000.MmusculusCAST129Nmasked$no_difference.both, " total difference(s)", "\n",
-    sample.1000.MmusculusCAST129Nmasked$no_diff_not_N.both, " difference(s) that are not N-related", "\n",
-    sample.1000.MmusculusCAST129Nmasked$no_N.both, " difference(s) that *are* N-related", "\n",
-    "\n",
-    "Alignments to mm10 reference that includes 129 and CAST SNPs compared to mm10 assembly that includes 129 and CAST SNPs", "\n",
-    "-------------------------------------------------------------------------------------------------------", "\n",
-    sample.1000.MmusculusCAST129Inserted$seq_query.both, "\n",
-    sample.1000.MmusculusCAST129Inserted$seq_match.both, "\n",
-    sample.1000.MmusculusCAST129Inserted$seq_genome.both, "\n",
-    sample.1000.MmusculusCAST129Inserted$no_difference.sum.both, " total difference(s)", "\n",
-    sample.1000.MmusculusCAST129Inserted$no_difference.both, " total difference(s)", "\n",
-    sample.1000.MmusculusCAST129Inserted$no_diff_not_N.both, " difference(s) that are not N-related", "\n",
-    sample.1000.MmusculusCAST129Inserted$no_N.both, " difference(s) that *are* N-related", "\n",
-    "\n"
-)
-
-write.table(
-    out,
-    "2022-0124.sample.1000.MmusculusCAST129Nmasked.MmusculusCAST129Inserted.txt",
-    row.names = FALSE,
-    col.names = FALSE
-)
-rm(out)
-
-#  Scraps, to-dos, etc. -------------------------------------------------------
-#TODO 1/2 Get the 'seq' associated with the pmin(), i.e., the worse alignment;
-#TODO 2/2 put them in a separate column; then use them for the above analyses
-
-#TODO 1/3 Test seq.even and seq.odd for most mismatches; select the one with;
-#TODO 2/3 the most mismatches; put it in its own column; then use them for the
-#TODO 3/3 above analyses
-
+#  Go to 'test.PE-processing.part-8.R'

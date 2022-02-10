@@ -139,6 +139,16 @@ suffix <- variable_m %>%
     lapply(., `[[`, 2) %>%
     unlist()
 
+command <- paste0(
+    "<- ", variable, " %>% ",
+        "dplyr::rename(AS.odd = tag.AS.odd)", " %>% ",
+        "dplyr::rename(AS.even = tag.AS.even)", " %>% ",
+        "dplyr::rename(MD.odd = tag.MD.odd)", " %>% ",
+        "dplyr::rename(MD.even = tag.MD.even)"
+)
+operation <- makeOperation(variable, command)
+evaluateOperation(operation)
+
 #  129, CAST --------------------------
 command <- paste0(
     "<- ",
@@ -753,6 +763,12 @@ AS.pmin <- AS.pmin %>%
 save.image(stringr::str_remove(script, ".R") %>% paste0(., ".Rdata"))
 
 rm(list = ls())
+
+#  Before moving on to 'test.PE-processing.part-6.R', process .bam files made in
+#+ 'test.PE-processing.part-4.R'
+
+#  For example, for processing, use 'run_GB-assignment-pipeline.2022-0207.sh'
+#+ and 'generate-sam2pairwise-files_4dn-mouse-cross_GB.sh'
 
 
 # #  Create individual tibbles for each possible "assignment" value -------------
