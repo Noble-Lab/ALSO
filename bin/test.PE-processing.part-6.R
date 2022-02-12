@@ -190,7 +190,7 @@ setwd(paste0(path.1))
 #  Script name ----------------------------------------------------------------
 script <- "test.PE-processing.part-6.R"
 
-#  Make sure have run 'test.PE-processing.part-4.R',
+#  Make sure to have run 'test.PE-processing.part-4.R',
 #+ 'run_GB-assignment-pipeline.2022-0207.sh',
 #+ 'generate-sam2pairwise-files_4dn-mouse-cross_GB.sh', and
 #+ 'copy-important-files.sh' before running the rest of this script

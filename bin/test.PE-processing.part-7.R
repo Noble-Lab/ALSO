@@ -815,6 +815,11 @@ rm(example, example.table)
 # Switch to location of sam2pairwise files for GB .bam files
 setwd(paste0(path.1, "/", path.2))
 
+#TODO 1/4 Work with processed.mate-paired.mm10.chrX.sam2pairwise.munged.txt,
+#TODO 2/4 processed.mate-paired.CAST.chrX.sam2pairwise.munged.txt, and
+#TODO 3/4 processed.mate-paired.129S1.chrX.sam2pairwise.munged.txt, not the
+#TODO 4/4 "\\.sam2pairwise.munged.all.txt$" files as seen in the code below
+
 #  sam2pairwise files for .bam files output by GB's allele assignment script
 file <- list.files(pattern = paste0("\\.sam2pairwise.munged.all.txt$"))
 variable <- file %>%
@@ -828,6 +833,28 @@ mapply(
 command <- paste0("<- readr::read_tsv(", variable, ")")
 operation <- makeOperation(variable, command)
 evaluateOperation(operation)
+
+# #  The .bam files themselves, loading in AS and MD fields
+# file <- list.files(pattern = paste0("\\.bam$"))
+# variable <- file %>%
+#     strsplit(., "\\.") %>%
+#     lapply(., `[[`, 4) %>% unlist() %>%
+#     paste0("bam.GB.", .)
+# mapply(
+#     assign, variable, file, MoreArgs = list(envir = parent.frame())
+# )
+# 
+# map_params <- Rsamtools::ScanBamParam(tag = c("AS", "MD"))
+# command <- paste0(
+#     "<- ", variable, " %>% ",
+#         "Rsamtools::BamFile(., index = ", index, ", asMates = TRUE)", " %>% ",
+#         "Rsamtools::scanBam(param = map_params)", " %>% ",
+#         "as.data.frame()", " %>% ",
+#         "tibble::as_tibble()"
+# )
+# operation <- makeOperation(variable, command)
+# evaluateOperation(operation)
+# rm(map_params)
 
 #  Save the sam2pairwise variables for GB .bam files
 variable.tmp <- variable
@@ -849,7 +876,83 @@ mapply(
 command <- paste0("<- readr::read_tsv(", variable, ")")
 operation <- makeOperation(variable, command)
 evaluateOperation(operation)
+
 variable.tmp.2 <- variable
+
+# #  Load in associated .bam information
+# # chromosome <- "chr1"
+# chromosome <- "chrX"
+# 
+# #  .bam files
+# file <- list.files(pattern = paste0(
+#     "\\", chromosome, ".rmdup.extendedCIGAR.bam$"
+# ))
+# file <- file %>% stringr::str_subset("mm10\\.", negate = TRUE)
+# variable <- file %>%
+#     strsplit(., "-") %>%
+#     lapply(., `[[`, 1) %>% unlist() %>%
+#     paste0("dedup.", .)
+# mapply(
+#     assign, variable, file, MoreArgs = list(envir = parent.frame())
+# )
+# 
+# #  .bai files
+# file <- list.files(pattern = paste0(
+#     "\\", chromosome, ".rmdup.extendedCIGAR.bam.bai$"
+# ))
+# file <- file %>% stringr::str_subset("mm10\\.", negate = TRUE)
+# index <- file %>%
+#     strsplit(., "-") %>%
+#     lapply(., `[[`, 1) %>% unlist() %>%
+#     paste0("index.", .)
+# mapply(
+#     assign, index, file, MoreArgs = list(envir = parent.frame())
+# )
+# 
+# #  Load in standard .bam fields
+# command <- paste0(
+#     "<- ", variable, " %>% ",
+#         "Rsamtools::BamFile(., index = ", index, ", asMates = TRUE)", " %>% ",
+#         "Rsamtools::scanBam()", " %>% ",
+#         "as.data.frame()", " %>% ",
+#         "tibble::as_tibble()"
+# )
+# operation <- makeOperation(paste0(variable, ".full"), command)
+# evaluateOperation(operation)
+# 
+# #  Load in .bam AS and MD fields
+# map_params <- Rsamtools::ScanBamParam(tag = c("AS", "MD"))
+# command <- paste0(
+#     "<- ", variable, " %>% ",
+#         "Rsamtools::BamFile(., index = ", index, ", asMates = TRUE)", " %>% ",
+#         "Rsamtools::scanBam(param = map_params)", " %>% ",
+#         "as.data.frame()", " %>% ",
+#         "tibble::as_tibble()"
+# )
+# operation <- makeOperation(variable, command)
+# evaluateOperation(operation)
+# rm(map_params)
+# 
+# #  Join the standard, AS, and MD fields
+# command <- paste0(
+#     "<- dplyr::bind_cols(", variable, ".full, ", variable, ")"
+# )
+# operation <- makeOperation(variable, command)
+# evaluateOperation(operation)
+# 
+# #  Remove variables no longer needed
+# operation <- paste0("rm(", variable, ".full, ", index, ")")
+# evaluateOperation(operation)
+# 
+# rm(file, index)
+# 
+# sam2pairwise.KA.129S1 <- dplyr::left_join(
+#     sam2pairwise.KA.129S1,
+#     dedup.129S1,
+#     by
+# )
+
+
 
 
 #  Create a variable for the sam2pairwise variables for GB and KA .bam files
@@ -863,7 +966,7 @@ operation <- makeOperation(variable, command)
 evaluateOperation(operation)
 
 
-#  Prior to sorting, deduplicate and mate-label the tibbles -------------------
+#  Prior to sorting, deduplicate and mate-label the sam2pairwise tibbles ------
 
 #  Set up $criteria, a variable needed for sorting: qname, flag, pos, mpos
 command <- paste0(
@@ -908,6 +1011,13 @@ command <- paste0(
 operation <- makeOperation(paste0(variable, "$qmpos"), command)
 evaluateOperation(operation)
 
+#  Set up $isize_abs, i.e., absolute insert-size values, for sorting
+command <- paste0(
+    "<- ", variable, "$isize %>% abs() %>% as.numeric()"
+)
+operation <- makeOperation(paste0(variable, "$isize_abs"), command)
+evaluateOperation(operation)
+
 #  To survey duplicates, split out entries in which $qpos is the same as
 #+ $qmpos, i.e., entries in which each member of the pair maps to the same
 #+ location
@@ -931,7 +1041,19 @@ evaluateOperation(operation)
 operation <- paste0("rm(", "same.", variable, ")")
 evaluateOperation(operation)
 
-#QUESTION?  Does the below leave one of the entries post deduplication? Yes.
+# #  Order tibble by $criteria and $mapq
+# command <- paste0(
+#     "<- ", variable, "[",
+#         "order(",
+#             variable, "$criteria, ",
+#             variable, "$mapq",
+#         "), ",
+#     "]"
+# )
+# operation <- makeOperation(variable, command)
+# evaluateOperation(operation)
+
+#QUESTION? Does the below leave one of the entries post deduplication? Yes.
 #+
 #+ Deduplicate the main tibbles based on $criteria: There should be no more
 #+ than one entry with a given $criteria value (combination of $qname, $flag,
@@ -942,9 +1064,285 @@ command <- paste0(
 operation <- makeOperation(variable, command)
 evaluateOperation(operation)
 
-# #  Create an .Rdata image prior to testing...
-# save.image(file = "test.Rdata")
-# load(file = "test.Rdata")
+
+# #  Is $qpos in $qmpos? Vice versa? Create tables and tibbles of answers -------
+# createTibbleFromTibbles <- function(vector_string_tibbles) {
+#     bind_rows(
+#         eval(parse(text = paste0(vector_string_tibbles)[1])),
+#         eval(parse(text = paste0(vector_string_tibbles)[2])),
+#         eval(parse(text = paste0(vector_string_tibbles)[3])),
+#         eval(parse(text = paste0(vector_string_tibbles)[4])),
+#         eval(parse(text = paste0(vector_string_tibbles)[5])),
+#         eval(parse(text = paste0(vector_string_tibbles)[6])),
+#         eval(parse(text = paste0(vector_string_tibbles)[7]))
+#     )
+# }
+# 
+# command <- paste0(
+#     "<- testPosInMpos(",
+#         "pos = ", variable, "$qpos, ",
+#         "mpos = ", variable, "$qmpos",
+#     ") %>% ",
+#         "table()"
+# )
+# operation <- makeOperation(paste0("PIM.", variable), command)
+# evaluateOperation(operation)
+# 
+# command <- paste0(
+#     "<- testMposInPos(",
+#         "pos = ", variable, "$qpos, ",
+#         "mpos = ", variable, "$qmpos",
+#     ") %>% ",
+#         "table()"
+# )
+# operation <- makeOperation(paste0("MIP.", variable), command)
+# evaluateOperation(operation)
+# 
+# #  Convert the tables to tibbles: PIM
+# command <- paste0(
+#     "<- PIM.", variable, " %>% ",
+#         "t() %>% ",
+#         "cbind() %>% ",
+#         "as_tibble()"
+# )
+# operation <- makeOperation(paste0("PIM.", variable), command)
+# evaluateOperation(operation)
+# 
+# #  Create a "tibble of tibbles:" PIM
+# command <- paste0(
+#     "<- ", "tibble::tibble(", "PIM.", variable, ")"
+# )
+# operation <- makeOperation(paste0("PIM.", variable), command)
+# evaluateOperation(operation)
+# 
+# vector_string_tibbles <- paste0("PIM.", variable)
+# z.check.1.PIM <- createTibbleFromTibbles(vector_string_tibbles)
+# z.check.1.PIM$rownames <- stringr::str_remove(vector_string_tibbles, "tbl.")
+# z.check.1.PIM <- z.check.1.PIM %>% dplyr::arrange(rownames)
+# 
+# #  Convert the tables to tibbles: MIP
+# command <- paste0(
+#     "<- MIP.", variable, " %>% ",
+#         "t() %>% ",
+#         "cbind() %>% ",
+#         "as_tibble()"
+# )
+# operation <- makeOperation(paste0("MIP.", variable), command)
+# evaluateOperation(operation)
+# 
+# #  Create a "tibble of tibbles:" MIP
+# command <- paste0(
+#     "<- ", "tibble::tibble(", "MIP.", variable, ")"
+# )
+# operation <- makeOperation(paste0("MIP.", variable), command)
+# evaluateOperation(operation)
+# 
+# vector_string_tibbles <- paste0("MIP.", variable)
+# z.check.1.MIP <- createTibbleFromTibbles(vector_string_tibbles)
+# z.check.1.MIP$rownames <- stringr::str_remove(vector_string_tibbles, "tbl.")
+# z.check.1.MIP <- z.check.1.MIP %>% dplyr::arrange(rownames)
+# 
+# 
+# #  Is PIM.*$`FALSE` == MIP.*$`FALSE`? -----------------------------------------
+# command <- paste0(
+#     "<- PIM.", variable, "$`FALSE` == MIP.", variable, "$`FALSE`"
+# )
+# operation <- makeOperation(paste0("PeqM.", variable), command)
+# evaluateOperation(operation)
+# 
+# #  Create a "tibble of tibbles"
+# command <- paste0(
+#     "<- ", "tibble::tibble(", "PeqM.", variable, ")"
+# )
+# operation <- makeOperation(paste0("PeqM.", variable), command)
+# evaluateOperation(operation)
+# 
+# operation <- paste0("colnames(", "PeqM.", variable, ") ", "<- ", "\"n\"")
+# evaluateOperation(operation)
+# 
+# vector_string_tibbles <- paste0("PeqM.", variable)
+# z.check.2.PeqM <- createTibbleFromTibbles(vector_string_tibbles)
+# z.check.2.PeqM$rownames <- stringr::str_remove(vector_string_tibbles, "tbl.")
+# z.check.2.PeqM <- z.check.2.PeqM %>% dplyr::arrange(rownames)
+# 
+# 
+# #  Is PIM.*$`FALSE` > MIP.*$`FALSE`? ------------------------------------------
+# command <- paste0(
+#     "<- PIM.", variable, "$`FALSE` > MIP.", variable, "$`FALSE`"
+# )
+# operation <- makeOperation(paste0("PgtM.", variable), command)
+# evaluateOperation(operation)
+# 
+# #  Create a tibble
+# command <- paste0(
+#     "<- ", "tibble::tibble(", "PgtM.", variable, ")"
+# )
+# operation <- makeOperation(paste0("PgtM.", variable), command)
+# evaluateOperation(operation)
+# 
+# operation <- paste0("colnames(", "PgtM.", variable, ") ", "<- ", "\"n\"")
+# evaluateOperation(operation)
+# 
+# vector_string_tibbles <- paste0("PgtM.", variable)
+# z.check.2.PgtM <- createTibbleFromTibbles(vector_string_tibbles)
+# z.check.2.PgtM$rownames <- stringr::str_remove(vector_string_tibbles, "tbl.")
+# z.check.2.PgtM <- z.check.2.PgtM %>% dplyr::arrange(rownames)
+# 
+# 
+# #  Is PIM.*$`FALSE` < MIP.*$`FALSE`? ------------------------------------------
+# command <- paste0(
+#     "<- PIM.", variable, "$`FALSE` < MIP.", variable, "$`FALSE`"
+# )
+# operation <- makeOperation(paste0("PltM.", variable), command)
+# evaluateOperation(operation)
+# 
+# #  Create a tibble
+# command <- paste0(
+#     "<- ", "tibble::tibble(", "PltM.", variable, ")"
+# )
+# operation <- makeOperation(paste0("PltM.", variable), command)
+# evaluateOperation(operation)
+# 
+# operation <- paste0("colnames(", "PltM.", variable, ") ", "<- ", "\"n\"")
+# evaluateOperation(operation)
+# 
+# vector_string_tibbles <- paste0("PltM.", variable)
+# z.check.2.PltM <- createTibbleFromTibbles(vector_string_tibbles)
+# z.check.2.PltM$rownames <- stringr::str_remove(vector_string_tibbles, "tbl.")
+# z.check.2.PltM <- z.check.2.PltM %>% dplyr::arrange(rownames)
+# 
+# #  Remove unneeded variables
+# command <- paste0(
+#     "rm(",
+#         "PIM.", variable, ", ",
+#         "MIP.", variable, ", ",
+#         "PeqM.", variable, ", ",
+#         "PltM.", variable, ", ",
+#         "PgtM.", variable,
+#     ")"
+# )
+# evaluateOperation(command)
+# rm(vector_string_tibbles)
+# 
+# 
+# #  Make logical vectors for $qpos in $qmpos and vice versa --------------------
+# 
+# #  PIM
+# command <- paste0(
+#     "<- testPosInMpos(pos = ", variable, "$qpos, mpos = ", variable, "$qmpos)"
+# )
+# operation <- makeOperation(paste0("vPIM.", variable), command)
+# evaluateOperation(operation)
+# 
+# #  MIP
+# command <- paste0(
+#     "<- testMposInPos(pos = ", variable, "$qpos, mpos = ", variable, "$qmpos)"
+# )
+# operation <- makeOperation(paste0("vMIP.", variable), command)
+# evaluateOperation(operation)
+# 
+# #NOTE
+# #  Based on PeqM.*, PgtM.*, and PltM.* results, use the following vectors:
+# #+ All vPIM.* are fine, apparently
+# 
+# #  Remove unneeded variables
+# command <- paste0(
+#     "rm(", "vMIP.", variable, ")"
+# )
+# evaluateOperation(command)
+# 
+# 
+# #  Subset tibbles based on logical vectors for $qpos in $qmpos ----------------
+# 
+# #NOTE vPIM: logical vectors for $qpos %in% $qmpos
+# command <- paste0("<- ", variable, "[", "vPIM.", variable, ", ]")
+# operation <- makeOperation(paste0("sub.", variable), command)
+# evaluateOperation(operation)
+# 
+# #  Remove unneeded vPIM vectors
+# command <- paste0("rm(", "vPIM.", variable, ")")
+# evaluateOperation(command)
+# 
+# 
+# #  For the subsetted tibbles, save qpos %in$ qmpos, vice versa in vectors -----
+# variable <- paste0("sub.", variable)
+# command <- paste0(  # Table qpos %in$ qmpos
+#     "<- testPosInMpos(",
+#         "pos = ", variable, "$qpos, ",
+#         "mpos = ", variable, "$qmpos",
+#     ") %>% ",
+#         "table()"
+# )
+# operation <- makeOperation(paste0("PIM.", variable), command)
+# evaluateOperation(operation)
+# 
+# command <- paste0(  # Table qmpos %in$ qpos
+#     "<- testMposInPos(",
+#         "pos = ", variable, "$qpos, ",
+#         "mpos = ", variable, "$qmpos",
+#     ") %>% ",
+#         "table()"
+# )
+# operation <- makeOperation(paste0("MIP.", variable), command)
+# evaluateOperation(operation)
+# 
+# #  Convert the tables to tibbles
+# command <- paste0(
+#     "<- PIM.", variable, " %>% ",
+#         "t() %>% ",
+#         "cbind() %>% ",
+#         "as_tibble()"
+# )
+# operation <- makeOperation(paste0("PIM.", variable), command)
+# evaluateOperation(operation)
+# 
+# command <- paste0(
+#     "<- MIP.", variable, " %>% ",
+#         "t() %>% ",
+#         "cbind() %>% ",
+#         "as_tibble()"
+# )
+# operation <- makeOperation(paste0("MIP.", variable), command)
+# evaluateOperation(operation)
+# 
+# #  Collect pertinent readouts for the subsetted tibbles in one tibble; i.e.,
+# #+ create a "tibble of tibbles"
+# 
+# #  PIM
+# vector_string_tibbles <- paste0("PIM.", variable)
+# z.check.sub.0.PIM <- createTibbleFromTibbles(vector_string_tibbles)
+# z.check.sub.0.PIM$rownames <- stringr::str_remove(vector_string_tibbles, "tbl.")
+# z.check.sub.0.PIM <- z.check.sub.0.PIM %>% dplyr::arrange(rownames)
+# 
+# #  Remove unneeded variables
+# command <- paste0("rm(", "PIM.", variable, ")")
+# evaluateOperation(command)
+# rm(vector_string_tibbles)
+# 
+# #  MIP
+# vector_string_tibbles <- paste0("MIP.", variable)
+# z.check.sub.0.MIP <- createTibbleFromTibbles(vector_string_tibbles)
+# z.check.sub.0.MIP$rownames <- stringr::str_remove(vector_string_tibbles, "tbl.")
+# z.check.sub.0.MIP <- z.check.sub.0.MIP %>% dplyr::arrange(rownames)
+# 
+# #  Remove unneeded variables
+# command <- paste0("rm(", "MIP.", variable, ")")
+# evaluateOperation(command)
+# rm(vector_string_tibbles)
+# 
+# 
+# #  Order the tibbles based on $isize_abs, $qpos, and $qmpos -------------------
+# command <- paste0(
+#     "<- ", variable, "[",
+#         "order(",
+#             variable, "$isize_abs, ",
+#             variable, "$qpos, ",
+#             variable, "$qmpos",
+#         "), ",
+#     "]"
+# )
+# operation <- makeOperation(variable, command)
+# evaluateOperation(operation)
 
 
 # -----------------------------------------------------------------------------
@@ -1012,11 +1410,8 @@ test <- dplyr::left_join(
         cigar.GB.even.1 = cigar.GB.even.x
     )
 
-# test$cigar.GB.odd.2 %>% table(useNA = "ifany")
-# test$cigar.GB.even.2 %>% table(useNA = "ifany")
 
-
-# -----------------------------------------------------------------------------
+#  Add coordinate information for 129, CAST, and mm10 -------------------------
 test$coordinate.KA.129S1.odd <- paste0(
     stringr::str_split(test$coordinate.KA.odd, "_") %>%
         lapply(., `[[`, 1) %>%
@@ -1074,65 +1469,101 @@ test <- test %>%
     )
 
 
-# -----------------------------------------------------------------------------
-test.assign <- test %>%
-    dplyr::group_by(assignment.KA.odd) %>%
-    dplyr::group_split()
-
-# test.assign[[1]] %>% head()  # 129
-# test.assign[[2]] %>% head()  # CAST
-# test.assign[[3]] %>% head()  # Ambiguous
-# test.assign[[4]] %>% head()  # NA
-
-test.129 <- test.assign[[1]]  # 25230
-test.CAST <- test.assign[[2]]  # 23863
-test.Ambiguous <- test.assign[[3]]  # 69920
-test.NA <- test.assign[[4]]  # 6928
-
-# nrow(test.assign[[1]]) + nrow(test.assign[[2]]) + nrow(test.assign[[3]]) + nrow(test.assign[[4]])  # 125941
-# nrow(test.129) + nrow(test.CAST) + nrow(test.Ambiguous) + nrow(test.NA)  # 125941
-
-rm(test.assign)
-
-
-# -----------------------------------------------------------------------------
-tbl <- sam2pairwise.KA.129S1 %>%
+###############################################################################
+#  Join all of the sam2pairwise.KA tibbles ------------------------------------
+tmp.odd.129S1 <- sam2pairwise.KA.129S1 %>%
     dplyr::select(
-        coordinate, cigar, read_sequence, matches, reference_sequence
+        qname, coordinate, cigar, read_sequence, matches, reference_sequence
     ) %>%
     dplyr::rename(
         coordinate.KA.129S1.odd = coordinate,
-        cigar.KA.odd = cigar,
-        read_sequence.KA.odd = read_sequence,
-        matches.KA.odd = matches,
-        reference_sequence.KA.odd = reference_sequence
-    )
-test.129 <- test.129 %>% dplyr::left_join(
-    dplyr::distinct(
-        tbl,
-        coordinate.KA.129S1.odd,
-        .keep_all = TRUE
-    )
-)
+        cigar.KA.129S1.odd = cigar,
+        read_sequence.KA.129S1.odd = read_sequence,
+        matches.KA.129S1.odd = matches,
+        reference_sequence.KA.129S1.odd = reference_sequence
+    ) %>%
+    dplyr::select(-qname)
 
-tbl <- sam2pairwise.KA.129S1 %>%
+tmp.odd.CAST <- sam2pairwise.KA.CAST %>%
     dplyr::select(
-        coordinate, cigar, read_sequence, matches, reference_sequence
+        qname, coordinate, cigar, read_sequence, matches, reference_sequence
     ) %>%
     dplyr::rename(
-        coordinate.KA.129S1.even = coordinate,
-        cigar.KA.even = cigar,
-        read_sequence.KA.even = read_sequence,
-        matches.KA.even = matches,
-        reference_sequence.KA.even = reference_sequence
+        coordinate.KA.CAST.odd = coordinate,
+        cigar.KA.CAST.odd = cigar,
+        read_sequence.KA.CAST.odd = read_sequence,
+        matches.KA.CAST.odd = matches,
+        reference_sequence.KA.CAST.odd = reference_sequence
+    ) %>%
+    dplyr::select(-qname)
+
+tmp.odd.mm10 <- sam2pairwise.KA.mm10 %>%
+    dplyr::select(
+        qname, coordinate, cigar, read_sequence, matches, reference_sequence
+    ) %>%
+    dplyr::rename(
+        coordinate.KA.mm10.odd = coordinate,
+        cigar.KA.mm10.odd = cigar,
+        read_sequence.KA.mm10.odd = read_sequence,
+        matches.KA.mm10.odd = matches,
+        reference_sequence.KA.mm10.odd = reference_sequence
+    ) %>%
+    dplyr::select(-qname)
+
+tmp.even.129S1 <- tmp.odd.129S1
+tmp.even.CAST <- tmp.odd.CAST
+tmp.even.mm10 <- tmp.odd.mm10
+
+colnames(tmp.even.129S1) <- gsub("odd", "even", colnames(tmp.even.129S1))
+colnames(tmp.even.CAST) <- gsub("odd", "even", colnames(tmp.even.CAST))
+colnames(tmp.even.mm10) <- gsub("odd", "even", colnames(tmp.even.mm10))
+
+
+# -----------------------------------------------------------------------------
+test.2 <- test
+test.2 <- dplyr::left_join(
+    test.2,
+    tmp.odd.129S1,
+    by = "coordinate.KA.129S1.odd"
+) %>% 
+    dplyr::left_join(
+        .,
+        tmp.even.129S1,
+        by = "coordinate.KA.129S1.even"
+    ) %>% 
+    dplyr::left_join(
+        .,
+        tmp.odd.CAST,
+        by = "coordinate.KA.CAST.odd"
+    ) %>%
+    dplyr::left_join(
+        .,
+        tmp.even.CAST,
+        by = "coordinate.KA.CAST.even"
+    ) %>%
+    dplyr::left_join(
+        .,
+        tmp.odd.mm10,
+        by = "coordinate.KA.mm10.odd"
+    ) %>%
+    dplyr::left_join(
+        .,
+        tmp.even.mm10,
+        by = "coordinate.KA.mm10.even"
     )
-test.129 <- test.129 %>% dplyr::left_join(
-    dplyr::distinct(
-        tbl,
-        coordinate.KA.129S1.even,
-        .keep_all = TRUE
-    )
-)
+
+(test.2$read_sequence.GB.odd == test.2$read_sequence.KA.mm10.odd) %>% table(., useNA = "ifany")
+colnames(test.2)
+test.odd.FALSE <- test.2[
+    !(test.2$read_sequence.GB.odd == test.2$read_sequence.KA.mm10.odd) &
+    !is.na(test.2$read_sequence.GB.odd == test.2$read_sequence.KA.mm10.odd), 
+]
+test.odd.FALSE$GB_by_KA %>% table(., useNA = "ifany")
+test.odd.FALSE.trim <- test.odd.FALSE[, c(129:160)]
+colnames(test.odd.FALSE.trim)
+test.odd.FALSE.trim.trim <- test.odd.FALSE.trim[, c(1:8, 25:32)]
+colnames(test.odd.FALSE.trim.trim)
+test.odd.FALSE.trim.trim.trim <- test.odd.FALSE.trim.trim[, c(1, 9, 2, 10)]
 
 
 # -----------------------------------------------------------------------------
@@ -1142,10 +1573,10 @@ tbl <- sam2pairwise.KA.CAST %>%
     ) %>%
     dplyr::rename(
         coordinate.KA.CAST.odd = coordinate,
-        cigar.KA.odd = cigar,
-        read_sequence.KA.odd = read_sequence,
-        matches.KA.odd = matches,
-        reference_sequence.KA.odd = reference_sequence
+        cigar.KA.CAST.odd = cigar,
+        read_sequence.KA.CAST.odd = read_sequence,
+        matches.KA.CAST.odd = matches,
+        reference_sequence.KA.CAST.odd = reference_sequence
     )
 test.CAST <- test.CAST %>% dplyr::left_join(
     dplyr::distinct(
@@ -1161,10 +1592,10 @@ tbl <- sam2pairwise.KA.CAST %>%
     ) %>%
     dplyr::rename(
         coordinate.KA.CAST.even = coordinate,
-        cigar.KA.even = cigar,
-        read_sequence.KA.even = read_sequence,
-        matches.KA.even = matches,
-        reference_sequence.KA.even = reference_sequence
+        cigar.KA.CAST.even = cigar,
+        read_sequence.KA.CAST.even = read_sequence,
+        matches.KA.CAST.even = matches,
+        reference_sequence.KA.CAST.even = reference_sequence
     )
 test.CAST <- test.CAST %>% dplyr::left_join(
     dplyr::distinct(
@@ -1182,10 +1613,10 @@ tbl <- sam2pairwise.KA.mm10 %>%
     ) %>%
     dplyr::rename(
         coordinate.KA.mm10.odd = coordinate,
-        cigar.KA.odd = cigar,
-        read_sequence.KA.odd = read_sequence,
-        matches.KA.odd = matches,
-        reference_sequence.KA.odd = reference_sequence
+        cigar.KA.mm10.odd = cigar,
+        read_sequence.KA.mm10.odd = read_sequence,
+        matches.KA.mm10.odd = matches,
+        reference_sequence.KA.mm10.odd = reference_sequence
     )
 test.Ambiguous <- test.Ambiguous %>% dplyr::left_join(
     dplyr::distinct(
@@ -1200,10 +1631,10 @@ tbl <- sam2pairwise.KA.mm10 %>%
     ) %>%
     dplyr::rename(
         coordinate.KA.mm10.even = coordinate,
-        cigar.KA.even = cigar,
-        read_sequence.KA.even = read_sequence,
-        matches.KA.even = matches,
-        reference_sequence.KA.even = reference_sequence
+        cigar.KA.mm10.even = cigar,
+        read_sequence.KA.mm10.even = read_sequence,
+        matches.KA.mm10.even = matches,
+        reference_sequence.KA.mm10.even = reference_sequence
     )
 test.Ambiguous <- test.Ambiguous %>% dplyr::left_join(
     dplyr::distinct(
@@ -1220,10 +1651,10 @@ tbl <- sam2pairwise.KA.mm10 %>%
     ) %>%
     dplyr::rename(
         coordinate.KA.mm10.odd = coordinate,
-        cigar.KA.odd = cigar,
-        read_sequence.KA.odd = read_sequence,
-        matches.KA.odd = matches,
-        reference_sequence.KA.odd = reference_sequence
+        cigar.KA.mm10.odd = cigar,
+        read_sequence.KA.mm10.odd = read_sequence,
+        matches.KA.mm10.odd = matches,
+        reference_sequence.KA.mm10.odd = reference_sequence
     )
 test.NA <- test.NA %>% dplyr::left_join(
     dplyr::distinct(
@@ -1238,10 +1669,10 @@ tbl <- sam2pairwise.KA.mm10 %>%
     ) %>%
     dplyr::rename(
         coordinate.KA.mm10.even = coordinate,
-        cigar.KA.even = cigar,
-        read_sequence.KA.even = read_sequence,
-        matches.KA.even = matches,
-        reference_sequence.KA.even = reference_sequence
+        cigar.KA.mm10.even = cigar,
+        read_sequence.KA.mm10.even = read_sequence,
+        matches.KA.mm10.even = matches,
+        reference_sequence.KA.mm10.even = reference_sequence
     )
 test.NA <- test.NA %>% dplyr::left_join(
     dplyr::distinct(

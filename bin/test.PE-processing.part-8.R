@@ -63,8 +63,9 @@ bam <- bam %>%
     dplyr::rename(cigar.GB.odd = cigar.GB.odd.2) %>%
     dplyr::rename(cigar.GB.even = cigar.GB.even.2)
 
-(bam$matches.KA.odd == bam$matches.GB.odd) %>% table(useNA = "ifany")
-(bam$matches.KA.even == bam$matches.GB.even) %>% table(useNA = "ifany")
+# (bam$matches.KA.odd == bam$matches.GB.odd) %>% table(useNA = "ifany")
+# (bam$matches.KA.even == bam$matches.GB.even) %>% table(useNA = "ifany")
+# names(bam)
 
 #  Randomly sample 'int' number of rows from tibble 'bam'
 # int <- 5L

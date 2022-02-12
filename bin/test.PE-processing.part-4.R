@@ -275,9 +275,9 @@ n_occur.129S1 <- tbl.129S1$groupid %>% table() %>% data.frame()  # 111430
 n_occur.CAST <- tbl.CAST$groupid %>% table() %>% data.frame()  # 108755
 n_occur.mm10 <- tbl.mm10$groupid %>% table() %>% data.frame()  # 117342
 
-tbl.129S1 <- tbl.129S1[!tbl.129S1$groupid %in% n_occur.129S1$.[n_occur.129S1$Freq < 2], ]  # 222554 x 31
-tbl.CAST <- tbl.CAST[!tbl.CAST$groupid %in% n_occur.CAST$.[n_occur.CAST$Freq < 2], ]  # 217216 x 31
-tbl.mm10 <- tbl.mm10[!tbl.mm10$groupid %in% n_occur.mm10$.[n_occur.mm10$Freq < 2], ]  # 234338 x 24
+tbl.129S1 <- tbl.129S1[!tbl.129S1$groupid %in% n_occur.129S1$.[n_occur.129S1$Freq < 2], ]  # 222554 x 32
+tbl.CAST <- tbl.CAST[!tbl.CAST$groupid %in% n_occur.CAST$.[n_occur.CAST$Freq < 2], ]  # 217216 x 32
+tbl.mm10 <- tbl.mm10[!tbl.mm10$groupid %in% n_occur.mm10$.[n_occur.mm10$Freq < 2], ]  # 234338 x 25
 
 n_occur.129S1 <- tbl.129S1$groupid %>% table() %>% data.frame()  # 111277
 n_occur.CAST <- tbl.CAST$groupid %>% table() %>% data.frame()  # 108608
@@ -467,7 +467,6 @@ command <- paste0(
     "<- ", variable, " %>% ",
         "dplyr::select(",
             "qname, flag, rname, pos, mapq, cigar, ",
-            # "mrnm, mpos, isize, seq, qual",
             "mrnm, mpos, isize, seq, qual, tag.MD.proper, tag.AS.proper",
         ")"
 )
@@ -485,7 +484,6 @@ command <- paste0(
     "<- ", variable, " %>% ",
     "dplyr::select(",
         "qname, flag, rname, pos, mapq, cigar, ",
-        # "mrnm, mpos, isize, seq, qual",
         "mrnm, mpos, isize, seq, qual, tag.MD.proper, tag.AS.proper",
     ")"
 )

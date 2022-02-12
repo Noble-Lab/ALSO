@@ -767,8 +767,9 @@ rm(list = ls())
 #  Before moving on to 'test.PE-processing.part-6.R', process .bam files made in
 #+ 'test.PE-processing.part-4.R'
 
-#  For example, for processing, use 'run_GB-assignment-pipeline.2022-0207.sh'
-#+ and 'generate-sam2pairwise-files_4dn-mouse-cross_GB.sh'
+#  For example, for processing, use 'run_GB-assignment-pipeline.2022-0207.sh',
+#+ 'generate-sam2pairwise-files_4dn-mouse-cross_GB.sh', and
+#+ 'generate-sam2pairwise-files_4dn-mouse-cross_KA.sh'
 
 
 # #  Create individual tibbles for each possible "assignment" value -------------
