@@ -58,6 +58,9 @@ rm(
 script <- "test.PE-processing.part-4.R"
 
 
+#TODO 1/2 Should "coordinate" be called "criteria" to be consistent with naming
+#TODO 2/3 in "script-1.R" (but the change is not made in
+#TODO 3/3 test.PE-processing.part-1.R)
 #  Create $coordinate columns from pertinent liftOver values ------------------
 variable <- paste0("tbl.", c("129", "CAST", "mm10"))
 
@@ -104,6 +107,7 @@ operation <- makeOperation(mm10only(variable), command)
 evaluateOperation(operation)
 
 
+#TODO Comment out the following section (see #TODO above)
 #  Create $criteria columns from pertinent liftOver values ------------------
 command <- paste0(
     mm10omit(variable), " %>% ",

@@ -813,7 +813,7 @@ joint <- joint %>%
 
 #  'data' is for predicted data, i.e., the data from my pipeline; 'reference'
 #+ is for true results, i.e., the data from GB's pipeline
-example <- confusionMatrix(
+example <- caret::confusionMatrix(
     data = joint$assignment.KA.even,
     reference = joint$assignment.GB.even,
     dnn = c("KA", "GB")

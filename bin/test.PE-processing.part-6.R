@@ -2,14 +2,14 @@
 
 library(BSgenome)
 library(ggplot2)
-library(Mmusculus129S1SvImJ)
-library(MmusculusCASTEiJ)
-library(Mmusculus129Inserted)
-library(MmusculusCASTInserted)
-library(MmusculusCAST129Inserted)
-library(Mmusculus129Nmasked)
-library(MmusculusCASTNmasked)
-library(MmusculusCAST129Nmasked)
+# library(Mmusculus129S1SvImJ)
+# library(MmusculusCASTEiJ)
+# library(Mmusculus129Inserted)
+# library(MmusculusCASTInserted)
+# library(MmusculusCAST129Inserted)
+# library(Mmusculus129Nmasked)
+# library(MmusculusCASTNmasked)
+# library(MmusculusCAST129Nmasked)
 library(magrittr)
 library(pheatmap)
 library(Rsamtools)
@@ -17,6 +17,38 @@ library(scales)
 library(tidyverse)
 
 options(pillar.sigfig = 8, scipen = 10000)
+
+#  Change to appropriate working directory
+project <- "2021_kga0_4dn-mouse-cross"
+default <- "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross"
+current <- stringr::str_split(getwd(), "/")[[1]][
+    length(stringr::str_split(getwd(), "/")[[1]])
+]
+if(current != project) {
+    if(dir.exists(default)) {
+        setwd(default)
+    } else {
+        setwd(
+            readline(
+                prompt = paste0(
+                    "Enter path to and including the project directory, ",
+                    project, ":"
+                )
+            )
+        )
+    }
+}
+rm(project, default, current)
+
+
+#  Script name ----------------------------------------------------------------
+script <- "test.PE-processing.part-6.R"
+
+#  Before running this script, make sure to have run...
+#+ bash .bin/test.PE-processing.part-4.R
+#+ bash .bin/run_GB-assignment-pipeline.2022-0207.sh
+#+ bash .bin/generate-sam2pairwise-files_4dn-mouse-cross_GB.sh
+#+ bash .bin/copy-important-files.sh
 
 
 #  Set up functions -----------------------------------------------------------
@@ -54,8 +86,8 @@ loadTibbleFromRDS <- function(variable, file) {
 }
 
 
-makeOperation <- function(variable, command) {
-    operation <- paste(variable, command)
+makeOperation <- function(variable = variable, command = command) {
+    operation <- paste0(variable, " <- ", command)
     return(operation)
 }
 
@@ -89,7 +121,8 @@ mungeMatesIntoOneRow <- function(variable_in, sort_by) {
         dplyr::arrange(sort_by) %>%  # Sort by pos.x
         dplyr::rename(groupid.x = groupid)  # new_name = old_name
     variable_out$groupid.y <- variable_out$groupid.x
-    variable_out <- variable_out %>% dplyr::relocate(groupid.y, .after = assignment.y)
+    variable_out <- variable_out %>%
+        dplyr::relocate(groupid.y, .after = assignment.y)
     
     colnames(variable_out) <- str_replace_all(
         colnames(variable_out), "\\.x", "\\.odd"
@@ -176,7 +209,7 @@ testPosInMpos <- function(pos, mpos) {
 #  Set up work directory, etc. (locations TB∆) --------------------------------
 directory_user <- "/Users/kalavattam"
 directory_project <- "Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross"
-directory_bam <- "results/kga0/2022-0207_segregated_reads.thresh_SNP_1.thresh_Q_30"
+directory_bam <- "results/kga0/2022-0214_segregated_reads.thresh_SNP_1.thresh_Q_30"
 directory_data <- "data/kga0"
 path.1 <- paste0(directory_user, "/", directory_project)
 path.2 <- paste0(directory_bam)
@@ -186,14 +219,6 @@ rm(directory_bam, directory_data, directory_project, directory_user)
 
 setwd(paste0(path.1))
 
-
-#  Script name ----------------------------------------------------------------
-script <- "test.PE-processing.part-6.R"
-
-#  Make sure to have run 'test.PE-processing.part-4.R',
-#+ 'run_GB-assignment-pipeline.2022-0207.sh',
-#+ 'generate-sam2pairwise-files_4dn-mouse-cross_GB.sh', and
-#+ 'copy-important-files.sh' before running the rest of this script
 
 #  Set up what to query from .bam files ---------------------------------------
 map_info <- c(
@@ -209,7 +234,7 @@ setwd(paste0(path.1, "/", path.2))
 # chromosome <- "chr1"
 chromosome <- "chrX"
 
-file <- list.files(pattern = "\\.bam")
+file <- Sys.glob(paste0("*.", chromosome, ".*.extendedCIGAR.bam"))
 variable_GB <- c(
     "GB.alt.CAST",
     "GB.ambig",
@@ -225,7 +250,7 @@ mapply(
 
 #  Assign .bam information as list --------------------------------------------
 command <- paste0(
-    "<- ", variable_GB, " %>% ",
+    variable_GB, " %>% ",
         "Rsamtools::scanBam(., param = map_params)"
 )
 operation <- makeOperation(variable_GB, command)
@@ -236,7 +261,7 @@ rm(map_info, map_params)
 
 #  Convert .bam information from list to dataframe to tibble ------------------
 command <- paste0(
-    "<- ", variable_GB, " %>% ",
+    variable_GB, " %>% ",
         "as.data.frame() %>% ",
         "as_tibble()"
 )
@@ -247,7 +272,7 @@ evaluateOperation(operation)
 #  Reorder rname factor levels ------------------------------------------------
 chromosomes <- c(paste0("chr", c(1:19)), "chrX", "chrY", "chrM")
 command <- paste0(
-    "<- forcats::fct_relevel(", variable_GB, "$rname, chromosomes)"
+    "forcats::fct_relevel(", variable_GB, "$rname, chromosomes)"
 )
 operation <- makeOperation(paste0(variable_GB, "$rname"), command)
 evaluateOperation(operation)
@@ -255,7 +280,7 @@ evaluateOperation(operation)
 
 #  Drop unused rname factor levels --------------------------------------------
 command <- paste0(
-    "<- ", variable_GB, "$rname %>% forcats::fct_drop()"
+    variable_GB, "$rname", " %>% ", "forcats::fct_drop()"
 )
 operation <- makeOperation(paste0(variable_GB, "$rname"), command)
 evaluateOperation(operation)
@@ -264,23 +289,23 @@ evaluateOperation(operation)
 #  Drop rows that are not chr1-19, chrX ---------------------------------------
 chromosomes <- c(paste0("chr", 1:19), "chrX")
 command <- paste0(
-    "<- ", variable_GB, " %>% ", "filter(., rname %in% chromosomes)"
+    variable_GB, " %>% ", "filter(., rname %in% chromosomes)"
 )
 operation <- makeOperation(variable_GB, command)
 evaluateOperation(operation)
 
 
 #  Create and append pos_end, mpos_end columns --------------------------------
-command <- paste0("<- ", variable_GB, "$pos + 49")
+command <- paste0(variable_GB, "$pos + 49")
 operation <- makeOperation(paste0(variable_GB, "$pos_end"), command)
 evaluateOperation(operation)
 
-command <- paste0("<- ", variable_GB, "$mpos + 49")
+command <- paste0(variable_GB, "$mpos + 49")
 operation <- makeOperation(paste0(variable_GB, "$mpos_end"), command)
 evaluateOperation(operation)
 
 command <- paste0(
-    "<- ", variable_GB, " %>% ",
+    variable_GB, " %>% ",
         "dplyr::relocate(pos_end, .after = pos) %>% ",
         "dplyr::relocate(mpos_end, .after = mpos)"
 )
@@ -288,44 +313,67 @@ operation <- makeOperation(variable_GB, command)
 evaluateOperation(operation)
 
 
-#  Create a temporary tags such as "coordinate" to distinguish entries --------
+#  To distinguish entries, create tags such as "lO_criteria", "coordinate" ----
+
+#  Set up $lO_criteria
 command <- paste0(
-    "<- ", variable_GB, " %>% ",
+    variable_GB, " %>% ",
         "tidyr::unite(",
-            "coordinate, ",
-            "c(\"qname\", \"rname\", \"pos\"), ",
-            # "c(\"qname\", \"rname\", \"pos\", \"pos_end\"), ",
+            "lO_criteria, ",
+            "c(\"qname\", \"flag\", \"pos\", \"mpos\"), ",
             "sep = \"_\", ",
             "remove = FALSE",
         ")", " %>% ",
-            "dplyr::relocate(c(qname, coordinate), .after = qual)"
+            "dplyr::relocate(c(qname, lO_criteria), .after = qual)"
+)
+operation <- makeOperation(variable_GB, command)
+evaluateOperation(operation)
+
+#  Set up $coordinate
+command <- paste0(
+    variable_GB, " %>% ",
+        "tidyr::unite(",
+            "coordinate, ",
+            "c(\"qname\", \"rname\", \"pos\"), ",
+            "sep = \"_\", ",
+            "remove = FALSE",
+        ")", " %>% ",
+            "dplyr::relocate(coordinate, .after = lO_criteria)"
 )
 operation <- makeOperation(variable_GB, command)
 evaluateOperation(operation)
 
 #  Set up $qpos, a variable needed for sorting
 command <- paste0(
-    "<- paste0(",
-        variable_GB, "$qname, ", "'_', ",
-        variable_GB, "$pos",
-    ")"
+    variable_GB, " %>% ",
+        "tidyr::unite(",
+            "qpos, ",
+            "c(\"qname\", \"pos\"), ",
+            "sep = \"_\", ",
+            "remove = FALSE",
+        ")", " %>% ",
+            "dplyr::relocate(qpos, .after = coordinate)"
 )
-operation <- makeOperation(paste0(variable_GB, "$qpos"), command)
+operation <- makeOperation(variable_GB, command)
 evaluateOperation(operation)
 
 #  Set up $qmpos, a variable needed for sorting
 command <- paste0(
-    "<- paste0(",
-        variable_GB, "$qname, ", "'_', ",
-        variable_GB, "$mpos",
-    ")"
+    variable_GB, " %>% ",
+        "tidyr::unite(",
+            "qmpos, ",
+            "c(\"qname\", \"mpos\"), ",
+            "sep = \"_\", ",
+            "remove = FALSE",
+        ")", " %>% ",
+            "dplyr::relocate(qmpos, .after = qpos)"
 )
-operation <- makeOperation(paste0(variable_GB, "$qmpos"), command)
+operation <- makeOperation(variable_GB, command)
 evaluateOperation(operation)
 
 #  Set up $isize_abs, i.e., absolute insert-size values, for sorting
 command <- paste0(
-    "<- ", variable_GB, "$isize", " %>% ",
+    variable_GB, "$isize", " %>% ",
         "abs()", " %>% ",
         "as.numeric()"
 )
@@ -333,7 +381,7 @@ operation <- makeOperation(paste0(variable_GB, "$isize_abs"), command)
 evaluateOperation(operation)
 
 
-#  Explicitly label the assignments from Giancarlo's pipeline
+#  Explicitly label the assignments from Giancarlo's pipeline -----------------
 GB.alt.CAST$assignment <- "GB.CAST"
 GB.ref.129S1$assignment <- "GB.129S1"
 GB.ambig$assignment <- "GB.Ambiguous"
@@ -342,9 +390,8 @@ GB.contra$assignment <- "GB.Contra"
 
 #  Reorganize the tibbles for easy reading
 command <- paste0(
-    "<- ", variable_GB, " %>% ",
+    variable_GB, " %>% ",
         "dplyr::relocate(mpos, .after = pos)", " %>% ",
-        "dplyr::relocate(c(qpos, qmpos), .after = qname)", " %>% ",
         "dplyr::relocate(isize_abs, .after = isize)", " %>% ",
         "dplyr::relocate(assignment, .after = isize_abs)"
 )
@@ -354,7 +401,7 @@ evaluateOperation(operation)
 
 #  Check on mate pairing; generate vectors and tables for mate pairing --------
 command <- paste0(
-    "<- testMatesPaired(",
+    "testMatesPaired(",
         "pos = ", variable_GB, "$qpos, mpos = ", variable_GB, "$qmpos",
     ")"
 )  # VMP: "vector mates paired"
@@ -379,7 +426,7 @@ evaluateOperation(operation)
 #+
 #+ Generate vectors and tables
 command <- paste0(
-    "<- testLogicalAlternating(logical = ", "VMP.", variable_GB, ")"
+    "testLogicalAlternating(logical = ", "VMP.", variable_GB, ")"
 )  # VA: "vector alternating"
 operation <- makeOperation(paste0("VA.", variable_GB), command)
 evaluateOperation(operation)
@@ -399,7 +446,7 @@ evaluateOperation(operation)
 # VA.GB.ref.129S1 %>% table()
 
 #  Create tbl columns denoting lack of alternation, i.e., $discrepancy
-command <- paste0("<- ", "VA.", variable_GB)
+command <- paste0("VA.", variable_GB)
 operation <- makeOperation(paste0(variable_GB, "$discrepancy"), command)
 evaluateOperation(operation)
 

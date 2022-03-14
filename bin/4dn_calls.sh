@@ -412,7 +412,7 @@ typeset -A array_4DN=(
 
 mkdir -p final_outs
 for i in "${!array_4DN[@]}"; do
-    echo "key:   ${i}"
+    echo "  key: ${i}"
     echo "value: ${array_4DN[${i}]}"
     echo "start copy"
     cp "./${i}.fastq.gz" "./final_outs/Undetermined_S0_L001_${array_4DN[${i}]}.trimmed.fastq.gz"

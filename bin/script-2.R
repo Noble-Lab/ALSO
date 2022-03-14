@@ -1,39 +1,41 @@
 #!/usr/bin/env Rscript
 
-library(stringr)
-library(tidyverse)
+#  KA
+
+#  Set up working directory ---------------------------------------------------
+project <- "2021_kga0_4dn-mouse-cross"
+default <- paste0("/Users/kalavattam/Dropbox/UW/projects-etc/", project)
+current <- stringr::str_split(getwd(), "/")[[1]][
+    length(stringr::str_split(getwd(), "/")[[1]])
+]
+if(current != project) {
+    if(dir.exists(default)) {
+        setwd(default)
+    } else {
+        setwd(
+            readline(
+                prompt = paste0(
+                    "Enter path to and including the project directory, ",
+                    project, ":"
+                )
+            )  #TODO Check again: current == project?
+        )
+    }
+}
+rm(project, default, current)
+
+
+#  Source libraries and functions ---------------------------------------------
+source("bin/auxiliary/auxiliary.R")
+source("bin/auxiliary/auxiliary_experiment-metadata.R")
+
+packages <- c("stringr", "tidyverse")
+importLibrary(packages)
+rm(packages, preload)
 
 options(pillar.sigfig = 8, scipen = 10000)
 set.seed(24)
 
-
-#  Set up work directory (locations TB∆) --------------------------------------
-directory_user <- "/Users/kalavattam"
-directory_base <- "Dropbox/My Mac (Kriss-MacBook-Pro.local)/Downloads/to-do"
-directory_work <- "get_unique_fragments/Bonora"
-
-setwd(
-    paste0(directory_user, "/", directory_base, "/", directory_work)
-)
-rm(directory_user, directory_base, directory_work)
-
-
-#  Having run part 2 first, load part-2 .Rdata into environment ---------------
-load("test.PE-processing.part-2.Rdata")
-#  Doing so loads in appropriate functions, variables, etc.
-
-
-#  Script name ----------------------------------------------------------------
-script <- "test.PE-processing.part-3.R"
-
-
-# -------------------------------------
-# STOP, GO TO SHORTCUT
-# -------------------------------------
-#  Perform liftOvers of the 129 and CAST tibbles ----------------------------
-
-#  Create and write out 129 and CAST .bed file(s) for liftOver
-chromosome <- "chrX"
 
 writeBedOperation <- function(variable_bed) {
     paste0(
@@ -45,15 +47,80 @@ writeBedOperation <- function(variable_bed) {
     )
 }
 
-#  Write out a "pos" bed file
-variable_bed <- paste0(variable_tbl, ".pos.", chromosome, ".bed")
+
+#  Parse arguments ------------------------------------------------------------
+script <- "script-2.R"
+
+#  Create a parser
+ap <- arg_parser(
+    name = script,
+    description = "",
+    hide.opts = TRUE
+)
+
+#  Add command line arguments
+ap <- callMetadataArguments()
+ap <- add_argument(
+    ap,
+    short = "-i",
+    arg = "--Rdata_in",
+    type = "character",
+    default = NULL,
+    help = "full path and .Rdata from running \"script-1.R\" <chr>"
+)
+ap <- add_argument(
+    ap,
+    short = "-o",
+    arg = "--directory_out",
+    type = "character",
+    default = NULL,
+    help = "full path for saving outfile(s) <chr>"
+)
+
+#  Parse the command line arguments
+directory_base <- "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross"
+directory_data <- "data/kga0"
+directory_out <- paste0(directory_base, "/", directory_data)
+Rdata_in <-paste0(directory_base, "/", directory_data)
+
+cl <- c(
+    #  Arguments for analysis
+    "--Rdata_in", paste0(Rdata_in, "/", "script-1_part-2.Rdata"),
+    "--directory_out", directory_out,
+
+    #  Metadata arguments
+    "--username", "kga0",
+    "--experiment_date", "2022-0228",
+    "--experiment_description", "script-2"
+)
+arguments <- parse_args(ap, cl)  # RStudio-interactive work
+# arguments <- parse_args(ap)  # Command-line calls
+
+rm(directory_base, directory_data, directory_out, Rdata_in)
+
+
+#  Set up work directory and load .Rdata into environment ---------------------
+setwd(arguments$directory_out)
+load(arguments$Rdata_in)
+
+
+# -------------------------------------
+# STOP, GO TO SHORTCUT
+# -------------------------------------
+#  Perform liftOvers of the 129 and CAST tibbles ----------------------------
+
+#  Create and write out 129 and CAST .bed file(s) for liftOver
+chromosome <- "chrX"
+
+#  pos
+variable_bed <- paste0(variable, ".pos.", chromosome, ".bed")
 
 command <- paste0(
     "tibble::tibble(",
-        "\"rname\" = ", variable_tbl, "$rname, ",
-        "\"pos\" = ", variable_tbl, "$pos, ",
-        "\"pos_end\" = ", variable_tbl, "$pos_end, ",
-        "\"criteria\" = ", variable_tbl, "$criteria",
+        "\"rname\" = ", variable, "$rname, ",
+        "\"pos\" = ", variable, "$pos, ",
+        "\"pos_end\" = ", variable, "$pos_end, ",
+        "\"criteria\" = ", variable, "$criteria",
     ")"
 )
 operation <- makeOperation(variable_bed, command)
@@ -62,15 +129,15 @@ evaluateOperation(operation)
 operation <- writeBedOperation(variable_bed)
 evaluateOperation(operation)
 
-#  Write out a "mpos" bed file
-variable_bed <- paste0(variable_tbl, ".mpos.", chromosome, ".bed")
+#  mpos
+variable_bed <- paste0(variable, ".mpos.", chromosome, ".bed")
 
 command <- paste0(
     "tibble::tibble(",
-        "\"mrnm\" = ", variable_tbl, "$mrnm, ",
-        "\"mpos\" = ", variable_tbl, "$mpos, ",
-        "\"mpos_end\" = ", variable_tbl, "$mpos_end, ",
-        "\"criteria\" = ", variable_tbl, "$criteria",
+        "\"mrnm\" = ", variable, "$mrnm, ",
+        "\"mpos\" = ", variable, "$mpos, ",
+        "\"mpos_end\" = ", variable, "$mpos_end, ",
+        "\"criteria\" = ", variable, "$criteria",
     ")"
 )
 operation <- makeOperation(variable_bed, command)
@@ -171,13 +238,13 @@ prefix_from_R=${from_R%????}
 for file_prefix in \"${prefix_from_R[@]}\"; do
     #  Declare variables
     file_in=${file_prefix}.bed
-    file_in_rename=${file_prefix}.rename.bed
+    file_in_rename=${file_prefix}.bed
 
     file_out_lifted=${file_prefix}.lifted.bed
-    file_out_lifted_rename=${file_prefix}.lifted.rename.bed
+    file_out_lifted_rename=${file_prefix}.lifted.bed
 
     file_out_unlifted=${file_prefix}.unlifted.bed
-    file_out_unlifted_rename=${file_prefix}.unlifted.rename.bed
+    file_out_unlifted_rename=${file_prefix}.unlifted.bed
 
     file_liftOver=129S1-SvImJ-to-mm10.over.chain.gz
 
@@ -322,13 +389,13 @@ prefix_from_R=${from_R%????}
 for file_prefix in \"${prefix_from_R[@]}\"; do
     #  Declare variables
     file_in=${file_prefix}.bed
-    file_in_rename=${file_prefix}.rename.bed
+    file_in_rename=${file_prefix}.bed
 
     file_out_lifted=${file_prefix}.lifted.bed
-    file_out_lifted_rename=${file_prefix}.lifted.rename.bed
+    file_out_lifted_rename=${file_prefix}.lifted.bed
 
     file_out_unlifted=${file_prefix}.unlifted.bed
-    file_out_unlifted_rename=${file_prefix}.unlifted.rename.bed
+    file_out_unlifted_rename=${file_prefix}.unlifted.bed
 
     file_liftOver=CAST-EiJ-to-mm10.over.chain.gz
 
@@ -599,7 +666,7 @@ operation <- makeOperation(
 evaluateOperation(operation)
 
 
-#  Perform dplyr::bind_rows of the unlifted and lifted .bed files -------------
+#  Perform a full join of the unlifted and lifted .bed files ------------------
 variable_bed <- c(
     "tbl.129.mpos.chrX.bed",
     "tbl.129.pos.chrX.bed",
@@ -632,7 +699,7 @@ evaluateOperation(operation)
 #  Full join of liftOver information
 command <- paste0(
     "dplyr::full_join(",
-        stringr::str_subset(variable_tbl, "mm10", negate = TRUE), ", ",
+        stringr::str_subset(variable, "mm10", negate = TRUE), ", ",
         stringr::str_subset(variable_bed_pos, "mm10", negate = TRUE), ", ",
         "by = \"criteria\"",
     ")", " %>% ",
@@ -649,17 +716,17 @@ command <- paste0(
         "dplyr::relocate(liftOver_reason, .before = mate_status)"
 )
 operation <- makeOperation(
-    stringr::str_subset(variable_tbl, "mm10", negate = TRUE), command
+    stringr::str_subset(variable, "mm10", negate = TRUE), command
 )
 evaluateOperation(operation)
 
 #  Factorize $liftOver_reason
 command <- paste0(
-    stringr::str_subset(variable_tbl, "mm10", negate = TRUE), "$liftOver_reason %>% ",
+    stringr::str_subset(variable, "mm10", negate = TRUE), "$liftOver_reason %>% ",
         "as_factor()"
 )
 operation <- makeOperation(
-    paste0(stringr::str_subset(variable_tbl, "mm10", negate = TRUE), "$liftOver_reason"),
+    paste0(stringr::str_subset(variable, "mm10", negate = TRUE), "$liftOver_reason"),
     command
 )
 evaluateOperation(operation)
@@ -687,9 +754,9 @@ tbl.CAST$liftOver_reason <- plyr::revalue(
 
 #  For easier reading, replace "liftOver_*" with "lO_*" in column names
 operation <- paste0(
-    "colnames(", stringr::str_subset(variable_tbl, "mm10", negate = TRUE), ")", " <- ",
+    "colnames(", stringr::str_subset(variable, "mm10", negate = TRUE), ")", " <- ",
         "gsub(",
-            "\"liftOver_\", \"lO_\", colnames(", stringr::str_subset(variable_tbl, "mm10", negate = TRUE), ")",
+            "\"liftOver_\", \"lO_\", colnames(", stringr::str_subset(variable, "mm10", negate = TRUE), ")",
         ")"
 )
 evaluateOperation(operation)
@@ -752,6 +819,7 @@ rm(operation)
 #  Sort the tibbles while maintaining mate pairs ------------------------------
 variable_tbl <- paste0("tbl.", c("129", "CAST"))
 
+#TODO Have made the header description into a function; use that function here
 for (i in 1:length(variable_tbl)) {
     #  Sort the tibble of interest by pos while maintaining proper mate pairs
     df <- eval(parse(text = variable_tbl[i]))

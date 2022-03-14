@@ -46,7 +46,7 @@ typeset -A directories_from_GB=(
 )
 
 for i in "${!directories_from_GB[@]}"; do
-    echo "key (i):   ${i}"
+    echo "                          key (i): ${i}"
     echo "value (directories_from_GB[${i}]): ${directories_from_GB[${i}]}"
     echo "Start copying."
     cp -r "${path_GB}/${directories_from_GB[${i}]}" "${path}/${i}/per-chromosome"
