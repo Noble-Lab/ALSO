@@ -68,20 +68,20 @@ done
 [[ -z "${chromosome}" ]] && printUsage
 [[ -z "${parallelize}" ]] && printUsage
 
-#  Test defaults
-[[ -z "${safe_mode}" ]]   && safe_mode="FALSE"
-[[ -z "${infile}" ]]      && infile="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/kga0/Disteche_sample_1.dedup.bam"
-[[ -z "${repair}" ]]      && repair="TRUE"
-[[ -z "${bed}" ]]         && bed="TRUE"
-[[ -z "${chromosome}" ]]  && chromosome="chrX"
-[[ -z "${parallelize}" ]] && parallelize=4
-
-safe_mode="FALSE"
-infile="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/kga0/Disteche_sample_1.dedup.bam"
-repair="TRUE"
-bed="TRUE"
-chromosome="chrX"
-parallelize=4
+# #  Test defaults
+# [[ -z "${safe_mode}" ]]   && safe_mode="FALSE"
+# [[ -z "${infile}" ]]      && infile="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/kga0/Disteche_sample_1.dedup.bam"
+# [[ -z "${repair}" ]]      && repair="TRUE"
+# [[ -z "${bed}" ]]         && bed="TRUE"
+# [[ -z "${chromosome}" ]]  && chromosome="chrX"
+# [[ -z "${parallelize}" ]] && parallelize=4
+#
+# safe_mode="FALSE"
+# infile="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/kga0/Disteche_sample_1.dedup.bam"
+# repair="TRUE"
+# bed="TRUE"
+# chromosome="chrX"
+# parallelize=4
 
 
 #  Check variable assignments -------------------------------------------------
