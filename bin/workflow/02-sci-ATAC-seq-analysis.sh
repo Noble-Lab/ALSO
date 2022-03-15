@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# 4.aligned
+# 5.merge bam (4 lanes) for individual sample
+# 6.for each sample, get_unique_fragments:
+# deduplicate bam, and convert bam to bed (each read will be centered on transposition site)
+# get sample_13.bed.gz
+
 cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross
 
 ./bin/sciatac_pipeline/analyze_sciatac \
