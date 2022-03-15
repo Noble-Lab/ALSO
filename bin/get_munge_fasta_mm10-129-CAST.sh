@@ -29,7 +29,8 @@ twoBitInfo "${fasta_CAST/.fa/.2bit}" stdout
 twoBitToFa "${fasta_129/.fa/.2bit}" "${fasta_129}"
 twoBitToFa "${fasta_CAST/.fa/.2bit}" "${fasta_CAST}"
 
-chr=($(seq 1 19) "X")
+unset chr
+typeset -a chr=($(seq 1 19) "X")
 for i in "${chr[@]}"; do
     samtools faidx "${fasta_mm10_full}" "chr${i}" >> "${fasta_mm10}"
 done

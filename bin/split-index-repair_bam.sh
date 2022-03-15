@@ -4,6 +4,10 @@
 #  KA
 
 
+#  Start recording time -------------------------------------------------------
+start="$(date +%s)"
+
+
 #  Functions ------------------------------------------------------------------
 displaySpinningIcon() {
     #  Display "spinning icon" while a background process runs
@@ -30,7 +34,6 @@ printUsage() {
     echo ""
     echo "Dependencies:"
     echo " - bedtools >= 2.30.0"
-    echo " - liftover >= 366"
     echo " - parallel >= 20200101"
     echo " - repair >= 2.0.1"
     echo " - samtools >= 1.13"
@@ -39,23 +42,24 @@ printUsage() {
     echo "-h <print this help message and exit>"
     echo "-u <use safe mode: TRUE or FALSE (logical)>"
     echo "-i <bam infile, including path (chr)>"
-    echo "-r <use Subread repair on bam infile: TRUE or FALSE (logical)>"
-    echo "-b <create bed files from split bam files: TRUE or FALSE (logical)>"
+    echo "-o <path for split bam file(s) (chr)>"
     echo "-c <chromosome(s) to split out (chr); for example, \"chr1\" for"
-    echo "    chromosome 1, \"chrX\"for chromosome X, \"all\" for all"
+    echo "    chromosome 1, \"chrX\" for chromosome X, \"all\" for all"
     echo "    chromosomes>"
+    echo "-r <use Subread repair on split bam files: TRUE or FALSE (logical)>"
+    echo "-b <create bed files from split bam files: TRUE or FALSE (logical)>"
     echo "-p <number of cores for parallelization (int >= 1)>"
     exit
 }
 
-while getopts "h:u:i:r:b:c:p:" opt; do
+while getopts "h:u:i:c:r:b:p:" opt; do
     case "${opt}" in
         h) printUsage ;;
         u) safe_mode="${OPTARG}" ;;
         i) infile="${OPTARG}" ;;
+        c) chromosome="${OPTARG}" ;;
         r) repair="${OPTARG}" ;;
         b) bed="${OPTARG}" ;;
-        c) chromosome="${OPTARG}" ;;
         p) parallelize="${OPTARG}" ;;
         *) printUsage ;;
     esac
@@ -63,19 +67,12 @@ done
 
 [[ -z "${safe_mode}" ]] && printUsage
 [[ -z "${infile}" ]] && printUsage
+[[ -z "${chromosome}" ]] && printUsage
 [[ -z "${repair}" ]] && printUsage
 [[ -z "${bed}" ]] && printUsage
-[[ -z "${chromosome}" ]] && printUsage
 [[ -z "${parallelize}" ]] && printUsage
 
 # #  Test defaults
-# [[ -z "${safe_mode}" ]]   && safe_mode="FALSE"
-# [[ -z "${infile}" ]]      && infile="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/kga0/Disteche_sample_1.dedup.bam"
-# [[ -z "${repair}" ]]      && repair="TRUE"
-# [[ -z "${bed}" ]]         && bed="TRUE"
-# [[ -z "${chromosome}" ]]  && chromosome="chrX"
-# [[ -z "${parallelize}" ]] && parallelize=4
-#
 # safe_mode="FALSE"
 # infile="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/kga0/Disteche_sample_1.dedup.bam"
 # repair="TRUE"
@@ -85,18 +82,21 @@ done
 
 
 #  Check variable assignments -------------------------------------------------
+echo -e ""
+echo -e "Running ${0}..."
+
 #  Evaluate "${safe_mode}"
 case "$(echo "${safe_mode}" | tr '[:upper:]' '[:lower:]')" in
     true | t) \
-        echo -e "-s: Safe mode is on.\n"
+        echo -e "-u: Safe mode is on."
         set -Eeuxo pipefail
         ;;
     false | f) \
-        echo -e "-s: safe mode is off.\n"
+        echo -e "-u: Safe mode is off."
         :
         ;;
     *) \
-        echo -e "Exiting: -s safe-mode argument must be TRUE or FALSE.\n"
+        echo -e "Exiting: -u safe-mode argument must be TRUE or FALSE.\n"
         exit 1
         ;;
 esac
@@ -104,24 +104,24 @@ esac
 #  Check "${parallelize}"
 [[ ! "${parallelize}" =~ ^[0-9]+$ ]] &&
     {
-        echo -e "Exiting: -p parallelize argument must be an integer.\n"
+        echo -e "Exiting: -p parallelize argument must be an integer."
         exit 1
     }
 
 [[ ! $((parallelize)) -ge 1 ]] &&
     {
-        echo -e "Exiting: -p parallelize argument must be an integer >= 1.\n"
+        echo -e "Exiting: -p parallelize argument must be an integer >= 1."
         exit 1
     }
 
 #  Set flag to repair bam file(s) if "${repair}" is TRUE
 case "$(echo "${repair}" | tr '[:upper:]' '[:lower:]')" in
     true | t) \
-        echo -e "-r: will use Subread repair on the bam infile.\n"
+        echo -e "-r: Will use Subread repair on split bam files."
         flag_subread=1
         ;;
     false | f) \
-        echo -e "-r: will not use Subread repair on the bam infile.\n"
+        echo -e "-r: Will not use Subread repair on split bam files."
         flag_subread=0
         ;;
     *) \
@@ -133,11 +133,11 @@ esac
 #  Set flag to create bed file(s) if "${bed}" is TRUE
 case "$(echo "${bed}" | tr '[:upper:]' '[:lower:]')" in
     true | t) \
-        echo -e "-b: will create bed file(s) from split bam file(s).\n"
+        echo -e "-b: Will create bed file(s) from split bam file(s).\n"
         flag_bed=1
         ;;
     false | f) \
-        echo -e "-b: will not create bed file(s) from split bam file(s).\n"
+        echo -e "-b: Will not create bed file(s) from split bam file(s).\n"
         flag_bed=0
         ;;
     *) \
@@ -347,7 +347,7 @@ case "${chromosome}" in
             mv -f \
             "${infile%.bam}.${chromosome}.bedpe.tmp" \
             "${infile%.bam}.${chromosome}.bedpe" &
-            displaySpinningIcon $! "Cleaning up bedpe.tmp files..."
+            displaySpinningIcon $! "Cleaning up bedpe.tmp file..."
 
             awk 'BEGIN{FS=OFS="\t"} {print $1, $2, $3, $7}' \
             "${infile%.bam}.${chromosome}.bedpe" \
@@ -362,6 +362,7 @@ case "${chromosome}" in
             rm "${infile%.bam}.${chromosome}.bedpe"  &
             displaySpinningIcon $! "Removing temporary bedpe file..."
 
+            echo -e ""
             echo -e "Completed: Creating bed files for chromosome"
             echo -e "           ${chromosome}.\n"
         elif [[ $((flag_bed)) -eq 0 ]]; then
@@ -372,10 +373,23 @@ case "${chromosome}" in
         fi
         ;;
     *) \
-        echo "Exiting: Script cannot handle \"${chromosome}\" as chromosome option."
+        echo -e "Exiting: Script cannot handle \"${chromosome}\" as chromosome"
+        echo -e "         option."
         exit 1
         ;;
 esac
+
+
+#  End recording time ---------------------------------------------------------
+end="$(date +%s)"
+
+#  Return run time
+run_time="$(echo "${end}" - "${start}" | bc -l)"
+echo ""
+echo "${0} run time: ${run_time} seconds."
+echo ""
+
+exit 0
 
 
 #  Scraps ---------------------------------------------------------------------
