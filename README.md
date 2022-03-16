@@ -2,35 +2,38 @@
 
 ### KA Allele Segregation Pipeline
 
-This pipeline is used to perform for allele segregation for sci-ATAC-seq data.
+For sci-ATAC-seq data, this pipeline is used to segregate alignments to parental alleles of origin based on alignment scores.
 
 ## News and Updates
 
-2022.03.15
-* to do list
+2022-0315
+* `#TODO` list
   + add workflow image.
-  + add readme file (describe the flow and example cod to run).
+  + add `README` file (describe the flow, add example code to run).
   + create workflow folder.
 
 ## Installation
 
-Need to add later.
+`#TODO` Need to add later.
 
-need to add version number.
-R
-Liftover
-Subread
-Samtools
+`#TODO` Need to add version numbers.
+  + R
+  + liftOver
+  + subread
+  + samtools
 
 ## Workflow
 
 ![plot](AlleleSegregation-03-15-2022.png)
 
-The user would need to run the following steps to prepare the input for KA's pipeline:
+The user needs to run the following steps to prepare the input for KA's pipeline:
 1. Demux. ([Example Code 1](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/01-demux.sh))
 2. sci-ATAC-seq analysis pipeline from Shendure lab. ([Example Code 2](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/02-sci-ATAC-seq-analysis.sh))
-3. Sort the bam. (might not need this, Kris is testing.) ([Example Code 3](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/03-sort.sh))
-4. Repair the bam. ([Example Code 4](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/04-repair.sh))
+~~3.~~ ~~Sort the bam. (might not need this, Kris is testing.) ([Example Code 3](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/03-sort.sh))~~ *The current incarnation of the Shendure-Lab sci-ATAC-seq pipeline does sufficient sorting, so additional sorting with Samtools is currently not necessary.*
+4a. Split the bam file by chromosome. ([Example Code 4](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/04-split-index-repair-bam.sh))
+4b. Index and "repair" the split bam files. ([Example Code 4](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/04-split-index-repair-bam.sh))
+4c. Generate bed files from the split bam files. ([Example Code 4](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/04-split-index-repair-bam.sh))
+5. Perform liftOvers of the bed files. (`#TODO Example Code 5`)
 
 This pipeline would take as input two bam files (strain 1 assembly and strain 2 assembly) that have been sorted, subject to removal of duplicates, and output a 3-d tensor: (Cell, Allele, Category) where Category can be one of the ["parental","maternal","ambiguous"].
 
@@ -39,13 +42,59 @@ This pipeline would take as input two bam files (strain 1 assembly and strain 2 
 
 Here, we use mm10/CAST data （might perpare a small bam for testing） as an example:
 
-### 1. liftover to mm10
+### 1. Split bam infile by chromosome; index and "repair" split bam files; generate bed files for liftOver
+
+```{bash split-index-repair-bam}
+#  Call script from repo's home directory, 2021_kga0_4dn-mouse-cross
+
+# All chromosomes
+bash ./bin/workflow/04-split-index-repair-bam.sh \
+-u "FALSE" \
+-i "./data/files_bam_test/test.300000.bam" \
+-o "./data/04-split-index-repair_test.300000.bam_all" \
+-c "all" \
+-r "TRUE" \
+-b "TRUE" \
+-p 4
+
+# Just chromosome X
+bash ./bin/workflow/04-split-index-repair-bam.sh \
+-u "FALSE" \
+-i "./data/files_bam_test/test.300000.bam" \
+-o "./data/04-split-index-repair_test.300000.bam_chrX" \
+-c "chrX" \
+-r "TRUE" \
+-b "TRUE" \
+-p 4
+
+# Arguments:
+# -h <print this help message and exit>
+# -u <use safe mode: "TRUE" or "FALSE" (logical)>
+# -i <bam infile, including path (chr)>
+# -o <path for split bam file(s) (chr); path will be made if it does
+#     not exist>
+# -c <chromosome(s) to split out (chr); for example, "chr1" for
+#     chromosome 1, "chrX" for chromosome X, "all" for all
+#     chromosomes>
+# -r <use Subread repair on split bam files: "TRUE" or "FALSE"
+#     (logical)>
+# -b <if "-r TRUE", create bed files from split bam files: "TRUE"
+#     or "FALSE" (logical); argument "-b" only needed when "-r
+#     TRUE">
+# -p <number of cores for parallelization (int >= 1)>
+
+```
+
+### 2. liftOver to mm10
+`#TODO #INPROGRESS`
 
 ```{bash liftover}
 ./liftover.sh input.bam output.rdata?
 ```
 
-### 2. allele score comparison
+### 3. Allele-assignment based on alignment scores
+`#TODO #INPROGRESS`
+
 ```{R liftover}
 R CMD 05-AS.R?
 ```
