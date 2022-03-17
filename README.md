@@ -6,7 +6,9 @@ For sci-ATAC-seq data, this pipeline is used to segregate alignments to parental
 
 ## News and Updates
 
-2022-0315
+* 2022-03-17
+  + add new workflow image.
+
 * `#TODO` list
   + add workflow image.
   + add `README` file (describe the flow, add example code to run).
