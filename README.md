@@ -8,6 +8,8 @@ For sci-ATAC-seq data, this pipeline is used to segregate alignments to parental
 
 * 2022-03-17
   + add new workflow image.
+  + CX updated get_unique_fragments.py. Kris will test it on duplicates.
+  + After Shendure lab pipeline, we will first read with MAPQ < 30; then removing singleton; (Kris: no need to sort anymore) subread repair. 
 
 * `#TODO` list
   + add workflow image.
