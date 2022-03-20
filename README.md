@@ -6,10 +6,15 @@ For sci-ATAC-seq data, this pipeline is used to segregate alignments to parental
 
 ## News and Updates
 
+* 2022-03-19
+  + need t update workflow image.
+  + update readme for (filter reads with MAPQ < 30; then removing singleton; subread repair).
+  + update code for (filter reads with MAPQ < 30; then removing singleton; subread repair.).
+
 * 2022-03-17
   + add new workflow image.
   + CX updated get_unique_fragments.py. Kris will test it on duplicates.
-  + After Shendure lab pipeline, we will first read with MAPQ < 30; then removing singleton; (Kris: no need to sort anymore) subread repair. 
+  + After Shendure lab pipeline, we will first filter reads with MAPQ < 30; then removing singleton; (Kris: no need to sort anymore) subread repair. 
 
 * `#TODO` list
   + add workflow image.
@@ -33,7 +38,10 @@ For sci-ATAC-seq data, this pipeline is used to segregate alignments to parental
 The user needs to run the following steps to prepare the input for KA's pipeline:
 1. Demux. ([Example Code 1](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/01-demux.sh))
 2. sci-ATAC-seq analysis pipeline from Shendure lab. ([Example Code 2](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/02-sci-ATAC-seq-analysis.sh))
-3. ~~Sort the bam. (might not need this, Kris is testing.) ([Example Code 3](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/03-sort.sh))~~ *The current incarnation of the Shendure-Lab sci-ATAC-seq pipeline does sufficient sorting, so additional sorting with Samtools is currently not necessary.*
+3. Preprocess the bam. ([Example Code 3](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/03-preprocess.sh))
+    + filter reads with MAPQ < 30; 
+    + then remove singleton; 
+    + subread repair.
 4. Split the bam file by chromosome. Index and "repair" the split bam files. Generate bed files from the split bam files. ([Example Code 4](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/04-split-index-repair-bam.sh))
 5. Perform liftOvers of the bed files. (`#TODO Example Code 5`)
 
