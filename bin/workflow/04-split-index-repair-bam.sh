@@ -14,7 +14,7 @@ checkDependency() {
     command -v "${1}" &>/dev/null ||
         {
             echo "Exiting: ${1} not found. Install ${1}."
-            # exit 1
+            exit 1
         }
 }
 
@@ -48,10 +48,10 @@ printUsage() {
     echo ""
     echo ""
     echo "Dependencies:"
-    echo " - bedtools >= 2.30.0"
+    echo " - bedtools >= 2.30.0 (untested w/previous versions)"
     echo " - parallel >= 20200101"
-    echo " - repair >= 2.0.1"
-    echo " - samtools >= 1.13"
+    echo " - repair >= 2.0.1 (untested w/previous versions)"
+    echo " - samtools >= 1.13 (untested w/previous versions)"
     echo ""
     echo ""
     echo "Arguments:"
@@ -96,12 +96,23 @@ done
 
 # #  Test defaults
 # safe_mode="FALSE"
-# infile="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/kga0/Disteche_sample_1.dedup.bam"
-# outpath="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/kga0/2022-0316_outpath_test"
-# chromosome="chr19"
+# infile="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_bam_test/test.300000.bam"
+# outpath="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/2022-0320_test_04-05_all"
+# # chromosome="chr19"
+# chromosome="all"
 # repair="TRUE"
 # bed="TRUE"
 # parallelize=4
+#
+# bash bin/workflow/04-split-index-repair-bam.sh \
+# -u "${safe_mode}" \
+# -i "${infile}" \
+# -o "${outpath}" \
+# -c "${chromosome}" \
+# -r "${repair}" \
+# -b "${bed}" \
+# -p "${parallelize}"
+
 
 
 #  Check variable assignments -------------------------------------------------
@@ -134,6 +145,7 @@ esac
 [[ -f "${infile}" ]] ||
     {
         echo -e "Exiting: -i ${infile} does not exist.\n"
+        exit 1
     }
 
 #  Make "${outpath}" if it doesn't exist
