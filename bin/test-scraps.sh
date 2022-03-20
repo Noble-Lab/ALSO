@@ -72,10 +72,29 @@ bash ./bin/split-index-repair_bam.sh \
 #     TRUE">
 # -p <number of cores for parallelization (int >= 1)>
 
+infile="Disteche_sample_1.dedup.repair.bam"
+samtools view "${infile}" | head -50
 
+#  biostars.org/p/420892/
+samtools view -@ 4 -F 16 "${infile}" -o "${infile/.bam/.only-forward.bam}" &
+displaySpinningIcon $! "Splitting forward strand to separate bam... " 
+
+samtools view -@ 4 -f 16 "${infile}" -o "${infile/.bam/.only-reverse.bam}" &
+displaySpinningIcon $! "Splitting reverse strand to separate bam... "
+
+samtools view "${infile/.bam/.only-forward.bam}" | head -6 && echo ""
+samtools view "${infile/.bam/.only-reverse.bam}" | head -6 && echo ""
+
+alias reformat="bash /Users/kalavattam/bbmap/reformat.sh"
+reformat -h
 
 #ANSWER Does this work?
-
+reformat \
+in="${infile/.bam/.only-forward.bam}" \
+out="${infile/.bam/.only-forward.sample-50.bam}" \
+sampleseed=24 \
+samplereadstarget=50 &
+displaySpinningIcon $! "Randomly sampling forward-strand bam... "
 
 reformat \
 in="${infile/.bam/.only-reverse.bam}" \
@@ -217,7 +236,7 @@ bash ./bin/split-index-repair_bam.sh \
 -c "all" \
 -r "TRUE" \
 -b "TRUE" \
--p 4
+-p 6
 
 bash ./bin/split-index-repair_bam.sh \
 -u "FALSE" \
@@ -254,8 +273,6 @@ bash ./bin/split-index-repair_bam.sh \
 -r "TRUE" \
 -b "TRUE" \
 -p 6
-
-# cd 
 
 
 bash ./bin/lift_strain-to-mm10.sh \
