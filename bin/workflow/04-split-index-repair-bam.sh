@@ -13,14 +13,14 @@ checkDependency() {
     #  Check if program is available in "${PATH}"; exit if not
     command -v "${1}" &>/dev/null ||
         {
-            echoErrOut "Exiting: ${1} not found. Install ${1}."
+            echo "Exiting: ${1} not found. Install ${1}."
             # exit 1
         }
 }
 
 displaySpinningIcon() {
     #  Display "spinning icon" while a background process runs
-    spin="/|\\–/|\\-"
+    spin="/|\\–"
     i=0
     while kill -0 "${1}" 2> /dev/null; do
         i=$(( (i + 1) % 4 ))
@@ -58,8 +58,8 @@ printUsage() {
     echo "-h <print this help message and exit>"
     echo "-u <use safe mode: \"TRUE\" or \"FALSE\" (logical)>"
     echo "-i <bam infile, including path (chr)>"
-    echo "-o <path for split bam file(s) (chr); path will be made if it does"
-    echo "    not exist>"
+    echo "-o <path for split bam file(s) and bed files (chr); path will be"
+    echo "    made if it does not exist>"
     echo "-c <chromosome(s) to split out (chr); for example, \"chr1\" for"
     echo "    chromosome 1, \"chrX\" for chromosome X, \"all\" for all"
     echo "    chromosomes>"
@@ -184,17 +184,19 @@ case "$(echo "${bed}" | tr '[:upper:]' '[:lower:]')" in
             echo -e "    cannot create bed file(s) from split bam file(s).\n"
             echo -e ""
             flag_bed=0
+        else
+            echo -e "Exiting: There was an error processing the \"-r\" and \"-b\" arguments.\n"
+            exit 1
         fi
         ;;
     false | f) \
-        if [[ $((flag_subread)) -eq 1 ]]; then
+        if [[ $((flag_subread)) -eq 1 || $((flag_subread)) -eq 0 ]]; then
             echo -e "-b: Will not create bed file(s) from split bam file(s).\n"
             echo -e ""
             flag_bed=0
-        elif [[ $((flag_subread)) -eq 0 ]]; then
-            echo -e "-b: Will not create bed file(s) from split bam file(s).\n"
-            echo -e ""
-            flag_bed=0
+        else
+            echo -e "Exiting: There was an error processing the \"-r\" and \"-b\" arguments.\n"
+            exit 1
         fi
         ;;
     *) \
@@ -239,7 +241,6 @@ case "${chromosome}" in
         echo -e "#  Step 1"
         echo -e "Started: Splitting bam infile into individual bam files, one for each chromosome."
 
-        #TODO Skip this step if split bam files exist
         parallel -k -j "${parallelize}" \
         "samtools view -b {1} {2} > {3}" \
         ::: "${infile}" \
@@ -253,7 +254,6 @@ case "${chromosome}" in
         echo -e "#  Step 2"
         echo -e "Started: Indexing each split bam file."
 
-        #TODO Skip this step if split bam indices exist
         parallel -k -j "${parallelize}" \
         "samtools index {1}" \
         :::+ "${name[@]}"
@@ -262,7 +262,6 @@ case "${chromosome}" in
 
 
         #  Step 3: Repair each split bam file -------------
-        #TODO Skip this step if split bam files are already "repaired"
         if [[ $((flag_subread)) -eq 1 ]]; then
             echo -e "#  Step 3"
             echo -e "Started: Running Subread repair on each split bam file."
@@ -450,25 +449,3 @@ echo "${0} run time: ${run_time} seconds."
 echo ""
 
 exit 0
-
-
-#  Scraps ---------------------------------------------------------------------
-
-# [[ ${#name[@]} -eq 21 ]] &&
-#     {
-#         echo -e "Exiting: Split bam files already exist."
-#     }
-
-# [[ ! -f "${infile%.bam}.${chromosome}.bam" ]] &&
-#     {
-#         echo "..."
-#     }
-
-# 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | \
-# 17 | 18 | 19 | X | Y) \
-#     parallel -k -j 1 \
-#     "samtools view -b {1} {2} > {3}" \
-#     ::: "${infile}" \
-#     ::: "chr${chromosome}" \
-#     ::: "${infile%.bam}.chr${chromosome}.bam"
-#     ;;

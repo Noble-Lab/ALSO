@@ -2,7 +2,7 @@
 
 # preprocess has three steps:
 #     + filter reads with MAPQ < 30; 
-#     + then remove singleton; 
+#     + then remove singletons; 
 #     + subread repair.
     
 cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-03-08-samtools ||
@@ -31,16 +31,17 @@ do
     bam_input="mm10/get_unique_fragments/Disteche_sample_${sample_id}.dedup.bam"
     #bam_sort="mm10-output/sorted/Disteche_sample_${sample_id}.dedup.sorted.bam"
     #flagstat="mm10/get_unique_fragments/Disteche_sample_${sample_id}.dedup.flagstat.tsv"
-    bam_mapq_gte_30="mm10-output/MAPQ30/Disteche_sample_${sample_id}.MAPQ30.bam"
+    #bam_mapq_gte_30="mm10-output/MAPQ30/Disteche_sample_${sample_id}.MAPQ30.bam"
     bam_no_singleton_mapq_gte_30="mm10-output/RmSingleton/Disteche_sample_${sample_id}.RmSingleton.bam"
     bam_ready="mm10-output/Repair/Disteche_sample_${sample_id}.repair.bam"
     
     echo "Preprocessing:"
     #samtools sort -@ 4 "${bam}" -o "${bam_sort}" > "mm10-output/sorted_${sample_id}.output"
-    samtools view -h -b -q 30 -@ 4 "${bam_input}" -o "${bam_mapq_gte_30}"
-    samtools view -@ 4 -F 0x08 -b ${bam_mapq_gte_30} > ${bam_no_singleton_mapq_gte_30}
-    repair -c -i "${bam_no_singleton_mapq_gte_30}" -o "${bam_ready}"
-
+    #samtools view -h -b -q 30 -@ 4 "${bam_input}" -o "${bam_mapq_gte_30}"
+    #samtools view -@ 4 -F 0x08 -b ${bam_mapq_gte_30} > ${bam_no_singleton_mapq_gte_30}
+    #repair -c -i "${bam_no_singleton_mapq_gte_30}" -o "${bam_ready}"
+    samtools view -@ 4 -h -b -f 3 -F 12 -q 30 "${bam_input}" -o "${bam_no_singleton_mapq_gte_30}"
+    repair -d -T 4 -c -i "${bam_no_singleton_mapq_gte_30}" -o "${bam_ready}"
 done
 
 
@@ -66,13 +67,15 @@ do
     bam_input="CAST-EiJ/get_unique_fragments/Disteche_sample_${sample_id}.dedup.bam"
     #bam_sort="CAST-EiJ-output/sorted/Disteche_sample_${sample_id}.dedup.sorted.bam"
     #flagstat="mm10/get_unique_fragments/Disteche_sample_${sample_id}.dedup.flagstat.tsv"
-    bam_mapq_gte_30="CAST-EiJ-output/MAPQ30/Disteche_sample_${sample_id}.MAPQ30.bam"
+    #bam_mapq_gte_30="CAST-EiJ-output/MAPQ30/Disteche_sample_${sample_id}.MAPQ30.bam"
     bam_no_singleton_mapq_gte_30="CAST-EiJ-output/RmSingleton/Disteche_sample_${sample_id}.RmSingleton.bam"
     bam_ready="CAST-EiJ-output/Repair/Disteche_sample_${sample_id}.repair.bam"
     
     echo "Preprocessing:"
     #samtools sort -@ 4 "${bam}" -o "${bam_sort}" > "CAST-EiJ-output/sorted_${sample_id}.output"
-    samtools view -h -b -q 30 -@ 4 "${bam_input}" -o "${bam_mapq_gte_30}"
-    samtools view -@ 4 -F 0x08 -b ${bam_mapq_gte_30} > ${bam_no_singleton_mapq_gte_30}
-    repair -c -i "${bam_no_singleton_mapq_gte_30}" -o "${bam_ready}"
+    #samtools view -h -b -q 30 -@ 4 "${bam_input}" -o "${bam_mapq_gte_30}"
+    #samtools view -@ 4 -F 0x08 -b ${bam_mapq_gte_30} > ${bam_no_singleton_mapq_gte_30}
+    #repair -c -i "${bam_no_singleton_mapq_gte_30}" -o "${bam_ready}"
+    samtools view -@ 4 -h -b -f 3 -F 12 -q 30 "${bam_input}" -o "${bam_no_singleton_mapq_gte_30}"
+    repair -d -T 4 -c -i "${bam_no_singleton_mapq_gte_30}" -o "${bam_ready}"
 done
