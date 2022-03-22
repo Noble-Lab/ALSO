@@ -39,7 +39,7 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 
 ## Workflow
 
-![plot](AlleleSegregation-03-19-2022.png)
+![plot](AlleleSegregation-03-22-2022.png)
 
 The user needs to run the following steps to prepare the input for KA's pipeline:
 1. Demux. ([Example Code 1](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/01-demux.sh))
