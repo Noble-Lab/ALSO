@@ -22,24 +22,18 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
   + CX updated get_unique_fragments.py. Kris will test it on duplicates.
   + After Shendure lab pipeline, we will first filter reads with MAPQ < 30; then removing singleton; (Kris: no need to sort anymore) subread repair. 
 
-* `#TODO` list
-  + add workflow image.
-  + add `README` file (describe the flow, add example code to run).
-  + create workflow folder.
-
 ## Installation
 
 `#TODO` Need to add later.
-
-`#TODO` Need to add version numbers.
 `#TODO` Need to include additional dependencies.
+
   + [BBMap](https://sourceforge.net/projects/bbmap/) = 38.95 (untested with other versions)
   + [bedtools](https://bedtools.readthedocs.io/en/latest/) = 2.30.0 (untested with other versions)
-  + [liftOver](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads) >= 366 (untested with earlier versions)
+  + [liftOver](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads) >= 366 
   + [parallel](https://www.gnu.org/software/parallel/) >= 20200101
-  + [R](https://www.r-project.org/) >= 4.0 (untested with earlier versions)
+  + [R](https://www.r-project.org/) >= 4.0 
   + [Rsamtools](https://bioconductor.org/packages/release/bioc/html/Rsamtools.html) = 2.8.0 (untested with other versions)
-  + [samtools](http://www.htslib.org/) >= 1.13 (untested with earlier versions)
+  + [samtools](http://www.htslib.org/) >= 1.13 
   + [subread](http://subread.sourceforge.net/) = 2.0.1 (untested with other versions)
   + [Tidyverse](https://www.tidyverse.org/) = 1.3.1 (untested with other versions)
 
@@ -61,8 +55,9 @@ This pipeline takes as input two bam files (strain 1 assembly and strain 2 assem
   a. Split the bam file by chromosome. Index and "repair" the split bam files. Generate bed files from the split bam files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/04-split-index-repair-bam.sh))
   b. Perform liftOvers of the bed files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/05-lift-strain-to-mm10.sh))
 2. Allele score comparison.
+`#TODO` Need to add example code.
 
-Here, we use downsampled mm10/CAST data as an example:
+Here, we use the downsampled mm10/CAST data as an example:
 
 ### 1. Split bam infile by chromosome; index and "repair" split bam files; and then generate bed files for needed for liftOver
 
