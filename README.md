@@ -27,16 +27,9 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
   + CX updated get_unique_fragments.py. Kris will test it on duplicates.
   + After Shendure lab pipeline, we will first filter reads with MAPQ < 30; then removing singleton; (Kris: no need to sort anymore) subread repair. 
 
-* `#TODO` list
-  + add workflow image.
-  + add `README` file (describe the flow, add example code to run).
-  + create workflow folder.
-
 ## Installation
 
 `#TODO` Need to add later.
-
-`#TODO` Need to add version numbers.
 `#TODO` Need to include additional dependencies.
   + [argparser](https://bitbucket.org/djhshih/argparser) = 0.7.1
   + [bedtools](https://bedtools.readthedocs.io/en/latest/) = 2.30.0
@@ -50,7 +43,7 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 
 ## Workflow
 
-![plot](AlleleSegregation-03-19-2022.png)
+![plot](AlleleSegregation-03-22-2022.png)
 
 The user needs to run the following steps to prepare the input for KA's pipeline:
 1. Demux. ([Example Code 1](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/01-demux.sh))
@@ -66,8 +59,9 @@ This pipeline takes as input two bam files (strain 1 assembly and strain 2 assem
   a. Split the bam file by chromosome. Index and "repair" the split bam files. Generate bed files from the split bam files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/04-split-index-repair-bam.sh))
   b. Perform liftOvers of the bed files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/05-lift-strain-to-mm10.sh))
 2. Allele score comparison.
+`#TODO` Need to add example code.
 
-Here, we use downsampled mm10/CAST data as an example:
+Here, we use the downsampled mm10/CAST data as an example:
 
 ### 1. Split bam infile by chromosome; index and "repair" split bam files; and then generate bed files for needed for liftOver
 
