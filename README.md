@@ -5,6 +5,11 @@
 This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles of origin based on alignment scores.
 
 ## News and Updates
+* 2022-03-23
+  + 06-convert-bam-to-df_join-bed_write-rds.R
+  + clean up repo, removing unneeded scripts and data files
+  + update dependencies listed in `README`
+
 * 2022-03-20
   + add 05-lift-strain-to-mm10.sh
   + add script to download and process liftOver chain files: get-liftOver-chains.sh
@@ -14,7 +19,7 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 
 * 2022-03-19
   + update workflow image.
-  + update README for (filter reads with MAPQ < 30; then removing singleton; subread repair).
+  + update `README` for (filter reads with MAPQ < 30; then removing singleton; subread repair).
   + update code for (filter reads with MAPQ < 30; then removing singleton; subread repair.).
 
 * 2022-03-17
@@ -33,15 +38,15 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 
 `#TODO` Need to add version numbers.
 `#TODO` Need to include additional dependencies.
-  + [BBMap](https://sourceforge.net/projects/bbmap/) = 38.95 (untested with other versions)
-  + [bedtools](https://bedtools.readthedocs.io/en/latest/) = 2.30.0 (untested with other versions)
-  + [liftOver](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads) >= 366 (untested with earlier versions)
+  + [argparser](https://bitbucket.org/djhshih/argparser) = 0.7.1
+  + [bedtools](https://bedtools.readthedocs.io/en/latest/) = 2.30.0
+  + [liftOver](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads) >= 366
   + [parallel](https://www.gnu.org/software/parallel/) >= 20200101
-  + [R](https://www.r-project.org/) >= 4.0 (untested with earlier versions)
-  + [Rsamtools](https://bioconductor.org/packages/release/bioc/html/Rsamtools.html) = 2.8.0 (untested with other versions)
-  + [samtools](http://www.htslib.org/) >= 1.13 (untested with earlier versions)
-  + [subread](http://subread.sourceforge.net/) = 2.0.1 (untested with other versions)
-  + [Tidyverse](https://www.tidyverse.org/) = 1.3.1 (untested with other versions)
+  + [R](https://www.r-project.org/) >= 4.0
+  + [Rsamtools](https://bioconductor.org/packages/release/bioc/html/Rsamtools.html) = 2.8.0
+  + [samtools](http://www.htslib.org/) >= 1.13
+  + [subread](http://subread.sourceforge.net/) = 2.0.1
+  + [Tidyverse](https://www.tidyverse.org/) = 1.3.1
 
 ## Workflow
 
@@ -153,7 +158,37 @@ parallel --header : -k -j 4 \
 #+ - available on the UW GS HPC: $ module load parallel/20200922
 ```
 
-### 3. Allele-assignment based on alignment scores
+### 4. Create R dataset for subsequent allele-assignment
+```{Rscript convert-bam-to-df_join-bed_write-rds}
+dir_data="./data"
+dir_in="${dir_data}/2022-0320_test_04-05_all"
+dir_out="${dir_data}/2022-0320_test_06_chr19"
+
+bam="test.300000.chr19.bam"
+bai="${bam}.bai"
+pos="${bam/.bam/.pos.liftOver.CAST-EiJ.bed}"
+mpos="${bam/.bam/.mpos.liftOver.CAST-EiJ.bed}"
+rds="${bam/.bam/.rds}"
+
+Rscript bin/workflow/06-convert-bam-to-df_join-bed_write-rds.R \
+-i "${dir_in}/${bam}" \
+-b "${dir_in}/${bai}" \
+-p "${dir_in}/${pos}" \
+-m "${dir_in}/${mpos}" \
+-o "${dir_out}" \
+-r "${rds}"
+
+#TODO Debugging, unit tests...
+
+# -i, --bam     bam infile, including path <chr>
+# -b, --bai     bam index, including path <chr>
+# -p, --pos     liftOver bed file for "POS", including path <chr>
+# -m, --mpos    liftOver bed file for "MPOS", including path <chr>
+# -o, --outdir  directory for saving rds outfile, including path <chr>
+# -r, --rds     name of rds outfile to be saved in outdir <chr>
+```
+
+### 4. Allele-assignment based on alignment scores
 `#TODO #INPROGRESS`
 
 ```{R liftover}
