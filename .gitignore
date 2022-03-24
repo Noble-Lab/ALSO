@@ -10,6 +10,8 @@
 
 
 # Directories
+bak/*
+
 bin/drafts_pipeline-GB/*
 bin/drafts_pipeline-KA/*
 bin/miscellaneous_learning/*
@@ -17,8 +19,8 @@ bin/miscellaneous_not-used/*
 
 data/*
 !data/drivers/
-!data/files_bam_test/
-!data/files_chain/
+# !data/files_bam_test/
+# !data/files_chain/
 
 doc/*
 
