@@ -27,10 +27,8 @@ module add samtools/1.14
 # mkdir CAST-EiJ-output/MAPQ30_RmSingleton
 # mkdir CAST-EiJ-output/Repair
 
-
-
 ## for loop is too slow
-## let's parralel by samples.
+## let's  run it in parallel by samples.
 
 sample_id=$1
 echo "${sample_id}"

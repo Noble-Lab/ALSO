@@ -25,7 +25,7 @@ module add samtools/1.14
 # mkdir mm10-output/Repair
 
 ## for loop is too slow
-## let's parralel by samples.
+## let's  run it in parallel by samples.
 
 sample_id=$1
 echo "${sample_id}"
