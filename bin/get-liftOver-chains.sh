@@ -11,25 +11,30 @@ start="$(date +%s)"
 # loopEcho() { for i in "${@:-*}"; do echo "${i}"; done; }
 
 
-#  Download files -------------------------------------------------------------
-#  In the associative array below, the keys are made up of two subterms
+#  Handle arguments, assign variables -----------------------------------------
+#TODO 1/2 Convert from undocumented positional parameters to documented user-
+#TODO 2/2 specified, documented keyword parameters
+
+#  In the associative array below, the keys are made up of two "subterms"
 #+ separated by a space: '%\ *' matches the first term (to the left of the
 #+ space), '#*\ ' matches the second term (to the right of the space)
 unset array_chain
 typeset -A array_chain=(
-    ["hubs/GCA/001/624/445/GCA_001624445.1/liftOver/GCA_001624445.1ToMm10.over.chain.gz GCA_001624445.1ToMm10.over.chain.gz"]="CAST-EiJ-to-mm10.over.chain.gz"
-    ["goldenPath/mm10/liftOver/mm10ToGCA_001624445.1.over.chain.gz mm10ToGCA_001624445.1.over.chain.gz"]="mm10-to-CAST-EiJ.over.chain.gz"
-    ["hubs/GCA/001/624/185/GCA_001624185.1/liftOver/GCA_001624185.1ToMm10.over.chain.gz GCA_001624185.1ToMm10.over.chain.gz"]="129S1-SvImJ-to-mm10.over.chain.gz"
-    ["goldenPath/mm10/liftOver/mm10ToGCA_001624185.1.over.chain.gz mm10ToGCA_001624185.1.over.chain.gz"]="mm10-to-129S1-SvImJ.over.chain.gz"
-    ["goldenPath/GCA_001624865.1_SPRET_EiJ_v1/liftOver/GCA_001624865.1_SPRET_EiJ_v1ToMm10.over.chain.gz GCA_001624865.1_SPRET_EiJ_v1ToMm10.over.chain.gz"]="SPRET-EiJ-to-mm10.over.chain.gz"
-    ["goldenPath/mm10/liftOver/mm10ToGCA_001624865.1_SPRET_EiJ_v1.over.chain.gz mm10ToGCA_001624865.1_SPRET_EiJ_v1.over.chain.gz"]="mm10-to-SPRET-EiJ.over.chain.gz"
-    ["goldenPath/GCF_900094665.1/liftOver/GCF_900094665.1ToMm10.over.chain.gz GCF_900094665.1ToMm10.over.chain.gz"]="CAROLI-EiJ-to-mm10.over.chain.gz"
-    ["goldenPath/mm10/liftOver/mm10ToGCF_900094665.1.over.chain.gz mm10ToGCF_900094665.1.over.chain.gz"]="mm10-to-CAROLI-EiJ.over.chain.gz"
+    ["https://hgdownload.soe.ucsc.edu/hubs/GCA/001/624/445/GCA_001624445.1/liftOver/GCA_001624445.1ToMm10.over.chain.gz GCA_001624445.1ToMm10.over.chain.gz"]="CAST-EiJ-to-mm10.over.chain.gz"
+    ["https://hgdownload.soe.ucsc.edu/goldenPath/mm10/liftOver/mm10ToGCA_001624445.1.over.chain.gz mm10ToGCA_001624445.1.over.chain.gz"]="mm10-to-CAST-EiJ.over.chain.gz"
+    ["https://hgdownload.soe.ucsc.edu/hubs/GCA/001/624/185/GCA_001624185.1/liftOver/GCA_001624185.1ToMm10.over.chain.gz GCA_001624185.1ToMm10.over.chain.gz"]="129S1-SvImJ-to-mm10.over.chain.gz"
+    ["https://hgdownload.soe.ucsc.edu/goldenPath/mm10/liftOver/mm10ToGCA_001624185.1.over.chain.gz mm10ToGCA_001624185.1.over.chain.gz"]="mm10-to-129S1-SvImJ.over.chain.gz"
+    ["https://hgdownload.soe.ucsc.edu/goldenPath/GCA_001624865.1_SPRET_EiJ_v1/liftOver/GCA_001624865.1_SPRET_EiJ_v1ToMm10.over.chain.gz GCA_001624865.1_SPRET_EiJ_v1ToMm10.over.chain.gz"]="SPRET-EiJ-to-mm10.over.chain.gz"
+    ["https://hgdownload.soe.ucsc.edu/goldenPath/mm10/liftOver/mm10ToGCA_001624865.1_SPRET_EiJ_v1.over.chain.gz mm10ToGCA_001624865.1_SPRET_EiJ_v1.over.chain.gz"]="mm10-to-SPRET-EiJ.over.chain.gz"
+    ["https://hgdownload.soe.ucsc.edu/goldenPath/GCF_900094665.1/liftOver/GCF_900094665.1ToMm10.over.chain.gz GCF_900094665.1ToMm10.over.chain.gz"]="CAROLI-EiJ-to-mm10.over.chain.gz"
+    ["https://hgdownload.soe.ucsc.edu/goldenPath/mm10/liftOver/mm10ToGCF_900094665.1.over.chain.gz mm10ToGCF_900094665.1.over.chain.gz"]="mm10-to-CAROLI-EiJ.over.chain.gz"
 )
 path_data="${1:-"./data/files_chain"}"
-URL_prefix="https://hgdownload.soe.ucsc.edu"
 rename="${2:-"TRUE"}"
 
+
+#  Download files -------------------------------------------------------------
+#TODO Remove 'for loop' and, instead, download in parallel
 for i in "${!array_chain[@]}"; do
     echo "Working with..."
     echo "    - key 1: ${i%\ *}"
@@ -38,7 +43,7 @@ for i in "${!array_chain[@]}"; do
     echo ""
     echo "Started: Processing ${array_chain[${i}]}... "
 
-    curl "${URL_prefix}/${i%\ *}" > "${path_data}/${i#*\ }"
+    curl "${i%\ *}" > "${path_data}/${i#*\ }"
     
     if [[ -f "${path_data}/${i#*\ }" ]]; then
         echo "Successfully downloaded ${i#*\ }"

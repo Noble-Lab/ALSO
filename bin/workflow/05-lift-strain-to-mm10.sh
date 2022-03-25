@@ -10,7 +10,9 @@ start="$(date +%s)"
 
 #  Functions ------------------------------------------------------------------
 checkDependency() {
-    #  Check if program is available in "${PATH}"; exit if not
+    # Check if program is available in "${PATH}"; exit if not
+    # 
+    # :param 1: program to be checked (chr)
     command -v "${1}" &>/dev/null ||
         {
             echo "Exiting: ${1} not found. Install ${1}."
@@ -20,8 +22,11 @@ checkDependency() {
 
 
 displaySpinningIcon() {
-    #  Display "spinning icon" while a background process runs
-    spin="/|\\–/|\\-"
+    # Display "spinning icon" while a background process runs
+    # 
+    # :param 1: PID of the last program the shell ran in the background (int)
+    # :param 2: message to be displayed next to the spinning icon (chr)
+    spin="/|\\–"
     i=0
     while kill -0 "${1}" 2> /dev/null; do
         i=$(( (i + 1) % 4 ))
@@ -154,7 +159,7 @@ printUsage() {
     echo ""
     echo ""
     echo "Dependencies:"
-    echo "- liftOver >= 366 (untested w/previous versions)"
+    echo "- liftOver >= 366"
     echo ""
     echo ""
     echo "Arguments:"
@@ -191,26 +196,6 @@ done
 [[ -z "${outpath}" ]] && printUsage
 [[ -z "${strain}" ]] && printUsage
 [[ -z "${chain}" ]] && printUsage
-
-# #  Test defaults
-# safe_mode="FALSE"
-# infile="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/2022-0320_test_04-05/test.300000.chr19.pos.bed"
-# outpath="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/2022-0320_test_04-05"
-# # strain="129S1-SvImJ"
-# # chain="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_chain/129S1-SvImJ-to-mm10.over.chain.gz"
-# # strain="CAST-EiJ"
-# # chain="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_chain/CAST-EiJ-to-mm10.over.chain.gz"
-# # strain="CAROLI-EiJ"
-# # chain="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_chain/CAROLI-EiJ-to-mm10.over.chain.gz"
-# strain="SPRET-EiJ"
-# chain="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_chain/SPRET-EiJ-to-mm10.over.chain.gz"
-#
-# bash bin/lift-strain-to-mm10.sh \
-# -u "${safe_mode}" \
-# -i "${infile}" \
-# -o "${outpath}" \
-# -s "${strain}" \
-# -c "${chain}"
 
 
 #  Check, establish variable assignments --------------------------------------
@@ -252,6 +237,10 @@ esac
 
 #  Evaluate "${strain}"
 case "$(echo "${strain}" | tr '[:upper:]' '[:lower:]')" in
+    mm10 | m) \
+        echo -e "Exiting: -s is \"mm10\", so liftOver is not necessary.\n"
+        exit 1
+        ;;
     cast-eij | cast | c) \
         flag_strain=1
         name="CAST-EiJ"
@@ -289,11 +278,6 @@ echo -e "-c: Chain file is $(basename "${chain}").\n"
 
 #  Set up tmp.bed file, which is needed for subsequent code
 infile_tmp="${infile%/*}/$(basename "${infile/.bed/.${name}.tmp.bed}")"
-
-# echo "${infile}"
-# echo "${infile_tmp}"
-export infile
-export infile_tmp
 
 
 #  Convert infile chromosomes names from common to official -------------------
@@ -371,7 +355,7 @@ displaySpinningIcon $! "Removing temporary bed files... "
 #  Munge the lifted.bed file
 # shellcheck disable=SC2002
 cat "${infile/.bed/.${name}.lifted.bed}" \
-| awk 'BEGIN{FS=OFS="\t"} {print $0 OFS "Liftover successful"}' \
+| awk 'BEGIN{FS=OFS="\t"} {print $0 OFS "liftOver successful"}' \
 > "${infile/.bed/.${name}.lifted.tmp.bed}" &
 displaySpinningIcon $! "Munging $(basename "${infile/.bed/.${name}.lifted.tmp.bed}")... "
 
@@ -398,12 +382,21 @@ mv -f "${infile/.bed/.${name}.unlifted.tmp.bed}" "${infile/.bed/.${name}.unlifte
 
 cat "${infile/.bed/.${name}.lifted.bed}" "${infile/.bed/.${name}.unlifted.bed}" \
 > "${infile/.bed/.liftOver.${name}.bed}" &
-displaySpinningIcon $! "Concatenating lifted and unlifted bed files... "
+displaySpinningIcon $! "Concatenating \"lifted\" and \"unlifted\" bed files... "
 
 rm \
 "${infile/.bed/.${name}.lifted.bed}" \
 "${infile/.bed/.${name}.unlifted.bed}" &
-displaySpinningIcon $! "Removing lifted and unlifted bed files... "
+displaySpinningIcon $! "Removing \"lifted\" and \"unlifted\" bed files... "
+
+#  Move outfile bed to outpath
+if [[ "${infile%/*}" != "${outpath}" ]]; then
+    mv \
+    "${infile/.bed/.liftOver.${name}.bed}" \
+    "${outpath}/$(basename "${infile/.bed/.liftOver.${name}.bed}")"
+else
+    :
+fi
 
 
 #  End recording time ---------------------------------------------------------

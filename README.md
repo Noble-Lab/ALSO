@@ -67,39 +67,66 @@ Here, we use the downsampled mm10/CAST data as an example:
 
 ```{bash split-index-repair-bam}
 #  Call script from the repo's home directory, 2021_kga0_4dn-mouse-cross
+
+#  Run in "mm10 mode", which does not output bed files since liftOver will not
+#+ need to be performed
 safe_mode="FALSE"
-infile="./data/files_bam_test/test.300000.bam"
-outpath="./data/2022-0320_test_04-05_all"
+infile="./data/files_bam_test/test.mm10.300000.bam"
+outpath="./data/2022-0324_test_04_all"
+prefix="test.mm10.300000"
 chromosome="all"
-repair="TRUE"
-bed="TRUE"
+mm10="TRUE"
 parallelize=4
 
 bash bin/workflow/04-split-index-repair-bam.sh \
 -u "${safe_mode}" \
 -i "${infile}" \
 -o "${outpath}" \
+-x "${prefix}" \
 -c "${chromosome}" \
--r "${repair}" \
--b "${bed}" \
+-m "${mm10}" \
 -p "${parallelize}"
 
-#  Run time: 11 seconds
+#  Run time: 5 seconds
+
+#  Run in "defualt mode", which outputs bed files because liftOver will need to
+#+ be performed
+safe_mode="FALSE"
+infile="./data/files_bam_test/test.CAST-EiJ.300000.bam"
+outpath="./data/2022-0324_test_04_all"
+prefix="test.CAST-EiJ.300000"
+chromosome="all"
+parallelize=4
+
+bash bin/workflow/04-split-index-repair-bam.sh \
+-u "${safe_mode}" \
+-i "${infile}" \
+-o "${outpath}" \
+-x "${prefix}" \
+-c "${chromosome}" \
+-p "${parallelize}"
+
+#  Run time: 9 seconds
 
 # -h <print this help message and exit>
 # -u <use safe mode: "TRUE" or "FALSE" (logical)>
 # -i <bam infile, including path (chr)>
-# -o <path for split bam file(s) and bed files (chr); path will be
-#     made if it does not exist>
+# -o <path for outfile(s; chr); path will be made if it does not exist>
+# -x <prefix for outfile(s; chr)>
 # -c <chromosome(s) to split out (chr); for example, "chr1" for
 #     chromosome 1, "chrX" for chromosome X, "all" for all
 #     chromosomes>
+# -m <run script in "mm10 mode": "TRUE" or "FALSE" (logical);
+#     in "mm10 mode", Subread repair will be run on split bam files
+#     but "POS" and "MPOS" bed files will not be generated (since
+#     liftOver coordinate conversion to mm10 will not need to be
+#     performed); default: "FALSE">
 # -r <use Subread repair on split bam files: "TRUE" or "FALSE"
-#     (logical)>
+#     (logical); default: "TRUE" if "mm10 mode" is "FALSE">
 # -b <if "-r TRUE", create bed files from split bam files: "TRUE"
 #     or "FALSE" (logical); argument "-b" only needed when "-r
-#     TRUE">
-# -p <number of cores for parallelization (int >= 1)>
+#     TRUE"; default: "TRUE" if "mm10 mode" is "FALSE">
+# -p <number of cores for parallelization (int >= 1); default: 1>
 ```
 
 ### 2. Lift coordinates over from the initial alignment-strain coordinates (e.g., "CAST-EiJ" coordinates) to "mm10" coordinates
@@ -108,8 +135,8 @@ bash bin/workflow/04-split-index-repair-bam.sh \
 #  Call script from the repo's home directory, 2021_kga0_4dn-mouse-cross
 #  (Requirement: GNU Parallel should be in your "${PATH}"; install it if not)
 safe_mode="FALSE"
-infile="$(find "./data/2022-0320_test_04-05_all" -name "*.*os.bed" | sort -n)"
-outpath="./data/2022-0320_test_04-05_all"
+infile="$(find "./data/2022-0324_test_04_all" -name "*.*os.bed" | sort -n)"
+outpath="./data/2022-0324_test_05_all"
 strain="CAST-EiJ"
 chain="./data/files_chain/CAST-EiJ-to-mm10.over.chain.gz"
 
@@ -127,7 +154,7 @@ parallel --header : -k -j 4 \
 ::: strain "${strain}" \
 ::: chain "${chain}"
 
-#  Run time: 119 seconds
+#  Run time: 123 seconds
 
 # -h <print this help message and exit>
 # -u <use safe mode: "TRUE" or "FALSE" (logical)>
@@ -152,7 +179,7 @@ parallel --header : -k -j 4 \
 #+ - available on the UW GS HPC: $ module load parallel/20200922
 ```
 
-### 4. Create R dataset for subsequent allele-assignment
+### 3. Create R dataset for subsequent allele-assignment
 ```{Rscript convert-bam-to-df_join-bed_write-rds}
 dir_data="./data"
 dir_in="${dir_data}/2022-0320_test_04-05_all"

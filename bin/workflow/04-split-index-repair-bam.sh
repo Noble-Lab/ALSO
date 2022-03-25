@@ -10,7 +10,9 @@ start="$(date +%s)"
 
 #  Functions ------------------------------------------------------------------
 checkDependency() {
-    #  Check if program is available in "${PATH}"; exit if not
+    # Check if program is available in "${PATH}"; exit if not
+    # 
+    # :param 1: program to be checked (chr)
     command -v "${1}" &>/dev/null ||
         {
             echo "Exiting: ${1} not found. Install ${1}."
@@ -18,8 +20,12 @@ checkDependency() {
         }
 }
 
+
 displaySpinningIcon() {
-    #  Display "spinning icon" while a background process runs
+    # Display "spinning icon" while a background process runs
+    # 
+    # :param 1: PID of the last program the shell ran in the background (int)
+    # :param 2: message to be displayed next to the spinning icon (chr)
     spin="/|\\–"
     i=0
     while kill -0 "${1}" 2> /dev/null; do
@@ -41,44 +47,51 @@ printUsage() {
     echo "following for one or all mouse chromosomes:"
     echo " - bam file"
     echo " - bam index"
-    echo " - \"pos\" bed file for RNAME, POS, POS + 49, QNAME"
-    echo " - \"mpos\" bed file for MRNM, MPOS, MPOS + 49, QNAME"
+    echo " - (optional) \"POS\" bed file for RNAME, POS, POS + 49, QNAME"
+    echo " - (optional) \"MPOS\" bed file for MRNM, MPOS, MPOS + 49, QNAME"
     echo ""
     echo "Chromosomes in bam infile are assumed to be in \"chrN\" format."
     echo ""
     echo ""
     echo "Dependencies:"
-    echo " - bedtools >= 2.30.0 (untested w/previous versions)"
+    echo " - bedtools >= 2.30.0"
     echo " - parallel >= 20200101"
-    echo " - repair >= 2.0.1 (untested w/previous versions)"
-    echo " - samtools >= 1.13 (untested w/previous versions)"
+    echo " - repair >= 2.0.1"
+    echo " - samtools >= 1.13"
     echo ""
     echo ""
     echo "Arguments:"
     echo "-h <print this help message and exit>"
     echo "-u <use safe mode: \"TRUE\" or \"FALSE\" (logical)>"
     echo "-i <bam infile, including path (chr)>"
-    echo "-o <path for split bam file(s) and bed files (chr); path will be"
-    echo "    made if it does not exist>"
+    echo "-o <path for outfile(s; chr); path will be made if it does not exist>"
+    echo "-x <prefix for outfile(s; chr)>"
     echo "-c <chromosome(s) to split out (chr); for example, \"chr1\" for"
     echo "    chromosome 1, \"chrX\" for chromosome X, \"all\" for all"
     echo "    chromosomes>"
+    echo "-m <run script in \"mm10 mode\": \"TRUE\" or \"FALSE\" (logical);"
+    echo "    in \"mm10 mode\", Subread repair will be run on split bam files"
+    echo "    but \"POS\" and \"MPOS\" bed files will not be generated (since"
+    echo "    liftOver coordinate conversion to mm10 will not need to be"
+    echo "    performed); default: \"FALSE\">"
     echo "-r <use Subread repair on split bam files: \"TRUE\" or \"FALSE\"" 
-    echo "    (logical)>"
+    echo "    (logical); default: \"TRUE\" if \"mm10 mode\" is \"FALSE\">"
     echo "-b <if \"-r TRUE\", create bed files from split bam files: \"TRUE\""
     echo "    or \"FALSE\" (logical); argument \"-b\" only needed when \"-r"
-    echo "    TRUE\">"
-    echo "-p <number of cores for parallelization (int >= 1)>"
+    echo "    TRUE\"; default: \"TRUE\" if \"mm10 mode\" is \"FALSE\">"
+    echo "-p <number of cores for parallelization (int >= 1); default: 1>"
     exit
 }
 
-while getopts "h:u:i:o:c:r:b:p:" opt; do
+while getopts "h:u:i:o:x:c:m:r:b:p:" opt; do
     case "${opt}" in
         h) printUsage ;;
         u) safe_mode="${OPTARG}" ;;
         i) infile="${OPTARG}" ;;
         o) outpath="${OPTARG}" ;;
+        x) prefix="${OPTARG}" ;;
         c) chromosome="${OPTARG}" ;;
+        m) mm10="${OPTARG}" ;;
         r) repair="${OPTARG}" ;;
         b) bed="${OPTARG}" ;;
         p) parallelize="${OPTARG}" ;;
@@ -89,30 +102,12 @@ done
 [[ -z "${safe_mode}" ]] && printUsage
 [[ -z "${infile}" ]] && printUsage
 [[ -z "${outpath}" ]] && printUsage
+[[ -z "${prefix}" ]] && printUsage
 [[ -z "${chromosome}" ]] && printUsage
-[[ -z "${repair}" ]] && printUsage
-[[ -z "${bed}" ]] && bed="FALSE"
-[[ -z "${parallelize}" ]] && printUsage
-
-# #  Test defaults
-# safe_mode="FALSE"
-# infile="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_bam_test/test.300000.bam"
-# outpath="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/2022-0320_test_04-05_all"
-# # chromosome="chr19"
-# chromosome="all"
-# repair="TRUE"
-# bed="TRUE"
-# parallelize=4
-#
-# bash bin/workflow/04-split-index-repair-bam.sh \
-# -u "${safe_mode}" \
-# -i "${infile}" \
-# -o "${outpath}" \
-# -c "${chromosome}" \
-# -r "${repair}" \
-# -b "${bed}" \
-# -p "${parallelize}"
-
+[[ -z "${mm10}" ]] && mm10="FALSE"
+[[ -z "${repair}" ]] && repair="TRUE"
+[[ -z "${bed}" ]] && bed="TRUE"
+[[ -z "${parallelize}" ]] && parallelize=1
 
 
 #  Check variable assignments -------------------------------------------------
@@ -155,6 +150,73 @@ esac
         mkdir -p "${outpath}"
     }
 
+#  Evaluate "mm10 mode" argument, which leads to evaluating the "Subread
+#+ repair" and "bed" arguments
+case "$(echo "${mm10}" | tr '[:upper:]' '[:lower:]')" in
+    true | t) \
+        echo -e "-m: Will run the script in \"mm10 mode\"."
+        flag_bed=0
+        flag_subread=1
+        ;;
+    false | f) \
+        echo -e "-m: Will not run the script in \"mm10 mode\"."
+        
+        #  Set flag to repair bam file(s) if "${repair}" is TRUE
+        case "$(echo "${repair}" | tr '[:upper:]' '[:lower:]')" in
+            true | t) \
+                echo -e "-r: Will use Subread repair on split bam files."
+                flag_subread=1
+                ;;
+            false | f) \
+                echo -e "-r: Will not use Subread repair on split bam files."
+                flag_subread=0
+                ;;
+            *) \
+                echo -e "Exiting: -r Subread repair argument must be \"TRUE\" or \"FALSE\".\n"
+                exit 1
+                ;;
+        esac
+        
+        #  Set flag to create bed file(s) if "${bed}" is TRUE
+        case "$(echo "${bed}" | tr '[:upper:]' '[:lower:]')" in
+            true | t) \
+                if [[ $((flag_subread)) -eq 1 ]]; then
+                    echo -e "-b: Will create bed file(s) from split bam file(s).\n"
+                    echo -e ""
+                    flag_bed=1
+                elif [[ $((flag_subread)) -eq 0 ]]; then
+                    echo -e "-b: Not using Subread repair on split bam files; thus,"
+                    echo -e "    cannot create bed file(s) from split bam file(s).\n"
+                    echo -e ""
+                    flag_bed=0
+                else
+                    echo -e "Exiting: There was an error processing the \"-r\" and \"-b\" arguments.\n"
+                    exit 1
+                fi
+                ;;
+            false | f) \
+                if [[ $((flag_subread)) -eq 1 || $((flag_subread)) -eq 0 ]]; then
+                    echo -e "-b: Will not create bed file(s) from split bam file(s).\n"
+                    echo -e ""
+                    flag_bed=0
+                else
+                    echo -e "Exiting: There was an error processing the \"-r\" and \"-b\" arguments.\n"
+                    exit 1
+                fi
+                ;;
+            *) \
+                echo -e "Exiting: -b bed argument must be \"TRUE\", \"FALSE\", or undefined.\n"
+                echo -e ""
+                exit 1
+                ;;
+        esac
+        ;;
+    *) \
+        echo -e "Exiting: -m \"mm10 mode\" argument must be \"TRUE\" or \"FALSE\".\n"
+        exit 1
+        ;;
+esac
+
 #  Check "${parallelize}"
 [[ ! "${parallelize}" =~ ^[0-9]+$ ]] &&
     {
@@ -167,56 +229,6 @@ esac
         echo -e "Exiting: -p parallelize argument must be an integer >= 1."
         exit 1
     }
-
-#  Set flag to repair bam file(s) if "${repair}" is TRUE
-case "$(echo "${repair}" | tr '[:upper:]' '[:lower:]')" in
-    true | t) \
-        echo -e "-r: Will use Subread repair on split bam files."
-        flag_subread=1
-        ;;
-    false | f) \
-        echo -e "-r: Will not use Subread repair on split bam files."
-        flag_subread=0
-        ;;
-    *) \
-        echo -e "Exiting: -r Subread repair argument must be \"TRUE\" or \"FALSE\".\n"
-        exit 1
-        ;;
-esac
-
-#  Set flag to create bed file(s) if "${bed}" is TRUE
-case "$(echo "${bed}" | tr '[:upper:]' '[:lower:]')" in
-    true | t) \
-        if [[ $((flag_subread)) -eq 1 ]]; then
-            echo -e "-b: Will create bed file(s) from split bam file(s).\n"
-            echo -e ""
-            flag_bed=1
-        elif [[ $((flag_subread)) -eq 0 ]]; then
-            echo -e "-b: Not using Subread repair on split bam files; thus,"
-            echo -e "    cannot create bed file(s) from split bam file(s).\n"
-            echo -e ""
-            flag_bed=0
-        else
-            echo -e "Exiting: There was an error processing the \"-r\" and \"-b\" arguments.\n"
-            exit 1
-        fi
-        ;;
-    false | f) \
-        if [[ $((flag_subread)) -eq 1 || $((flag_subread)) -eq 0 ]]; then
-            echo -e "-b: Will not create bed file(s) from split bam file(s).\n"
-            echo -e ""
-            flag_bed=0
-        else
-            echo -e "Exiting: There was an error processing the \"-r\" and \"-b\" arguments.\n"
-            exit 1
-        fi
-        ;;
-    *) \
-        echo -e "Exiting: -b bed argument must be \"TRUE\", \"FALSE\", or undefined.\n"
-        echo -e ""
-        exit 1
-        ;;
-esac
 
 
 #  Process bam infile ---------------------------------------------------------
@@ -246,8 +258,8 @@ case "${chromosome}" in
         typeset -a name
         typeset -a tmp
         for i in $(seq 1 19) "X" "Y"; do all+=( "chr${i}" ); done
-        for i in $(seq 1 19) "X" "Y"; do name+=( "${outpath}/$(basename "${infile%.bam}").chr${i}.bam" ); done
-        for i in $(seq 1 19) "X" "Y"; do tmp+=( "${outpath}/$(basename "${infile%.bam}").chr${i}.bam.tmp" ); done
+        for i in $(seq 1 19) "X" "Y"; do name+=( "${outpath}/${prefix}.chr${i}.bam" ); done
+        for i in $(seq 1 19) "X" "Y"; do tmp+=( "${outpath}/${prefix}.chr${i}.bam.tmp" ); done
 
         #  Step 1: Split bam infile -----------------------
         echo -e "#  Step 1"
@@ -306,7 +318,7 @@ case "${chromosome}" in
             ::: "${name[@]}" \
             :::+ "${name[@]/.bam/.bedpe}"
 
-            echo -e "Adjusting bedpe \"pos\", \"mpos\", etc. values... "
+            echo -e "Adjusting bedpe \"POS\", \"MPOS\", etc. values... "
             parallel -k -j "${parallelize}" \
             "awk 'BEGIN{FS=OFS=\"\t\"} {print \$1, \$2 + 1, \$3 + 1, \$4, \$5 + 1, \$6 + 1, \$7}' {1} > {2}" \
             ::: "${name[@]/.bam/.bedpe}" \
@@ -318,13 +330,13 @@ case "${chromosome}" in
             ::: "${name[@]/.bam/.bedpe.tmp}" \
             :::+ "${name[@]/.bam/.bedpe}"
 
-            echo -e "Creating \"pos\" bed files... "
+            echo -e "Creating \"POS\" bed files... "
             parallel -k -j "${parallelize}" \
             "awk 'BEGIN{FS=OFS=\"\t\"} {print \$1, \$2, \$3, \$7}' {1} > {2}" \
             ::: "${name[@]/.bam/.bedpe}" \
             :::+ "${name[@]/.bam/.pos.bed}"
 
-            echo -e "Creating \"mpos\" bed files... "
+            echo -e "Creating \"MPOS\" bed files... "
             parallel -k -j "${parallelize}" \
             "awk 'BEGIN{FS=OFS=\"\t\"} {print \$4, \$5, \$6, \$7}' {1} > {2}" \
             ::: "${name[@]/.bam/.bedpe}" \
@@ -348,14 +360,12 @@ case "${chromosome}" in
     chr1 | chr2 | chr3 | chr4 | chr5 | chr6 | chr7 | chr8 | chr9 | chr10 | \
     chr11 | chr12 | chr13 | chr14 | chr15 | chr16 | chr17 | chr18 | chr19 | \
     chrX | chrY) \
-        infile_base="$(basename "${infile}" .bam)"
-
         #  Step 1: Split bam infile -----------------------
         echo -e "#  Step 1"
         echo -e "Started: Splitting bam infile into individual bam file for chromosome ${chromosome}."
 
         samtools view -@ "${parallelize}" -b "${infile}" "${chromosome}" \
-        > "${outpath}/${infile_base}.${chromosome}.bam" &
+        > "${outpath}/${prefix}.${chromosome}.bam" &
         displaySpinningIcon $! "Splitting bam infile... "
 
         echo -e "Completed: Splitting bam infile into individual bam file for chromosome ${chromosome}.\n"
@@ -365,7 +375,7 @@ case "${chromosome}" in
         echo -e "#  Step 2"
         echo -e "Started: Indexing bam file for chromosome ${chromosome}."
 
-        samtools index -@ "${parallelize}" "${outpath}/${infile_base}.${chromosome}.bam" &
+        samtools index -@ "${parallelize}" "${outpath}/${prefix}.${chromosome}.bam" &
         displaySpinningIcon $! "Indexing split bam file... "
                 
         echo -e "Completed: Indexing bam file for chromosome ${chromosome}.\n"
@@ -378,15 +388,15 @@ case "${chromosome}" in
             
             repair \
             -d -c -T "${parallelize}" \
-            -i "${outpath}/${infile_base}.${chromosome}.bam" \
-            -o "${outpath}/${infile_base}.${chromosome}.bam.tmp" &
+            -i "${outpath}/${prefix}.${chromosome}.bam" \
+            -o "${outpath}/${prefix}.${chromosome}.bam.tmp" &
             displaySpinningIcon $! "Running repair on split bam file... "
 
-            [[ -f "${outpath}/${infile_base}.${chromosome}.bam.tmp" ]] &&
+            [[ -f "${outpath}/${prefix}.${chromosome}.bam.tmp" ]] &&
                 {
                     mv -f \
-                    "${outpath}/${infile_base}.${chromosome}.bam.tmp" \
-                    "${outpath}/${infile_base}.${chromosome}.bam"
+                    "${outpath}/${prefix}.${chromosome}.bam.tmp" \
+                    "${outpath}/${prefix}.${chromosome}.bam"
                 }
 
             echo -e "Completed: Running Subread repair on the split bam file.\n"
@@ -405,31 +415,31 @@ case "${chromosome}" in
             echo -e "#  Step 4"
             echo -e "Started: Creating bed files for chromosome \"${chromosome}.\""
 
-            bamToBed -i "${outpath}/${infile_base}.${chromosome}.bam" -bedpe \
-            > "${outpath}/${infile_base}.${chromosome}.bedpe" &
+            bamToBed -i "${outpath}/${prefix}.${chromosome}.bam" -bedpe \
+            > "${outpath}/${prefix}.${chromosome}.bedpe" &
             displaySpinningIcon $! "Creating temporary bedpe file... "
 
             awk 'BEGIN{FS=OFS="\t"} {print $1, $2 + 1, $3 + 1, $4, $5 + 1, $6 + 1, $7}' \
-            "${outpath}/${infile_base}.${chromosome}.bedpe" \
-            > "${outpath}/${infile_base}.${chromosome}.bedpe.tmp" &
-            displaySpinningIcon $! "Adjusting bedpe \"pos\", etc. values... "
+            "${outpath}/${prefix}.${chromosome}.bedpe" \
+            > "${outpath}/${prefix}.${chromosome}.bedpe.tmp" &
+            displaySpinningIcon $! "Adjusting bedpe \"POS\", etc. values... "
 
             mv -f \
-            "${outpath}/${infile_base}.${chromosome}.bedpe.tmp" \
-            "${outpath}/${infile_base}.${chromosome}.bedpe" &
+            "${outpath}/${prefix}.${chromosome}.bedpe.tmp" \
+            "${outpath}/${prefix}.${chromosome}.bedpe" &
             displaySpinningIcon $! "Cleaning up bedpe.tmp file... "
 
             awk 'BEGIN{FS=OFS="\t"} {print $1, $2, $3, $7}' \
-            "${outpath}/${infile_base}.${chromosome}.bedpe" \
-            > "${outpath}/${infile_base}.${chromosome}.pos.bed" &
-            displaySpinningIcon $! "Creating \"pos\" bed file... "
+            "${outpath}/${prefix}.${chromosome}.bedpe" \
+            > "${outpath}/${prefix}.${chromosome}.pos.bed" &
+            displaySpinningIcon $! "Creating \"POS\" bed file... "
 
             awk 'BEGIN{FS=OFS="\t"} {print $4, $5, $6, $7}' \
-            "${outpath}/${infile_base}.${chromosome}.bedpe" \
-            > "${outpath}/${infile_base}.${chromosome}.mpos.bed" &
-            displaySpinningIcon $! "Creating \"mpos\" bed file... "
+            "${outpath}/${prefix}.${chromosome}.bedpe" \
+            > "${outpath}/${prefix}.${chromosome}.mpos.bed" &
+            displaySpinningIcon $! "Creating \"MPOS\" bed file... "
 
-            rm "${outpath}/${infile_base}.${chromosome}.bedpe"  &
+            rm "${outpath}/${prefix}.${chromosome}.bedpe"  &
             displaySpinningIcon $! "Removing temporary bedpe file... "
 
             echo -e ""

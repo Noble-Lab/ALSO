@@ -3,6 +3,9 @@
 
 
 # Output files
+*.bai
+*.bam
+*.gz
 
 
 # Configuration files
@@ -19,8 +22,8 @@ bin/miscellaneous_not-used/*
 
 data/*
 !data/drivers/
-# !data/files_bam_test/
-# !data/files_chain/
+!data/files_bam_test/
+!data/files_chain/
 
 doc/*
 
