@@ -181,10 +181,14 @@ repair -d -c -T "${parallelize}" \
 displaySpinningIcon $! "\"Repairing\" ${infile}... "
 
 #  biostars.org/p/420892/
-samtools view -@ "${parallelize}" -F 16 "${infile%.bam}.tmp.bam" -o "${infile/.bam/.only-forward.bam}" &
+samtools view -@ "${parallelize}" \
+-F 16 "${infile%.bam}.tmp.bam" \
+-o "${infile/.bam/.only-forward.bam}" &
 displaySpinningIcon $! "Splitting forward strand to separate bam... " 
 
-samtools view -@ "${parallelize}" -f 16 "${infile%.bam}.tmp.bam" -o "${infile/.bam/.only-reverse.bam}" &
+samtools view -@ "${parallelize}" \
+-f 16 "${infile%.bam}.tmp.bam" \
+-o "${infile/.bam/.only-reverse.bam}" &
 displaySpinningIcon $! "Splitting reverse strand to separate bam... "
 
 #  Remove unneeded intermediate file
@@ -263,10 +267,7 @@ rm "${infile/.bam/.downsample-}${downsample}.bam"
     }
 
 #  Return to starting directory
-cd - ||
-    {
-        echo "Warning: \"cd -\" failed. Look into this..."
-    }
+cd - || ! echo "Warning: \"cd -\" failed. Look into this..."
 
 
 #  End recording time ---------------------------------------------------------
