@@ -45,10 +45,12 @@ printUsage() {
     echo "${0}:"
     echo "Take a bam infile containing all mouse chromosomes, then output the"
     echo "following for one or all mouse chromosomes:"
-    echo " - bam file"
-    echo " - bam index"
-    echo " - (optional) \"POS\" bed file for RNAME, POS, POS + 49, QNAME"
-    echo " - (optional) \"MPOS\" bed file for MRNM, MPOS, MPOS + 49, QNAME"
+    echo " - bam file (\"mm10 mode\" and \"strain mode\")"
+    echo " - bam index (\"mm10 mode\" and \"strain mode\")"
+    echo " - \"POS\" bed file for RNAME, POS, POS + 49, QNAME (\"strain"
+    echo "   mode\")"
+    echo " - \"MPOS\" bed file for MRNM, MPOS, MPOS + 49, QNAME (\"strain"
+    echo "   mode\")"
     echo ""
     echo "Chromosomes in bam infile are assumed to be in \"chrN\" format."
     echo ""
@@ -69,16 +71,19 @@ printUsage() {
     echo "-c <chromosome(s) to split out (chr); for example, \"chr1\" for"
     echo "    chromosome 1, \"chrX\" for chromosome X, \"all\" for all"
     echo "    chromosomes>"
-    echo "-m <run script in \"mm10 mode\": \"TRUE\" or \"FALSE\" (logical);"
-    echo "    in \"mm10 mode\", Subread repair will be run on split bam files"
-    echo "    but \"POS\" and \"MPOS\" bed files will not be generated (since"
-    echo "    liftOver coordinate conversion to mm10 will not need to be"
-    echo "    performed); default: \"FALSE\">"
-    echo "-r <use Subread repair on split bam files: \"TRUE\" or \"FALSE\"" 
-    echo "    (logical); default: \"TRUE\" if \"mm10 mode\" is \"FALSE\">"
-    echo "-b <if \"-r TRUE\", create bed files from split bam files: \"TRUE\""
-    echo "    or \"FALSE\" (logical); argument \"-b\" only needed when \"-r"
-    echo "    TRUE\"; default: \"TRUE\" if \"mm10 mode\" is \"FALSE\">"
+    echo "-m <mode in which to run the script: \"M\" or \"S\" (chr); "
+    echo "    with \"M\" (or \"mm10\"), Subread repair will be run on split"
+    echo "    bam files but \"POS\" and \"MPOS\" bed files will not be"
+    echo "    generated (since liftOver coordinate conversion to mm10 will not"
+    echo "    need to be performed); with \"S\" (or \"strain\"), Subread"
+    echo "    repair will be run and \"POS\" and \"MPOS\" bed files will be"
+    echo "    generated (to be used in subsequent liftOver coordinate"
+    echo "    conversion)>"
+    # echo "-r <use Subread repair on split bam files: \"TRUE\" or \"FALSE\"" 
+    # echo "    (logical); default: \"TRUE\" if \"mm10 mode\" is \"FALSE\">"
+    # echo "-b <if \"-r TRUE\", create bed files from split bam files: \"TRUE\""
+    # echo "    or \"FALSE\" (logical); argument \"-b\" only needed when \"-r"
+    # echo "    TRUE\"; default: \"TRUE\" if \"mm10 mode\" is \"FALSE\">"
     echo "-p <number of cores for parallelization (int >= 1); default: 1>"
     exit
 }
@@ -153,13 +158,20 @@ esac
 #  Evaluate "mm10 mode" argument, which leads to evaluating the "Subread
 #+ repair" and "bed" arguments
 case "$(echo "${mm10}" | tr '[:upper:]' '[:lower:]')" in
-    true | t) \
-        echo -e "-m: Will run the script in \"mm10 mode\"."
+    mm10 | m) \
+        echo -e "-m: Will run the script in \"mm10 mode.\"\n"
         flag_bed=0
         flag_subread=1
         ;;
-    false | f) \
-        echo -e "-m: Will not run the script in \"mm10 mode\"."
+    strain | s) \
+        echo -e "-m: Will run the script in \"strain mode.\"\n"
+        flag_bed=1
+        flag_subread=1
+        ;;
+    test | t) \
+        echo -e "-m: Will run the script in undocumented \"test mode,\" which"
+        echo -e "    parses input to the undocumented \"-r\" and \"-b\""
+        echo -e "    arguments.\n"
         
         #  Set flag to repair bam file(s) if "${repair}" is TRUE
         case "$(echo "${repair}" | tr '[:upper:]' '[:lower:]')" in
@@ -212,7 +224,7 @@ case "$(echo "${mm10}" | tr '[:upper:]' '[:lower:]')" in
         esac
         ;;
     *) \
-        echo -e "Exiting: -m \"mm10 mode\" argument must be \"TRUE\" or \"FALSE\".\n"
+        echo -e "Exiting: -m \"mode\" argument must be \"M\" or \"S\".\n"
         exit 1
         ;;
 esac
@@ -220,35 +232,58 @@ esac
 #  Check "${parallelize}"
 [[ ! "${parallelize}" =~ ^[0-9]+$ ]] &&
     {
-        echo -e "Exiting: -p parallelize argument must be an integer."
+        echo -e "Exiting: -p parallelize argument must be an integer.\n"
         exit 1
     }
 
 [[ ! $((parallelize)) -ge 1 ]] &&
     {
-        echo -e "Exiting: -p parallelize argument must be an integer >= 1."
+        echo -e "Exiting: -p parallelize argument must be an integer >= 1.\n"
         exit 1
     }
 
 
 #  Process bam infile ---------------------------------------------------------
-#  If bam infile is not indexed, then do so
-if [[ ! -f "${infile/.bam/.bam.bai}" ]]; then
+#  If bam infile is not sorted and/or indexed, then do so; in order to split a
+#+ bam file by chromosome, the file must be sorted and indexed
+if [[ $(samtools stats "${infile}" | grep "is sorted:" | cut -f 3) -eq 1 ]]; then
     echo -e "#  Step 0"
-    echo -e "Infile bam index not found."
-    echo -e "Started: Indexing bam infile."
+    echo -e "Bam file is sorted."
+
+    #  Check that bam index is present; if not, then generate index
+    if [[ ! -f "${infile/.bam/.bam.bai}" ]]; then
+        echo -e "Infile bam index not found."
+        echo -e "Started: Indexing bam infile."
+
+        samtools index -@ "${parallelize}" "${infile}" &
+        displaySpinningIcon $! "Indexing bam infile... "
+
+        echo -e "Completed: Indexing bam infile.\n"
+    else
+        echo -e "Index for bam infile found. Moving on to next step.\n"
+        :
+    fi
+elif [[ $(samtools stats "${infile}" | grep "is sorted:" | cut -f 3) -eq 0 ]]; then
+    echo -e "#  Step 0"
+    echo -e "Bam file is not sorted and index is presumed absent."
+    echo -e "Started: Sorting and indexing bam infile."
+
+    samtools sort -@ "${parallelize}" "${infile}" -o "${infile}.tmp"
+    displaySpinningIcon $! "Sorting bam infile... "
+
+    mv -f "${infile}.tmp" "${infile}" &
+    displaySpinningIcon $! "Removing unneeded intermediate file... "
 
     samtools index -@ "${parallelize}" "${infile}" &
     displaySpinningIcon $! "Indexing bam infile... "
 
-    echo -e "Completed: Indexing bam infile.\n"
-else
-    echo -e "#  Step 0"
-    echo -e "Index for bam infile found. Moving on to next step.\n"
-    :
+    echo -e "Completed: Sorting and indexing bam infile.\n"
+elif [[ $(samtools stats "${infile}" | grep "is sorted:" | cut -f 3) -ge 2 ]]; then
+    echo -e "Exiting: samtools stats has value of 2 or greater. Check on this.\n"
+    exit 1
 fi
 
-#  Run samtools view for "${chromosome}"
+#  Split bam file by chromosome, then perform additional processing
 case "${chromosome}" in
     all) \
         unset all
@@ -274,13 +309,26 @@ case "${chromosome}" in
         echo -e "Completed: Splitting bam infile into individual bam files, one for each chromosome.\n"
 
 
-        #  Step 2: Index each split bam file --------------
+        #  Step 2: Sort and index each split bam file -----
         echo -e "#  Step 2"
         echo -e "Started: Indexing each split bam file."
 
+        # echo -e "Sorting each split bam file... "
+        # parallel -k -j "${parallelize}" \
+        # "samtools sort {1} -o {2}" \
+        # ::: "${name[@]}" \
+        # :::+ "${tmp[@]}"
+        #
+        # echo -e "Removing unneeded intermediate files... "
+        # parallel -k -j "${parallelize}" \
+        # "mv -f {1} {2}" \
+        # ::: "${tmp[@]}" \
+        # :::+ "${name[@]}"
+
+        echo -e "Indexing each split bam file... "
         parallel -k -j "${parallelize}" \
         "samtools index {1}" \
-        :::+ "${name[@]}"
+        ::: "${name[@]}"
         
         echo -e "Completed: Indexing each split bam file.\n"
 
@@ -371,14 +419,24 @@ case "${chromosome}" in
         echo -e "Completed: Splitting bam infile into individual bam file for chromosome ${chromosome}.\n"
 
 
-        #  Step 2: Index the split bam file ---------------
+        #  Step 2: Sort and index each split bam file -----
         echo -e "#  Step 2"
         echo -e "Started: Indexing bam file for chromosome ${chromosome}."
+
+        # samtools sort -@ "${parallelize}" \
+        # "${outpath}/${prefix}.${chromosome}.bam" \
+        # -o "${outpath}/${prefix}.${chromosome}.bam.tmp" &
+        # displaySpinningIcon $! "Sorting the split bam file... "
+        #
+        # mv -f \
+        # "${outpath}/${prefix}.${chromosome}.bam.tmp" \
+        # "${outpath}/${prefix}.${chromosome}.bam" &
+        # displaySpinningIcon $! "Removing unneeded intermediate file... "
 
         samtools index -@ "${parallelize}" "${outpath}/${prefix}.${chromosome}.bam" &
         displaySpinningIcon $! "Indexing split bam file... "
                 
-        echo -e "Completed: Indexing bam file for chromosome ${chromosome}.\n"
+        echo -e "Completed: Indexing bam for chromosome ${chromosome}.\n"
 
 
         #  Step 3: Repair the split bam file --------------
@@ -392,12 +450,10 @@ case "${chromosome}" in
             -o "${outpath}/${prefix}.${chromosome}.bam.tmp" &
             displaySpinningIcon $! "Running repair on split bam file... "
 
-            [[ -f "${outpath}/${prefix}.${chromosome}.bam.tmp" ]] &&
-                {
-                    mv -f \
-                    "${outpath}/${prefix}.${chromosome}.bam.tmp" \
-                    "${outpath}/${prefix}.${chromosome}.bam"
-                }
+            mv -f \
+            "${outpath}/${prefix}.${chromosome}.bam.tmp" \
+            "${outpath}/${prefix}.${chromosome}.bam" &
+            displaySpinningIcon $! "Removing unneeded intermediate file... "
 
             echo -e "Completed: Running Subread repair on the split bam file.\n"
         elif [[ $((flag_subread)) -eq 0 ]]; then
