@@ -309,7 +309,7 @@ case "${chromosome}" in
         echo -e "Completed: Splitting bam infile into individual bam files, one for each chromosome.\n"
 
 
-        #  Step 2: Sort and index each split bam file -----
+        #  Step 2: Index each split bam file --------------
         echo -e "#  Step 2"
         echo -e "Started: Indexing each split bam file."
 
@@ -419,7 +419,7 @@ case "${chromosome}" in
         echo -e "Completed: Splitting bam infile into individual bam file for chromosome ${chromosome}.\n"
 
 
-        #  Step 2: Sort and index each split bam file -----
+        #  Step 2: Index each split bam file --------------
         echo -e "#  Step 2"
         echo -e "Started: Indexing bam file for chromosome ${chromosome}."
 
