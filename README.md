@@ -5,12 +5,17 @@
 This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles of origin based on alignment scores.
 
 ## News and Updates
+
 * 2022-03-26
   + add additional options, corrections to 04-split-index-repair-bam.sh
     * "mm10" mode, which does not output POS and MPOS bed files
     * "strain" mode, which outputs POS and MPOS bed files
     * additional to sort and index bam infile if necessary
   + update associated test script for new modes
+
+* 2022-03-24
+  + update workflow chart with yellow box (preporcess step).
+  + update run script for preporcess step.
 
 * 2022-03-23
   + add 06-convert-bam-to-df_join-bed_write-rds.R
@@ -55,22 +60,43 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 The user needs to run the following steps to prepare the input for KA's pipeline:
 1. Demux. ([Example Code 1](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/01-demux.sh))
 2. sci-ATAC-seq analysis pipeline from the Shendure Lab. ([Example Code 2](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/02-sci-ATAC-seq-analysis.sh))
-3. Preprocess the bam. ([Example Code 3](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/03-preprocess.sh))
-   + filter reads with MAPQ < 30,
-   + remove singletons,
-   + then perform subread repair.
+3. Preprocess the bam. ([Example Code 3](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/03-preprocess-mm10.sh))
+   + filter reads with MAPQ < 30 and remove singletons,
+   + perform subread repair to pair mates.
 
-This pipeline takes as input two bam files (strain 1 assembly and strain 2 assembly) that have been sorted, subject to duplicate removal, and outputs a 3D tensor: (Cell, Allele, Category), where Category can be one of the ["paternal","maternal","ambiguous"].
+```{bash preprocess-bam}
+## use mm10 as an example
 
-1. liftOver to mm10.
-  + Split the bam file by chromosome. Index and "repair" the split bam files. Generate bed files from the split bam files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/04-split-index-repair-bam.sh))
-  + Perform liftOvers of the bed files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/05-lift-strain-to-mm10.sh))
+## create output directory
+# mkdir mm10-output/MAPQ30_RmSingleton
+# mkdir mm10-output/Repair
+
+for i in {1..22} ## run 22 samples in parallel
+do
+    echo "Running: "
+    echo $i
+    Job_name="mm10"_$i
+    ./preprocess.sh $i
+    # qsub -l mfree=10G -N $Job_name 03-preprocess-mm10.sh $i
+    echo "Done!"
+done
+
+```
+
+This pipeline takes as input two paired parental bam files (strain 1 assembly and strain 2 assembly) that have been sorted, subject to duplicate removal, and outputs a 3D tensor: (Cell, Allele, Category), where Category can be one of the ["paternal","maternal","ambiguous"].
+
+1. Split the bam file by chromosome and liftOver to mm10 (if not mm10).
+   +  Split the bam file by chromosome.
+   +  Index and "repair" the split bam files.
+   +  Generate bed files from the split bam files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/04-split-index-repair-bam.sh))
+   +  Perform liftOvers of the bed files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/05-lift-strain-to-mm10.sh))
+
 2. Allele score comparison.
 `#TODO` Need to add example code.
 
 Here, we use the downsampled mm10/CAST data as an example:
 
-### 1. Split bam infile by chromosome; index and "repair" split bam files; and then generate bed files for needed for liftOver
+### 1. Split bam infile by chromosome; index and "repair" split bam files; and if not mm10, then generate bed files for needed for liftOver.
 
 ```{bash split-index-repair-bam}
 #  Call script from the repo's home directory, 2021_kga0_4dn-mouse-cross
@@ -136,7 +162,7 @@ bash bin/workflow/04-split-index-repair-bam.sh \
 # -p <number of cores for parallelization (int >= 1); default: 1>
 ```
 
-### 2. Lift coordinates over from the initial alignment-strain coordinates (e.g., "CAST-EiJ" coordinates) to "mm10" coordinates
+### 2. Lift coordinates over from the initial alignment-strain coordinates (e.g., "CAST-EiJ" coordinates) to "mm10" coordinates (if not mm10)
 
 ```{bash lift-strain-to-mm10}
 #  Call script from the repo's home directory, 2021_kga0_4dn-mouse-cross
