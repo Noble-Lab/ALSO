@@ -130,3 +130,32 @@ end="$(date +%s)"
 run_time="$(echo "${end}" - "${start}" | bc -l)"
 echo "${0} run time: ${run_time} seconds."  # run time: 9 seconds
 echo ""
+
+
+#  CAST-EiJ test for unsorted file ------------------------------------------------
+#  chr19
+start="$(date +%s)"
+
+safe_mode="FALSE"
+infile="./data/files_bam_test/Disteche_sample_1.CAST-EiJ.downsampled.shuffle.bam"
+outpath="./data/2022-0327_test_04_CAST-EiJ_non-sorted_chr19"
+prefix="Disteche_sample_1.CAST-EiJ.downsampled.shuffle"
+chromosome="chr19"
+mode="S"
+parallelize=4
+
+#  Run in "mm10 mode"
+bash bin/workflow/04-split-index-repair-bam.sh \
+-u "${safe_mode}" \
+-i "${infile}" \
+-o "${outpath}" \
+-x "${prefix}" \
+-c "${chromosome}" \
+-m "${mode}" \
+-p "${parallelize}"
+
+end="$(date +%s)"
+run_time="$(echo "${end}" - "${start}" | bc -l)"
+echo "${0} run time: ${run_time} seconds."
+echo ""
+

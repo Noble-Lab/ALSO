@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#  generate-downsampled-bam.sh
+#  generate-downsampled-bams.sh
 #  KA
 
 
@@ -47,21 +47,22 @@ printUsage() {
     echo ""
     echo "Dependencies:"
     echo " - BBMap >= 38.95"
+    echo " - bedtools >= 2.29.0"
     echo " - samtools >= 1.13"
     echo ""
     echo ""
     echo "Arguments:"
     echo "-h <print this help message and exit>"
-    echo "-u <use safe mode: \"TRUE\" or \"FALSE\" (logical); defualt is"
+    echo "-u <use safe mode: \"TRUE\" or \"FALSE\" (logical); default is"
     echo "    \"FALSE\">"
     echo "-i <deduplicated bam infile, including path (chr)>"
     echo "-o <path for downsampled bam file (chr); path will be made if it"
     echo "    does not exist>"
     echo "-d <number of paired-end reads to sample down to (even int >= 2);"
     echo "    default: 300000>"
-    echo "-x <prefix for final downsampled paired-end bam (chr, optional); if"
-    echo "    \"-x\" is undefined, then prefix is derived from the name of the"
-    echo "    infile>"
+    echo "-x <prefix for downsampled paired-end bam outfiles (chr, optional);"
+    echo "    if \"-x\" is undefined, then prefix is derived from the name of"
+    echo "    the infile>"
     echo "-s <seed number for deterministic random sampling (int >= 1);"
     echo "    default: 24>"
     echo "-p <number of cores for parallelization (int >= 1); default: 4>"
@@ -92,6 +93,7 @@ done
 
 
 #  Check user input -----------------------------------------------------------
+checkDependency bedtools
 checkDependency samtools
 checkDependency reformat.sh
 
@@ -180,11 +182,12 @@ repair -d -c -T "${parallelize}" \
 -o "${infile%.bam}.tmp.bam" &
 displaySpinningIcon $! "\"Repairing\" ${infile}... "
 
-#  biostars.org/p/420892/
+#  Split bam infile by forward and reverse strands
+#+ e.g., see biostars.org/p/420892/
 samtools view -@ "${parallelize}" \
 -F 16 "${infile%.bam}.tmp.bam" \
 -o "${infile/.bam/.only-forward.bam}" &
-displaySpinningIcon $! "Splitting forward strand to separate bam... " 
+displaySpinningIcon $! "Splitting forward strand to separate bam... "
 
 samtools view -@ "${parallelize}" \
 -f 16 "${infile%.bam}.tmp.bam" \
@@ -259,11 +262,61 @@ samtools sort -@ "${parallelize}" \
 #  Remove unneeded intermediate file
 rm "${infile/.bam/.downsample-}${downsample}.bam"
 
-#  If specified by the user, rename outfile
+#  If chrom.sizes is not in infile working directory, then download it
+if [[ ! -f "hg38.chrom.sizes" ]]; then
+    echo "hg38.chrom.sizes not found"
+    echo "Downloading hg38.chrom.sizes... "
+    curl \
+    "https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes" \
+    > "hg38.chrom.sizes"
+else
+    echo "hg38.chrom.sizes found; moving to next step"
+    :
+fi
+
+#  Using chrom.sizes file, create a randomly shuffled version of the bam file
+bedtools bamtobed -bed12 \
+-i "${infile/.bam/.downsample-}${downsample}.sort.bam" \
+> "${infile/.bam/.downsample-}${downsample}.sort.bed"
+
+bedtools shuffle \
+-i "${infile/.bam/.downsample-}${downsample}.sort.bed" \
+-g "hg38.chrom.sizes" \
+> "${infile/.bam/.downsample-}${downsample}.shuffle.bed" \
+
+bedtools bedtobam -bed12 \
+-i "${infile/.bam/.downsample-}${downsample}.shuffle.bed" \
+-g "hg38.chrom.sizes" \
+> "${infile/.bam/.downsample-}${downsample}.shuffle.bam"
+
+#  Remove unneeded intermediate file
+rm \
+"${infile/.bam/.downsample-}${downsample}.sort.bed" \
+"${infile/.bam/.downsample-}${downsample}.shuffle.bed"
+
+#  If specified by the user, rename outfiles
 [[ "${prefix}" != "" ]] &&
     {
-        mv "${infile/.bam/.downsample-}${downsample}.sort.bam" "${prefix}"
-        echo "${infile/.bam/.downsample-}${downsample}.sort.bam renamed to ${prefix}"
+        if [[ "${prefix: -4}" == ".bam" ]]; then
+            #  Reset "${prefix}" to version in which ".bam" is stripped off
+            prefix="${prefix%.bam}"
+
+            #  Rename the sorted bam file
+            mv "${infile/.bam/.downsample-}${downsample}.sort.bam" "${prefix}.sort.bam"
+            echo "${infile/.bam/.downsample-}${downsample}.sort.bam renamed to ${prefix}.sort.bam"
+
+            #  Rename the shuffled bam file
+            mv "${infile/.bam/.downsample-}${downsample}.shuffle.bam" "${prefix}.shuffle.bam"
+            echo "${infile/.bam/.downsample-}${downsample}.shuffle.bam renamed to ${prefix}.shuffle.bam"
+        else
+            #  Rename the sorted bam file
+            mv "${infile/.bam/.downsample-}${downsample}.sort.bam" "${prefix}.sort.bam"
+            echo "${infile/.bam/.downsample-}${downsample}.sort.bam renamed to ${prefix}.sort.bam"
+
+            #  Rename the shuffled bam file
+            mv "${infile/.bam/.downsample-}${downsample}.shuffle.bam" "${prefix}.shuffle.bam"
+            echo "${infile/.bam/.downsample-}${downsample}.shuffle.bam renamed to ${prefix}.shuffle.bam"
+        fi
     }
 
 #  Return to starting directory
