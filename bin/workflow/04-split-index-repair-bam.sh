@@ -52,11 +52,13 @@ printUsage() {
     echo " - \"MPOS\" bed file for MRNM, MPOS, MPOS + 49, QNAME (\"strain"
     echo "   mode\")"
     echo ""
-    echo "Chromosomes in bam infile are assumed to be in \"chrN\" format."
+    echo "Chromosomes in the bam infile are assumed to be in \"chrN\" format."
+    echo "The bam infile is also assumed to be coordinate sorted; if not, the"
+    echo "script will detect this and proceed to coordinate sort the infile."
     echo ""
     echo ""
     echo "Dependencies:"
-    echo " - bedtools >= 2.30.0"
+    echo " - bedtools >= 2.29.0"
     echo " - parallel >= 20200101"
     echo " - repair >= 2.0.1"
     echo " - samtools >= 1.13"
@@ -246,41 +248,26 @@ esac
 #  Process bam infile ---------------------------------------------------------
 #  If bam infile is not sorted and/or indexed, then do so; in order to split a
 #+ bam file by chromosome, the file must be sorted and indexed
-if [[ $(samtools stats "${infile}" | grep "is sorted:" | cut -f 3) -eq 1 ]]; then
+if [[ $(samtools index -@ "${parallelize}" "${infile}")$? -eq 0 ]]; then
     echo -e "#  Step 0"
     echo -e "Bam file is sorted."
-
-    #  Check that bam index is present; if not, then generate index
-    if [[ ! -f "${infile/.bam/.bam.bai}" ]]; then
-        echo -e "Infile bam index not found."
-        echo -e "Started: Indexing bam infile."
-
-        samtools index -@ "${parallelize}" "${infile}" &
-        displaySpinningIcon $! "Indexing bam infile... "
-
-        echo -e "Completed: Indexing bam infile.\n"
-    else
-        echo -e "Index for bam infile found. Moving on to next step.\n"
-        :
-    fi
-elif [[ $(samtools stats "${infile}" | grep "is sorted:" | cut -f 3) -eq 0 ]]; then
+else
     echo -e "#  Step 0"
     echo -e "Bam file is not sorted and index is presumed absent."
     echo -e "Started: Sorting and indexing bam infile."
 
-    samtools sort -@ "${parallelize}" "${infile}" -o "${infile}.tmp"
-    displaySpinningIcon $! "Sorting bam infile... "
+    echo -e "Copy infile to back-up directory prior to sorting, etc."
+    mkdir -p "${infile%/*}/bak"
+    cp "${infile}" "${infile%/*}/bak" &
+    displaySpinningIcon $! "Copying infile to back-up directory... "
 
-    mv -f "${infile}.tmp" "${infile}" &
-    displaySpinningIcon $! "Removing unneeded intermediate file... "
+    samtools sort -@ "${parallelize}" "${infile}" -o "${infile}" &
+    displaySpinningIcon $! "Sorting bam infile... "
 
     samtools index -@ "${parallelize}" "${infile}" &
     displaySpinningIcon $! "Indexing bam infile... "
 
     echo -e "Completed: Sorting and indexing bam infile.\n"
-elif [[ $(samtools stats "${infile}" | grep "is sorted:" | cut -f 3) -ge 2 ]]; then
-    echo -e "Exiting: samtools stats has value of 2 or greater. Check on this.\n"
-    exit 1
 fi
 
 #  Split bam file by chromosome, then perform additional processing
@@ -329,7 +316,7 @@ case "${chromosome}" in
         parallel -k -j "${parallelize}" \
         "samtools index {1}" \
         ::: "${name[@]}"
-        
+       
         echo -e "Completed: Indexing each split bam file.\n"
 
 
@@ -337,7 +324,7 @@ case "${chromosome}" in
         if [[ $((flag_subread)) -eq 1 ]]; then
             echo -e "#  Step 3"
             echo -e "Started: Running Subread repair on each split bam file."
-            
+           
             parallel -k -j 1 \
             "repair -d -T {1} -c -i {2} -o {3} && mv -f {3} {2}" \
             ::: "${parallelize}" \
@@ -362,7 +349,7 @@ case "${chromosome}" in
 
             echo -e "Creating temporary bedpe files... "
             parallel -k -j "${parallelize}" \
-            "bamToBed -i {1} -bedpe > {2}" \
+            "bedtools bamtobed -i {1} -bedpe > {2}" \
             ::: "${name[@]}" \
             :::+ "${name[@]/.bam/.bedpe}"
 
@@ -435,7 +422,7 @@ case "${chromosome}" in
 
         samtools index -@ "${parallelize}" "${outpath}/${prefix}.${chromosome}.bam" &
         displaySpinningIcon $! "Indexing split bam file... "
-                
+               
         echo -e "Completed: Indexing bam for chromosome ${chromosome}.\n"
 
 
@@ -471,7 +458,7 @@ case "${chromosome}" in
             echo -e "#  Step 4"
             echo -e "Started: Creating bed files for chromosome \"${chromosome}.\""
 
-            bamToBed -i "${outpath}/${prefix}.${chromosome}.bam" -bedpe \
+            bedtools bamtobed -i "${outpath}/${prefix}.${chromosome}.bam" -bedpe \
             > "${outpath}/${prefix}.${chromosome}.bedpe" &
             displaySpinningIcon $! "Creating temporary bedpe file... "
 
