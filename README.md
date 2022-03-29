@@ -47,7 +47,7 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 `#TODO` Need to add later.
 `#TODO` Need to include additional dependencies.
   + [argparser](https://bitbucket.org/djhshih/argparser) = 0.7.1
-  + [bedtools](https://bedtools.readthedocs.io/en/latest/) = 2.29.0
+  + [bedtools](https://bedtools.readthedocs.io/en/latest/) >= 2.29.0
   + [liftOver](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads) >= 366
   + [parallel](https://www.gnu.org/software/parallel/) >= 20200101
   + [R](https://www.r-project.org/) >= 4.0
