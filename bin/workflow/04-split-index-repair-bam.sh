@@ -73,14 +73,14 @@ printUsage() {
     echo "-c <chromosome(s) to split out (chr); for example, \"chr1\" for"
     echo "    chromosome 1, \"chrX\" for chromosome X, \"all\" for all"
     echo "    chromosomes>"
-    echo "-m <mode in which to run the script: \"M\" or \"S\" (chr); "
-    echo "    with \"M\" (or \"mm10\"), Subread repair will be run on split"
-    echo "    bam files but \"POS\" and \"MPOS\" bed files will not be"
-    echo "    generated (since liftOver coordinate conversion to mm10 will not"
-    echo "    need to be performed); with \"S\" (or \"strain\"), Subread"
-    echo "    repair will be run and \"POS\" and \"MPOS\" bed files will be"
-    echo "    generated (to be used in subsequent liftOver coordinate"
-    echo "    conversion)>"
+    echo "-m <mode in which to run the script: \"M\" or \"S\" (chr); with"
+    echo "    \"M\" (or \"mm10\"), singletons will be removed and Subread"
+    echo "    repair will be run on split bam files, but \"POS\" and \"MPOS\""
+    echo "    bed files will not be generated (since liftOver coordinate"
+    echo "    conversion to mm10 will not need to be performed); with \"S\""
+    echo "    (or \"strain\"), singletons will be removed, Subread repair will"
+    echo "    be run, and \"POS\" and \"MPOS\" bed files will be generated (to"
+    echo "    be used in subsequent liftOver coordinate conversion)>"
     # echo "-r <use Subread repair on split bam files: \"TRUE\" or \"FALSE\"" 
     # echo "    (logical); default: \"TRUE\" if \"mm10 mode\" is \"FALSE\">"
     # echo "-b <if \"-r TRUE\", create bed files from split bam files: \"TRUE\""
@@ -98,7 +98,7 @@ while getopts "h:u:i:o:x:c:m:r:b:p:" opt; do
         o) outpath="${OPTARG}" ;;
         x) prefix="${OPTARG}" ;;
         c) chromosome="${OPTARG}" ;;
-        m) mm10="${OPTARG}" ;;
+        m) mode="${OPTARG}" ;;
         r) repair="${OPTARG}" ;;
         b) bed="${OPTARG}" ;;
         p) parallelize="${OPTARG}" ;;
@@ -111,7 +111,7 @@ done
 [[ -z "${outpath}" ]] && printUsage
 [[ -z "${prefix}" ]] && printUsage
 [[ -z "${chromosome}" ]] && printUsage
-[[ -z "${mm10}" ]] && mm10="FALSE"
+[[ -z "${mode}" ]] && mode="FALSE"
 [[ -z "${repair}" ]] && repair="TRUE"
 [[ -z "${bed}" ]] && bed="TRUE"
 [[ -z "${parallelize}" ]] && parallelize=1
@@ -157,9 +157,9 @@ esac
         mkdir -p "${outpath}"
     }
 
-#  Evaluate "mm10 mode" argument, which leads to evaluating the "Subread
-#+ repair" and "bed" arguments
-case "$(echo "${mm10}" | tr '[:upper:]' '[:lower:]')" in
+#  Evaluate "mode" argument, which leads to evaluating the "Subread repair"
+#+ and "bed" arguments
+case "$(echo "${mode}" | tr '[:upper:]' '[:lower:]')" in
     mm10 | m) \
         echo -e "-m: Will run the script in \"mm10 mode.\"\n"
         flag_bed=0
@@ -296,21 +296,21 @@ case "${chromosome}" in
         echo -e "Completed: Splitting bam infile into individual bam files, one for each chromosome.\n"
 
 
-        #  Step 2: Index each split bam file --------------
+        #  Step 2: Remove singletons from split bam file --
         echo -e "#  Step 2"
-        echo -e "Started: Indexing each split bam file."
+        echo -e "Started: Removing singletons from each split bam file."
 
-        # echo -e "Sorting each split bam file... "
-        # parallel -k -j "${parallelize}" \
-        # "samtools sort {1} -o {2}" \
-        # ::: "${name[@]}" \
-        # :::+ "${tmp[@]}"
-        #
-        # echo -e "Removing unneeded intermediate files... "
-        # parallel -k -j "${parallelize}" \
-        # "mv -f {1} {2}" \
-        # ::: "${tmp[@]}" \
-        # :::+ "${name[@]}"
+        parallel -k -j "${parallelize}" \
+        "samtools view -b -F 0x08 {1} > {2} && mv -f {2} {1}" \
+        ::: "${name[@]}" \
+        :::+ "${tmp[@]}"
+
+        echo -e "Completed: Removing singletons from bam file for chromosome ${chromosome}.\n"
+
+
+        #  Step 3: Index each split bam file --------------
+        echo -e "#  Step 3"
+        echo -e "Started: Indexing each split bam file."
 
         echo -e "Indexing each split bam file... "
         parallel -k -j "${parallelize}" \
@@ -320,9 +320,9 @@ case "${chromosome}" in
         echo -e "Completed: Indexing each split bam file.\n"
 
 
-        #  Step 3: Repair each split bam file -------------
+        #  Step 4: Repair each split bam file -------------
         if [[ $((flag_subread)) -eq 1 ]]; then
-            echo -e "#  Step 3"
+            echo -e "#  Step 4"
             echo -e "Started: Running Subread repair on each split bam file."
            
             parallel -k -j 1 \
@@ -333,7 +333,7 @@ case "${chromosome}" in
 
             echo -e "Completed: Running Subread repair on each split bam file.\n"
         elif [[ $((flag_subread)) -eq 0 ]]; then
-            echo -e "#  Step 3"
+            echo -e "#  Step 4"
             echo -e "Skipping: Running Subread repair on each split bam file.\n"
             :
         else
@@ -342,9 +342,9 @@ case "${chromosome}" in
         fi
 
 
-        #  Step 4: Create "pos", "mpos" bed files ---------
+        #  Step 5: Create "pos", "mpos" bed files ---------
         if [[ $((flag_bed)) -eq 1 ]]; then
-            echo -e "#  Step 4"
+            echo -e "#  Step 5"
             echo -e "Started: Creating bed files from each split bam file."
 
             echo -e "Creating temporary bedpe files... "
@@ -384,7 +384,7 @@ case "${chromosome}" in
 
             echo -e "Completed: Creating bed files from each split bam file.\n"
         elif [[ $((flag_bed)) -eq 0 ]]; then
-            echo -e "#  Step 4"
+            echo -e "#  Step 5"
             echo -e "Skipping: Creating bed files from each split bam file.\n"
             :
         else
@@ -406,19 +406,25 @@ case "${chromosome}" in
         echo -e "Completed: Splitting bam infile into individual bam file for chromosome ${chromosome}.\n"
 
 
-        #  Step 2: Index each split bam file --------------
+        #  Step 2: Remove singletons from split bam file --
         echo -e "#  Step 2"
-        echo -e "Started: Indexing bam file for chromosome ${chromosome}."
+        echo -e "Started: Removing singletons from bam file for chromosome ${chromosome}."
 
-        # samtools sort -@ "${parallelize}" \
-        # "${outpath}/${prefix}.${chromosome}.bam" \
-        # -o "${outpath}/${prefix}.${chromosome}.bam.tmp" &
-        # displaySpinningIcon $! "Sorting the split bam file... "
-        #
-        # mv -f \
-        # "${outpath}/${prefix}.${chromosome}.bam.tmp" \
-        # "${outpath}/${prefix}.${chromosome}.bam" &
-        # displaySpinningIcon $! "Removing unneeded intermediate file... "
+        samtools view -@ "${parallelize}" -b -F 0x08 \
+        "${outpath}/${prefix}.${chromosome}.bam" \
+        > "${outpath}/${prefix}.${chromosome}.bam.tmp" &
+        displaySpinningIcon $! "Removing singletons from split bam infile... "
+
+        mv -f \
+        "${outpath}/${prefix}.${chromosome}.bam.tmp" \
+        "${outpath}/${prefix}.${chromosome}.bam"
+
+        echo -e "Completed: Removing singletons from bam file for chromosome ${chromosome}.\n"
+
+
+        #  Step 3: Index each split bam file --------------
+        echo -e "#  Step 3"
+        echo -e "Started: Indexing bam file for chromosome ${chromosome}."
 
         samtools index -@ "${parallelize}" "${outpath}/${prefix}.${chromosome}.bam" &
         displaySpinningIcon $! "Indexing split bam file... "
@@ -426,9 +432,9 @@ case "${chromosome}" in
         echo -e "Completed: Indexing bam for chromosome ${chromosome}.\n"
 
 
-        #  Step 3: Repair the split bam file --------------
+        #  Step 4: Repair the split bam file --------------
         if [[ $((flag_subread)) -eq 1 ]]; then
-            echo -e "#  Step 3"
+            echo -e "#  Step 4"
             echo -e "Started: Running Subread repair on the split bam file."
             
             repair \
@@ -444,7 +450,7 @@ case "${chromosome}" in
 
             echo -e "Completed: Running Subread repair on the split bam file.\n"
         elif [[ $((flag_subread)) -eq 0 ]]; then
-            echo -e "#  Step 3"
+            echo -e "#  Step 4"
             echo -e "Skipping: Running Subread repair on each split bam file.\n"
             :
         else
@@ -453,9 +459,9 @@ case "${chromosome}" in
         fi
 
 
-        #  Step 4: Create "pos", "mpos" bed files ---------
+        #  Step 5: Create "pos", "mpos" bed files ---------
         if [[ $((flag_bed)) -eq 1 ]]; then
-            echo -e "#  Step 4"
+            echo -e "#  Step 5"
             echo -e "Started: Creating bed files for chromosome \"${chromosome}.\""
 
             bedtools bamtobed -i "${outpath}/${prefix}.${chromosome}.bam" -bedpe \
@@ -488,7 +494,7 @@ case "${chromosome}" in
             echo -e ""
             echo -e "Completed: Creating bed files for chromosome ${chromosome}.\n"
         elif [[ $((flag_bed)) -eq 0 ]]; then
-            echo -e "#  Step 4"
+            echo -e "#  Step 5"
             echo -e "Skipping: Creating bed files for each split bam file.\n"
             :
         else

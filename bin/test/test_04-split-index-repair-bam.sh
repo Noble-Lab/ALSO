@@ -159,3 +159,59 @@ run_time="$(echo "${end}" - "${start}" | bc -l)"
 echo "${0} run time: ${run_time} seconds."
 echo ""
 
+
+#  CAST-EiJ test for sorted file, test removal of singletons ------------------
+#  Just see whether or not the script runs to completion (even though there are
+#+ no signletons in the sample data)
+
+#  chr17
+start="$(date +%s)"
+
+safe_mode="FALSE"
+infile="./data/files_bam_test/Disteche_sample_1.CAST-EiJ.downsampled.sort.bam"
+outpath="./data/2022-0328_test_04_CAST-EiJ_rm-singletons_chr17"
+prefix="Disteche_sample_1.CAST-EiJ.downsampled"
+chromosome="chr17"
+mode="S"
+parallelize=4
+
+#  Run in "mm10 mode"
+bash bin/workflow/04-split-index-repair-bam.sh \
+-u "${safe_mode}" \
+-i "${infile}" \
+-o "${outpath}" \
+-x "${prefix}" \
+-c "${chromosome}" \
+-m "${mode}" \
+-p "${parallelize}"
+
+end="$(date +%s)"
+run_time="$(echo "${end}" - "${start}" | bc -l)"
+echo "${0} run time: ${run_time} seconds."
+echo ""
+
+#  all
+start="$(date +%s)"
+
+safe_mode="FALSE"
+infile="./data/files_bam_test/Disteche_sample_1.CAST-EiJ.downsampled.sort.bam"
+outpath="./data/2022-0328_test_04_CAST-EiJ_rm-singletons_all"
+prefix="Disteche_sample_1.CAST-EiJ.downsampled"
+chromosome="all"
+mode="S"
+parallelize=4
+
+#  Run in "mm10 mode"
+bash bin/workflow/04-split-index-repair-bam.sh \
+-u "${safe_mode}" \
+-i "${infile}" \
+-o "${outpath}" \
+-x "${prefix}" \
+-c "${chromosome}" \
+-m "${mode}" \
+-p "${parallelize}"
+
+end="$(date +%s)"
+run_time="$(echo "${end}" - "${start}" | bc -l)"
+echo "${0} run time: ${run_time} seconds."
+echo ""

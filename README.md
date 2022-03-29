@@ -7,32 +7,35 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 ## News and Updates
 
 * 2022-03-26
-  + add additional options, corrections to 04-split-index-repair-bam.sh
+  + for `04`, add additional code to remove singletons from split bam files
+
+* 2022-03-26
+  + add additional options, corrections to `04-split-index-repair-bam.sh`
     * "mm10" mode, which does not output POS and MPOS bed files
     * "strain" mode, which outputs POS and MPOS bed files
     * additional to sort and index bam infile if necessary
   + update associated test script for new modes
 
 * 2022-03-24
-  + update workflow chart with yellow box (preporcess step).
-  + update run script for preporcess step.
+  + update workflow chart with yellow box (preprocess step)
+  + update run script for preprocess step
 
 * 2022-03-23
-  + add 06-convert-bam-to-df_join-bed_write-rds.R
+  + add `06-convert-bam-to-df_join-bed_write-rds.R`
   + clean up repo, removing unneeded scripts and data files
   + update dependencies listed in `README`
 
 * 2022-03-20
   + add 05-lift-strain-to-mm10.sh
-  + add script to download and process liftOver chain files: get-liftOver-chains.sh
-  + add script to downsample bam files: generate-downsampled-bam.sh
-  + minor changes to workflow scripts 01 and 04
+  + add script to download and process liftOver chain files: `get-liftOver-chains.sh`
+  + add script to downsample bam files: `generate-downsampled-bam.sh`
+  + minor changes to workflow scripts `01` and `04`
   + update `README`, including sample-call section
 
 * 2022-03-19
-  + update workflow image.
-  + update `README` for (filter reads with MAPQ < 30; then removing singleton; subread repair).
-  + update code for (filter reads with MAPQ < 30; then removing singleton; subread repair.).
+  + update workflow image
+  + update `README` for (filter reads with MAPQ < 30; then removing singleton; subread repair)
+  + update code for (filter reads with MAPQ < 30; then removing singleton; subread repair.)
 
 * 2022-03-17
   + add new workflow image.
@@ -101,8 +104,8 @@ Here, we use the downsampled mm10/CAST data as an example:
 ```{bash split-index-repair-bam}
 #  Call script from the repo's home directory, 2021_kga0_4dn-mouse-cross
 
-#  Run in "mm10 mode", which does not output bed files since liftOver will not
-#+ need to be performed
+#  Run in "mm10 mode", which does not output bed files (since liftOver will not
+#+ need to be performed)
 safe_mode="FALSE"
 infile="./data/files_bam_test/test.mm10.300000.bam"
 outpath="./data/2022-0326_test_04_all"
@@ -122,8 +125,8 @@ bash bin/workflow/04-split-index-repair-bam.sh \
 
 #  Run time: 6 seconds
 
-#  Run in "strain mode", which outputs bed files because liftOver will need to
-#+ be performed
+#  Run in "strain mode", which outputs bed files (because liftOver will need to
+#+ be performed)
 safe_mode="FALSE"
 infile="./data/files_bam_test/test.CAST-EiJ.300000.bam"
 outpath="./data/2022-0326_test_04_all"
@@ -151,14 +154,14 @@ bash bin/workflow/04-split-index-repair-bam.sh \
 # -c <chromosome(s) to split out (chr); for example, "chr1" for
 #     chromosome 1, "chrX" for chromosome X, "all" for all
 #     chromosomes>
-# -m <mode in which to run the script: "M" or "S" (chr);
-#     with "M" (or "mm10"), Subread repair will be run on split
-#     bam files but "POS" and "MPOS" bed files will not be
-#     generated (since liftOver coordinate conversion to mm10 will not
-#     need to be performed); with "S" (or "strain"), Subread
-#     repair will be run and "POS" and "MPOS" bed files will be
-#     generated (to be used in subsequent liftOver coordinate
-#     conversion)>
+# -m <mode in which to run the script: "M" or "S" (chr); with
+#     "M" (or "mm10"), singletons will be removed and Subread
+#     repair will be run on split bam files, but "POS" and "MPOS"
+#     bed files will not be generated (since liftOver coordinate
+#     conversion to mm10 will not need to be performed); with "S"
+#     (or "strain"), singletons will be removed, Subread repair will
+#     be run, and "POS" and "MPOS" bed files will be generated (to
+#     be used in subsequent liftOver coordinate conversion)>
 # -p <number of cores for parallelization (int >= 1); default: 1>
 ```
 
