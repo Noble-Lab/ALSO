@@ -111,7 +111,7 @@ done
 [[ -z "${outpath}" ]] && printUsage
 [[ -z "${prefix}" ]] && printUsage
 [[ -z "${chromosome}" ]] && printUsage
-[[ -z "${mode}" ]] && mode="FALSE"
+[[ -z "${mode}" ]] && printUsage
 [[ -z "${repair}" ]] && repair="TRUE"
 [[ -z "${bed}" ]] && bed="TRUE"
 [[ -z "${parallelize}" ]] && parallelize=1
