@@ -6,7 +6,7 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 
 ## News and Updates
 
-* 2022-03-26
+* 2022-03-27
   + for `04`, add additional code to remove singletons from split bam files
 
 * 2022-03-26
