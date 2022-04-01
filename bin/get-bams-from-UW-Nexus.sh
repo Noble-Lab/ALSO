@@ -5,8 +5,8 @@
 
 
 #  Function -------------------------------------------------------------------
-# Download a single file from the UW HPC Nexus
-# :param 1: a single file to grab
+# Download a single file from a directory on the UW HPC server
+# :param $1: a single file to grab, including path
 sGrab() { scp -p nexus:"${1}" .; }
 
 
