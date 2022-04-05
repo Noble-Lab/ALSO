@@ -36,6 +36,15 @@ displaySpinningIcon() {
 }
 
 
+evaluateGreaterEqual() {
+    # Sort two values such that the greater is placed ahead of the lesser
+    # 
+    # :param 1: first value
+    # :param 2: second value
+    printf '%s\n%s\n' "${2}" "${1}" | sort -V -C
+}
+
+
 # loopEcho() { for i in "${@:-*}"; do echo "${i}"; done; }
 
 
@@ -45,16 +54,17 @@ printUsage() {
     echo "${0}:"
     echo "Take a bam infile containing all mouse chromosomes, then output the"
     echo "following for one or all mouse chromosomes:"
-    echo " - bam file (\"mm10 mode\" and \"strain mode\")"
-    echo " - bam index (\"mm10 mode\" and \"strain mode\")"
-    echo " - \"POS\" bed file for RNAME, POS, POS + 49, QNAME (\"strain"
+    echo " - bam file (both \"mm10 mode\" and \"strain mode\")"
+    echo " - bam index (both \"mm10 mode\" and \"strain mode\")"
+    echo " - \"POS\" bed file for RNAME, POS, POS + 49, QNAME (only \"strain"
     echo "   mode\")"
-    echo " - \"MPOS\" bed file for MRNM, MPOS, MPOS + 49, QNAME (\"strain"
-    echo "   mode\")"
+    # echo " - \"MPOS\" bed file for MRNM, MPOS, MPOS + 49, QNAME (only \"strain"
+    # echo "   mode\")"
     echo ""
     echo "Chromosomes in the bam infile are assumed to be in \"chrN\" format."
-    echo "The bam infile is also assumed to be coordinate sorted; if not, the"
-    echo "script will detect this and proceed to coordinate sort the infile."
+    echo "The bam infile is also assumed to be coordinate sorted; if not, then"
+    echo "the script will detect this, copy the bam infile into a bak"
+    echo "directory, and then proceed to coordinate sort the infile."
     echo ""
     echo ""
     echo "Dependencies:"
@@ -126,6 +136,11 @@ checkDependency bedtools
 checkDependency parallel
 checkDependency repair
 checkDependency samtools
+evaluateGreaterEqual "$(parallel --version | head -1 | cut -d" " -f3)" "20200101" ||
+    {
+        echo -e "Exiting: GNU Parallel version must be from 2020 or later."
+        exit 1
+    }
 
 #  Evaluate "${safe_mode}"
 case "$(echo "${safe_mode}" | tr '[:upper:]' '[:lower:]')" in
@@ -342,7 +357,7 @@ case "${chromosome}" in
         fi
 
 
-        #  Step 5: Create "pos", "mpos" bed files ---------
+        #  Step 5: Create "POS" bed files -------------------
         if [[ $((flag_bed)) -eq 1 ]]; then
             echo -e "#  Step 5"
             echo -e "Started: Creating bed files from each split bam file."
@@ -353,7 +368,8 @@ case "${chromosome}" in
             ::: "${name[@]}" \
             :::+ "${name[@]/.bam/.bedpe}"
 
-            echo -e "Adjusting bedpe \"POS\", \"MPOS\", etc. values... "
+            # echo -e "Adjusting bedpe \"POS\", \"MPOS\", etc. values... "
+            echo -e "Adjusting bedpe \"POS\", etc. values... "
             parallel -k -j "${parallelize}" \
             "awk 'BEGIN{FS=OFS=\"\t\"} {print \$1, \$2 + 1, \$3 + 1, \$4, \$5 + 1, \$6 + 1, \$7}' {1} > {2}" \
             ::: "${name[@]/.bam/.bedpe}" \
@@ -371,11 +387,11 @@ case "${chromosome}" in
             ::: "${name[@]/.bam/.bedpe}" \
             :::+ "${name[@]/.bam/.pos.bed}"
 
-            echo -e "Creating \"MPOS\" bed files... "
-            parallel -k -j "${parallelize}" \
-            "awk 'BEGIN{FS=OFS=\"\t\"} {print \$4, \$5, \$6, \$7}' {1} > {2}" \
-            ::: "${name[@]/.bam/.bedpe}" \
-            :::+ "${name[@]/.bam/.mpos.bed}"
+            # echo -e "Creating \"MPOS\" bed files... "
+            # parallel -k -j "${parallelize}" \
+            # "awk 'BEGIN{FS=OFS=\"\t\"} {print \$4, \$5, \$6, \$7}' {1} > {2}" \
+            # ::: "${name[@]/.bam/.bedpe}" \
+            # :::+ "${name[@]/.bam/.mpos.bed}"
 
             echo -e "Removing temporary bedpe files... "
             parallel -k -j "${parallelize}" \
@@ -459,7 +475,7 @@ case "${chromosome}" in
         fi
 
 
-        #  Step 5: Create "pos", "mpos" bed files ---------
+        #  Step 5: Create "POS" bed files -----------------
         if [[ $((flag_bed)) -eq 1 ]]; then
             echo -e "#  Step 5"
             echo -e "Started: Creating bed files for chromosome \"${chromosome}.\""
@@ -471,7 +487,8 @@ case "${chromosome}" in
             awk 'BEGIN{FS=OFS="\t"} {print $1, $2 + 1, $3 + 1, $4, $5 + 1, $6 + 1, $7}' \
             "${outpath}/${prefix}.${chromosome}.bedpe" \
             > "${outpath}/${prefix}.${chromosome}.bedpe.tmp" &
-            displaySpinningIcon $! "Adjusting bedpe \"POS\", etc. values... "
+            displaySpinningIcon $! "Adjusting bedpe \"POS\" etc. values... "
+            # displaySpinningIcon $! "Adjusting bedpe \"POS\", \"MPOS\", etc. values... "
 
             mv -f \
             "${outpath}/${prefix}.${chromosome}.bedpe.tmp" \
@@ -483,10 +500,10 @@ case "${chromosome}" in
             > "${outpath}/${prefix}.${chromosome}.pos.bed" &
             displaySpinningIcon $! "Creating \"POS\" bed file... "
 
-            awk 'BEGIN{FS=OFS="\t"} {print $4, $5, $6, $7}' \
-            "${outpath}/${prefix}.${chromosome}.bedpe" \
-            > "${outpath}/${prefix}.${chromosome}.mpos.bed" &
-            displaySpinningIcon $! "Creating \"MPOS\" bed file... "
+            # awk 'BEGIN{FS=OFS="\t"} {print $4, $5, $6, $7}' \
+            # "${outpath}/${prefix}.${chromosome}.bedpe" \
+            # > "${outpath}/${prefix}.${chromosome}.mpos.bed" &
+            # displaySpinningIcon $! "Creating \"MPOS\" bed file... "
 
             rm "${outpath}/${prefix}.${chromosome}.bedpe"  &
             displaySpinningIcon $! "Removing temporary bedpe file... "
