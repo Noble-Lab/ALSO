@@ -155,3 +155,9 @@ samtools view mm10/get_unique_fragments/Disteche_sample_6.dedup.bam | grep -n CC
 # 127437887:CCGCGGAGACTTGGTTCTCAGTTCGAGGCGCTGCCTCTTC:2105412712   99      chr18   38013852        42      50M     =       38014285        483 CAGGAAGGGGCTGCGGCCAAGAAGGCACATTTCCCTATATGTCCACGAGA       FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF      AS:i:0  XN:i:0  XM:i:0  XO:i:0       XG:i:0  NM:i:0  MD:Z:50 YS:i:0  YT:Z:CP
 # 127438073:CCGCGGAGACTTGGTTCTCAGTTCGAGGCGCTGCCTCTTC:2105412712   147     chr18   38014285        42      50M     =       38013852        -483GACCATTAAGACCGATTCCACTGATTTGGTGATGCAAATGTATGCAAATG       FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF      AS:i:0  XN:i:0  XM:i:0  XO:i:0       XG:i:0  NM:i:0  MD:Z:50 YS:i:0  YT:Z:CP
 
+
+QNAME: CCGCGGAGACTTGGTTCTCAGTTCGAGGCGCTGCCTCTTC:2105412712
+Bam from shendure lab pipeline: /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-03-08-samtools/mm10/get_unique_fragments/Disteche_sample_6.dedup.bam
+Bams from preprocessed module: /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-03-08-samtools/mm10-output/test-0406/
+Preprocess script:  /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-03-08-samtools/test-preprocess-04-06.sh
+
