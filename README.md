@@ -6,11 +6,14 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 
 ## News and Updates
 
+* 2022-04-13
+  + upload/update test code for debugging the preprocess module
+  + update README for information on running the test code
+
 * 2022-04-08
   + replace the workflow chart.
   + upload code to debug preprocess module
   
-
 * 2022-03-27
   + for `04`, add additional code to remove singletons from split bam files
 
@@ -55,6 +58,7 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
   + [bedtools](https://bedtools.readthedocs.io/en/latest/) >= 2.29.0
   + [liftOver](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads) >= 366
   + [parallel](https://www.gnu.org/software/parallel/) >= 20200101
+  + [Picard](https://broadinstitute.github.io/picard/) >= 2.26.4
   + [R](https://www.r-project.org/) >= 4.0
   + [Rsamtools](https://bioconductor.org/packages/release/bioc/html/Rsamtools.html) = 2.8.0
   + [samtools](http://www.htslib.org/) >= 1.13
@@ -89,6 +93,86 @@ do
     echo "Done!"
 done
 
+```
+
+test code for proprocessing
+```{bash preprocess-bam-updated}
+#  Log into cluster node with 6 cores, 12GB memory total available
+qlogin -l mfree=2G -p serial 6
+
+#  Activate conda environment or load UGE modules for samtools and picard, for
+#+ example...
+module load picard/2.26.4
+module load samtools/1.9
+
+#  Because there will be a lot of reading from/writing to disk, perform work
+#+ in a "${TMPDIR}"
+cd "${TMPDIR}" || ! echo "cd into \"\${TMPDIR}\" failed. Did you run qlogin to get into a node?"
+
+#  Copy bam infile into "${TMPDIR}"; for example...
+cp "/net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-23/get_unique_fragments/Disteche_sample_6.dedup.bam" .
+
+#  Copy test script into "${TMPDIR}"; for example...
+# cp /path/to/2021_kga0_4dn-mouse-cross/bin/test-preprocessing-gangliuw_2022-0411.sh .
+
+#  Run the test script; infile will be read from and outfiles will be written
+#+ to "${TMPDIR}"
+bash ./test-preprocessing-gangliuw_2022-0411.sh \
+-u FALSE \
+-i ./Disteche_sample_6.dedup.CAST.bam \
+-o . \
+-p 6
+
+#  When the script is finished (will ~2 hours), copy infile/outfiles to non-TMPDIR
+#+ directory (files on "${TMPDIR}" will be removed when you log off the node);
+#+ for example...
+cp *.{bam,txt,gz} /path/to/2021_kga0_4dn-mouse-cross/bin/results/kga0/2022-0413_test-preprocessing-gangliuw
+
+
+#  Help information for test-preprocessing-gangliuw_2022-0411.sh
+test-preprocessing-gangliuw_2022-0411.sh -h
+
+# test-preprocessing-gangliuw_2022-0411.sh:
+# Run bam file through the steps of the test 2021_kga0_4dn-mouse-cross
+# preprocessing module as of 2022-0411-0413.
+# 
+# Preprocessing is made up of the following steps:
+#     1. QNAME-sort bam file output by the Shendure-Lab pipeline (this
+#        is not necessary but speeds up the following step
+#        considerably)
+#     2. Identify QNAMEs with >2 entries in the bam file (this step is
+#        slow; there's likely room for optimization)
+#     3. Create a bam file comprised of only duplicated QNAME entries
+#        (this step is optional; it's not strictly necessary)
+#     4. Filter bam file to exclude QNAMEs with >2 entries by
+#        (a) coordinate-sorting the QNAME-sorted bam file and
+#        (b) filtering the coordinate-sorted bam file with picard
+#            FilterSamReads (picard FilterSamReads takes only
+#            coordinate-sorted bam files as input; also, picard
+#            FilterSamReads is exponentially faster than filtering
+#            with grep)
+#     5. QNAME-sort the filtered bam file; then, to update flag
+#        information in the bam file, perform samtools fixmate on the
+#        bam file
+#     6. Prior to filtering out reads based on pairing status and MAPQ
+#        values, sort by coordinate again
+#     7. Filter out reads based on pairing status and MAPQ: Run
+#        samtools view with flags -f 3 -F 12 -q 30
+#     8. Sort bam by QNAME and perform samtools fixmate to update flag
+#        information again
+#     9. Coordinate-sort and index the processed bam file, which
+#        should now be ready for the subsequent module
+# 
+# Dependencies:
+#     - picard >= 2.26.4
+#     - samtools >= 1.13
+# 
+# Arguments:
+#     -h <print this help message and exit>
+#     -u <use safe mode: "TRUE" or "FALSE" (logical)>
+#     -i <bam infile, including path (chr)>
+#     -o <directory for outfile, including path (chr)>
+#     -p <number of cores for parallelization (int >= 1); default: 1>
 ```
 
 This pipeline takes as input two paired parental bam files (strain 1 assembly and strain 2 assembly) that have been sorted, subject to duplicate removal, and outputs a 3D tensor: (Cell, Allele, Category), where Category can be one of the ["paternal","maternal","ambiguous"].
