@@ -95,11 +95,12 @@ done
 
 ```
 
+test code for proprocessing
 ```{bash preprocess-bam-updated}
 #  Log into cluster node with 6 cores, 12GB memory total available
 qlogin -l mfree=2G -p serial 6
 
-#  Activate conda environment or load UGE modules for samtools or picard, for
+#  Activate conda environment or load UGE modules for samtools and picard, for
 #+ example...
 module load picard/2.26.4
 module load samtools/1.9
@@ -114,7 +115,7 @@ cp "/net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-23/ge
 #  Copy test script into "${TMPDIR}"; for example...
 # cp /path/to/2021_kga0_4dn-mouse-cross/bin/test-preprocessing-gangliuw_2022-0411.sh .
 
-#  Run the test script; infile will ve read from and outfiles will be written
+#  Run the test script; infile will be read from and outfiles will be written
 #+ to "${TMPDIR}"
 bash ./test-preprocessing-gangliuw_2022-0411.sh \
 -u FALSE \
@@ -122,7 +123,7 @@ bash ./test-preprocessing-gangliuw_2022-0411.sh \
 -o . \
 -p 6
 
-#  When the script is finished (will take >1 hour), copy infile/outfiles to non-TMPDIR
+#  When the script is finished (will ~2 hours), copy infile/outfiles to non-TMPDIR
 #+ directory (files on "${TMPDIR}" will be removed when you log off the node);
 #+ for example...
 cp *.{bam,txt,gz} /path/to/2021_kga0_4dn-mouse-cross/bin/results/kga0/2022-0413_test-preprocessing-gangliuw
