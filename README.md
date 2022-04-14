@@ -98,30 +98,27 @@ done
 test code for proprocessing
 ```{bash preprocess-bam-updated}
 #  Log into cluster node with 6 cores, 12GB memory total available
-qlogin -l mfree=2G -p serial 6
-
-#  Activate conda environment or load UGE modules for samtools and picard, for
-#+ example...
-module load picard/2.26.4
-module load samtools/1.9
+qlogin -l mfree=2G -pe serial 6
 
 #  Because there will be a lot of reading from/writing to disk, perform work
 #+ in a "${TMPDIR}"
 cd "${TMPDIR}" || ! echo "cd into \"\${TMPDIR}\" failed. Did you run qlogin to get into a node?"
 
 #  Copy bam infile into "${TMPDIR}"; for example...
-cp "/net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-23/get_unique_fragments/Disteche_sample_6.dedup.bam" .
+cp "/net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-23/get_unique_fragments/Disteche_sample_6.dedup.bam" . && \
+mv Disteche_sample_6.dedup.bam Disteche_sample_6.dedup.CAST.bam
 
 #  Copy test script into "${TMPDIR}"; for example...
 # cp /path/to/2021_kga0_4dn-mouse-cross/bin/test-preprocessing-gangliuw_2022-0411.sh .
 
+#  Activate conda environment or load UGE modules for samtools and picard, for
+#+ example...
+module load picard/2.26.4
+module load samtools/1.14
+
 #  Run the test script; infile will be read from and outfiles will be written
 #+ to "${TMPDIR}"
-bash ./test-preprocessing-gangliuw_2022-0411.sh \
--u FALSE \
--i ./Disteche_sample_6.dedup.CAST.bam \
--o . \
--p 6
+bash ./test-preprocessing-gangliuw_2022-0411.sh -u FALSE -i ./Disteche_sample_6.dedup.CAST.bam -o . -p 6
 
 #  When the script is finished (will ~2 hours), copy infile/outfiles to non-TMPDIR
 #+ directory (files on "${TMPDIR}" will be removed when you log off the node);
