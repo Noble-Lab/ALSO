@@ -167,7 +167,7 @@ esac
 
 
 #  Set up variables -----------------------------------------------------------
-bam_sciatac="${infile}"
+bam_sciatac="$(basename "${infile}")"
 bam_sort_n_1="${outpath}/${bam_sciatac/.bam/.sort-n.bam}"
 bam_multiple="${outpath}/${bam_sort_n_1/.bam/.multiple-QNAME.bam}"
 bam_sort_c_1="${outpath}/${bam_sort_n_1/.bam/.sort-c.bam}"
@@ -220,7 +220,7 @@ displaySpinningIcon $! "Running flagstat #1 (after doing first sort -n)... "
 end="$(date +%s)"
 echo ""
 echo "Step 1 - QNAME-sort bam infile"
-calculateRunTime "${start}" "${end}"  # 665 seconds, 11.08 minutes
+calculateRunTime "${start}" "${end}"  # 665 seconds, 11.08 minutes (HPC)
 
 
 #  Step 2 - Identify QNAMEs with >2 entries -----------------------------------
@@ -245,7 +245,7 @@ gzip "${txt_multiple}"
 end="$(date +%s)"
 echo ""
 echo "Step 2 - Identify QNAMEs with >2 entries"
-calculateRunTime "${start}" "${end}"  # 2281 seconds, 38.02 minutes
+calculateRunTime "${start}" "${end}"  # 2281 seconds, 38.02 minutes (2020 MacBook Pro M1); 4070 seconds, 67.83 minutes (HPC)
 
 
 #  Step 3 - Filter bam file to include only QNAMEs with >2 entries ------------
@@ -260,7 +260,7 @@ displaySpinningIcon $! "Running flagstat #2 (for bam file that includes only QNA
 end="$(date +%s)"
 echo ""
 echo "Step 3 - Filter bam file to include only QNAMEs with >2 entries"
-calculateRunTime "${start}" "${end}"  # 60 seconds
+calculateRunTime "${start}" "${end}"  # 60 seconds (2020 MacBook Pro M1); 91 seconds, 1.52 minutes (HPC)
 
 
 #  Step 4 - Filter bam file to exclude QNAMEs with >2 entries -----------------
@@ -287,7 +287,7 @@ displaySpinningIcon $! "Running flagstat #4 (duplicate-QNAME-filtered bam file).
 end="$(date +%s)"
 echo ""
 echo "Step 4 - Filter bam file to exclude QNAMEs with >2 entries"
-calculateRunTime "${start}" "${end}"  # 3584 seconds, 59.7 minutes
+calculateRunTime "${start}" "${end}"  # 3584 seconds, 59.7 minutes (2020 MacBook Pro M1); 1461 seconds, 24.35 minutes (HPC)
 
 
 #  Step 5 - QNAME-sort and run fixmate on the filtered bam file ---------------
@@ -299,9 +299,9 @@ displaySpinningIcon $! "Running samtools sort -n #2... "
 samtools flagstat -@ "${parallelize}" "${bam_sort_n_2}" > "${flagstat_5}" &
 displaySpinningIcon $! "Running flagstat #5 (QNAME-sorted duplicate-QNAME-filtered bam file)... "
 
-# #  Free up some space
-# echo "Removing ${bam_sort_n_1} and ${bam_sort_c_1} to free up space... "
-# rm "${bam_sort_n_1}" "${bam_sort_c_1}"
+#  Free up some space
+echo "Removing ${bam_sort_n_1} and ${bam_sort_c_1} to free up space... "
+rm "${bam_sort_n_1}" "${bam_sort_c_1}" && echo ""
 
 samtools fixmate -@ "${parallelize}" "${bam_sort_n_2}" "${bam_fixmate_1}" &
 displaySpinningIcon $! "Running samtools fixmate on the filtered, QNAME-sorted bam file... "
@@ -312,7 +312,7 @@ displaySpinningIcon $! "Running flagstat #6 (fixmate has been performed on filte
 end="$(date +%s)"
 echo ""
 echo "Step 5 - QNAME-sort and run fixmate on the filtered bam file"
-calculateRunTime "${start}" "${end}"  # 940 seconds, 15.67 minutes
+calculateRunTime "${start}" "${end}"  # 940 seconds, 15.67 minutes (2020 MacBook Pro M1); 932 seconds, 15.53 minutes (HPC)
 
 
 #  Step 6 - Sort by coordinate again prior to filtering out reads... ----------
@@ -325,14 +325,14 @@ displaySpinningIcon $! "Sorting bam by coordinate in preparation for filtering r
 samtools flagstat -@ "${parallelize}" "${bam_sort_c_2}" > "${flagstat_7}" &
 displaySpinningIcon $! "Running flagstat #7 (coordinate-sort the fixmate-status bam)... "
 
-# #  Free up some space
-# echo "Removing ${bam_sort_n_2} to free up space... "
-# rm "${bam_sort_n_2}"
+#  Free up some space
+echo "Removing ${bam_sort_n_2} to free up space... "
+rm "${bam_sort_n_2}" && echo ""
 
 end="$(date +%s)"
 echo ""
 echo "Step 6 - Sort by coordinate again prior to filtering out reads"
-calculateRunTime "${start}" "${end}"  # Not recorded
+calculateRunTime "${start}" "${end}"  # 522 seconds, 8.70 minutes (HPC)
 
 
 #  Step 7 - Filter out reads based on paired status and MAPQ scores -----------
@@ -343,14 +343,14 @@ displaySpinningIcon $! "Running samtools view (-f 3 -F 12 -q 30)... "
 samtools flagstat -@ "${parallelize}" "${bam_process}" > "${flagstat_8}" &
 displaySpinningIcon $! "Running flagstat #8 (bam has been processed for properly paired, MAPQ >= 30 reads)... "
 
-# #  Free up some space
-# echo "Removing ${bam_sort_c_2} to free up space... "
-# rm "${bam_sort_c_2}"
+#  Free up some space
+echo "Removing ${bam_sort_c_2} to free up space... "
+rm "${bam_sort_c_2}" && echo ""
 
 end="$(date +%s)"
 echo ""
 echo "Step 7 - Filter out reads based on paired status and MAPQ scores"
-calculateRunTime "${start}" "${end}"  # 78 seconds
+calculateRunTime "${start}" "${end}"  # 78 seconds (2020 MacBook Pro M1); 173 seconds, 2.88 minutes (HPC)
 
 
 #  Step 8 - QNAME-sort and run fixmate on bam file one last time --------------
@@ -365,14 +365,14 @@ displaySpinningIcon $! "Running samtools fixmate #2... "
 samtools flagstat -@ "${parallelize}" "${bam_fixmate_2}" > "${flagstat_9}" &
 displaySpinningIcon $! "Running flagstat #9 (processed bam has been QNAME-sorted and subjected to fixmate)... "
 
-# #  Free up some space
-# echo "Removing ${bam_sort_n_3} to free up space... "
-# rm "${bam_sort_n_3}"
+#  Free up some space
+echo "Removing ${bam_sort_n_3} to free up space... "
+rm "${bam_sort_n_3}" && echo ""
 
 end="$(date +%s)"
 echo ""
 echo "Step 8 - QNAME-sort and run fixmate on bam file one last time"
-calculateRunTime "${start}" "${end}"  # 702 seconds, 11.7 minutes
+calculateRunTime "${start}" "${end}"  # 702 seconds, 11.7 minutes (2020 MacBook Pro M1); 791 seconds, 13.81 minutes (HPC)
 
 
 #  Step 9 - Coordinate-sort the processed fixmate-status bam ------------------
@@ -384,19 +384,23 @@ displaySpinningIcon $! "Running samtools sort (by coordinate) #2... "
 samtools flagstat -@ "${parallelize}" "${bam_sort_c_3}" > "${flagstat_10}" &
 displaySpinningIcon $! "Running flagstat #5... "
 
-# #  Free up some space
-# echo "Removing ${bam_fixmate_1} and ${bam_fixmate_2} to free up space... "
-# rm "${bam_fixmate_1}" "${bam_fixmate_2}"
+#  Free up some space
+echo "Removing ${bam_fixmate_1} and ${bam_fixmate_2} to free up space... "
+rm "${bam_fixmate_1}" "${bam_fixmate_2}" && echo ""
+
+#NOTE For now, keep these intermediate files for troubleshooting purposes
+# echo "Removing ${bam_multiple}, ${bam_filter}, ${bam_process} to free up space... "
+# rm "${bam_multiple}" "${bam_filter}" "${bam_process}" && echo ""
 
 end="$(date +%s)"
 echo ""
 echo "Step 9 - Coordinate-sort the processed fixmate-status bam"
-calculateRunTime "${start}" "${end}"  # 274 seconds, 4.57 minutes
+calculateRunTime "${start}" "${end}"  # 274 seconds, 4.57 minutes (2020 MacBook Pro M1); 452 seconds, 7.53 minutes (HPC)
 
 
 #  End recording time (total) -------------------------------------------------
 total_end="$(date +%s)"
 echo "Calculating total run time..."
-calculateRunTime "${total_start}" "${total_end}"  # Not yet recorded
+calculateRunTime "${total_start}" "${total_end}"  # 9200 seconds, 153.33 minutes, 2.56 hours (HPC)
 
 exit 0
