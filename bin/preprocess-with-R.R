@@ -96,6 +96,8 @@ ap <- arg_parser(
         #TODO Leverage Rsamtools::BamFile yieldSize option to iterate through
         large bam files; see, for example, page 14 of
         https://bioconductor.org/packages/devel/bioc/manuals/Rsamtools/man/Rsamtools.pdf
+        
+        See also https://rdrr.io/bioc/GenomicFiles/man/reduceByYield.html
     ",
     hide.opts = TRUE
 )
