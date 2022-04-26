@@ -10,12 +10,18 @@ calculateRunTime() {
     # 
     # :param 1: start time in $(date +%s) format
     # :param 2: end time in $(date +%s) format
-    # :param 3: message to be displayed when printing the run time
+    # :param 3: message to be displayed when printing run time
     run_time="$(echo "${2}" - "${1}" | bc -l)"
     
     echo ""
     echo "${3}"
-    echo "Run time: ${run_time} seconds."
+    if (( run_time/60 == 0 )); then
+            echo "Run time: ${run_time} seconds"
+    elif (( run_time%60 == 0 )); then
+        echo "Run time: $((run_time/60)) minute(s)"
+    else
+        echo "Run time: $((run_time/60)) minute(s) and $((run_time%60)) second(s)"
+    fi
     echo ""
 }
 
@@ -82,8 +88,7 @@ evaluateAndFilterReadsForQnames() {
     > "${2/.bam/.qname.txt}" &
     displaySpinningIcon $! "Running piped commands (samtools view, cut, parsort, uniq, parsort): $(basename "${2}")"
 
-    #  (create txt file for qname = 2)
-    #  Step 2
+    #  Step 2: create txt file for qname = 2
     # shellcheck disable=SC2016
     getQnameInParallel "${1}" \
     '$1 == 2' \
@@ -103,8 +108,7 @@ evaluateAndFilterReadsForQnames() {
     #  Step 5 (optional)
     case "$(echo "${3}" | tr '[:upper:]' '[:lower:]')" in
         true | t) \
-            #  (create txt file for qname > 2)
-            #  Step 2
+            #  Step 2: create txt file for qname > 2
             # shellcheck disable=SC2016
             getQnameInParallel "${1}" \
             '$1 > 2' \
@@ -121,8 +125,7 @@ evaluateAndFilterReadsForQnames() {
             > "${2/.bam/.qname-gt-2.bam}" &
             displaySpinningIcon $! "Running samtools view -hN: $(basename "${2}"), $(basename "${2/.bam/.qname-gt-2.trim.txt}")"
 
-            #  (create txt file for qname < 2)
-            #  Step 2
+            #  Step 2: create txt file for qname < 2
             # shellcheck disable=SC2016
             getQnameInParallel "${1}" \
             '$1 < 2' \
@@ -183,8 +186,8 @@ evaluateAndFilterReadsForQnames() {
 
     end="$(date +%s)"
     echo ""
-    echo "Identified and listed reads based on duplicate qname status for $(basename "${2}")"
-    calculateRunTime "${start}" "${end}"
+    calculateRunTime "${start}" "${end}" \
+    "Identified and listed reads based on duplicate qname status for $(basename "${2}")"
 }
 
 

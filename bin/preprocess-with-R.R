@@ -63,7 +63,8 @@ evaluateMateStatus <- function(x, y, z) {
                         paste0(".", z, "-full.txt.gz"),
                         basename(arguments$bam)
                     )
-                )
+                ),
+                append = TRUE
             )
         }
     } else if(isFALSE(y)) {
@@ -119,7 +120,7 @@ ap <- arg_parser(
     name = script,
     description = "
         Script outputs a QNAME txt.gz to be used when filtering with 'samtools
-        view -hN'; the user has the options to output txt.gz tables for 'mated'
+        view -hN'; the user has the options to output txt.gz lists for 'mated'
         reads and, if present in the bam file, 'unmated' and 'ambiguous' reads;
         outfiles are derived from the name of the bam infile.
         
@@ -152,6 +153,14 @@ ap <- add_argument(
     type = "character",
     default = NULL,
     help = "bam index, including path <chr>"
+)
+ap <- add_argument(
+    ap,
+    short = "-c",
+    arg = "--chunk",
+    type = "integer",
+    default = 100000,
+    help = "number of records to read into memory at a single time <int>"
 )
 ap <- add_argument(
     ap,
@@ -201,21 +210,26 @@ if(isTRUE(test_in_RStudio)) {
     #  RStudio-interactive work
     dir_base <- "/Users/kalavattam/Dropbox/UW/projects-etc"
     dir_proj <- paste0(dir_base, "/", "2021_kga0_4dn-mouse-cross")
-    dir_data <- "results/kga0/2022-0416-0418_test-preprocessing-module"
+    # dir_data <- "results/kga0/2022-0416-0418_test-preprocessing-module"
+    dir_data <- "data/2022-0415_rbamtools_tests"
     dir_in_out <- paste0(dir_proj, "/", dir_data)
-    bam <- "Disteche_sample_6.dedup.CAST.sort-c.bam"
+    bam <- "Disteche_sample_6.dedup.CAST.chr19.bam"
+    # bam <- "Disteche_sample_6.dedup.CAST.sort-c.bam"
     # bam <- "Disteche_sample_7.CAST.processed.chr1.bam"
     # bam <- "Disteche_sample_7.mm10.processed.chr1.bam"
-    bai <- "Disteche_sample_6.dedup.CAST.sort-c.bam.bai"
+    bai <- "Disteche_sample_6.dedup.CAST.chr19.bam.bai"
+    # bai <- "Disteche_sample_6.dedup.CAST.sort-c.bam.bai"
     # bai <- "Disteche_sample_7.CAST.processed.chr1.bam.bai"
     # bai <- "Disteche_sample_7.mm10.processed.chr1.bam.bai"
-    mated <- FALSE
-    unmated <- FALSE
-    ambiguous <- FALSE
+    chunk <- 100000
+    mated <- TRUE
+    unmated <- TRUE
+    ambiguous <- TRUE
     cl <- c(
         #  Arguments for analysis
         "--bam", paste0(dir_in_out, "/", bam),
         "--bai", paste0(dir_in_out, "/", bai),
+        "--chunk", chunk,
         "--mated", mated,
         "--unmated", unmated,
         "--ambiguous", ambiguous,
@@ -225,7 +239,7 @@ if(isTRUE(test_in_RStudio)) {
     rm(
         ap, cl,
         dir_base, dir_data, dir_in_out,
-        bam, bai, mated, unmated
+        bam, bai, chunk, mated, unmated
     )
 } else if(isFALSE(test_in_RStudio)) {
     #  Command-line calls
@@ -237,6 +251,7 @@ if(isTRUE(test_in_RStudio)) {
         "'test_in_RStudio' should be hardcoded as either TRUE or FALSE."
     ))
 }
+rm(test_in_RStudio)
 
 
 #  Check that files exist -----------------------------------------------------
@@ -251,115 +266,126 @@ dir.create(file.path(arguments$outdir), showWarnings = FALSE)
 #TODO Print message if new directory is created
 
 
-#  Load in .bam information, including mate information -----------------------
+#  Set up variables, environment prior to loading in .bam information... ------
+#+ ...including mate information
 print(paste0(
     "Started: Using Rsamtools to load in '", basename(arguments$bam),
     "' and '", basename(arguments$bai),
-    "', and reading 'qname', 'groupid', and 'mate_status' into memory."
+    "', and reading 'qname', 'groupid', and 'mate_status' into memory ",
+    "in chunks of ", scales::comma(arguments$chunk), " records per iteration."
 ))
 
-start_time <- Sys.time()
+#  Tally the number of records in a chunk and the total number of records in
+#+ the bam file
+rec_n <- arguments$chunk
+rec_total <- system(paste0("samtools view -c ", arguments$bam), intern = TRUE) %>%
+    as.integer()
 
+#  If present, remove outfiles
+system(paste0(
+    "rm -f -- ",
+    arguments$outdir, "/", gsub(".bam", ".mated-qname-dedup.txt", basename(arguments$bam)), " ",
+    arguments$outdir, "/", gsub(".bam", ".mated-full.txt.gz", basename(arguments$bam)), " ",
+    arguments$outdir, "/", gsub(".bam", ".unmated-full.txt.gz", basename(arguments$bam)), " ",
+    arguments$outdir, "/", gsub(".bam", ".ambiguous-full.txt.gz", basename(arguments$bam))
+))
+
+
+#  Load in, "open" bam file, then evaluate via while loop ---------------------
 bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = TRUE)
-pertinent <- Rsamtools::scanBam(
-    bam, param = ScanBamParam(what = c("qname", "groupid", "mate_status"))
-)
-# pryr::object_size(pertinent)
-#  Disteche_sample_7.CAST.processed.chr1.bam; qname, groupid, mate_status: 992.3 MB
-#  Disteche_sample_7.mm10.processed.chr1.bam; qname, groupid, mate_status: 937.8 MB
-pertinent <- Map(as.data.frame, pertinent) %>%
-    as.data.frame() %>%
-    tibble::as_tibble(column_name = c("qname", "groupid", "mate_status"))
-# pryr::object_size(pertinent)
-#  Disteche_sample_7.CAST.processed.chr1.bam; qname, groupid, mate_status: 992.3 MB
-#  Disteche_sample_7.CAST.processed.chr1.bam; qname, groupid, mate_status: 937.8 MB
+Rsamtools::yieldSize(bam) <- arguments$chunk
+open(bam)
 
-end_time <- Sys.time()
+while(rec_n < (rec_total / 2) + arguments$chunk) {
+    # time_start <- Sys.time()
+    pertinent <- Rsamtools::scanBam(
+        bam, param = ScanBamParam(what = c("qname", "groupid", "mate_status"))
+    )
 
-print(paste0(
-    "Completed: Using Rsamtools to load in '", basename(arguments$bam),
-    "' and '", basename(arguments$bai),
-    "', and reading 'qname', 'groupid', and 'mate_status' into memory. ",
-    "Memory in use: ",
-    scales::comma(as.integer(pryr::object_size(pertinent))), " bytes. ",
-    "Run time: ",
-    round(as.numeric(unlist(stringr::str_split((end_time - start_time), " "))), 3),
-    " seconds."
-))  #TODO Report on time spent for the process too...
-cat("\n")
-rm(start_time, end_time)
+    pertinent <- Map(as.data.frame, pertinent) %>%
+        as.data.frame() %>%
+        tibble::as_tibble(column_name = c("qname", "groupid", "mate_status"))
+    
+    # time_end <- Sys.time()
+    # print(paste0(
+    #     "Completed: Using Rsamtools to load in '", basename(arguments$bam),
+    #     "' and '", basename(arguments$bai),
+    #     "', and reading 'qname', 'groupid', and 'mate_status' into memory. ",
+    #     "Memory in use: ",
+    #     scales::comma(as.integer(pryr::object_size(pertinent))), " bytes. ",
+    #     "Run time: ",
+    #     round(as.numeric(unlist(stringr::str_split((end_time - start_time), " "))), 3),
+    #     " seconds."
+    # ))  #TODO Report on time spent for the process too...
+    # cat("\n")
+    # rm(start_time, end_time)
+    
+    #  Determine and evaluate mate_status levels present in the data ----------
+    #+ ...then create objects for them
+    # print(paste0(
+    #     "Started: Evaluating and reporting mate_status levels ('mated', ",
+    #     "'unmated', 'ambiguous') present in '", basename(arguments$bam), "'."
+    # ))
+    
+    mate_status <- pertinent$mate_status %>%
+        table() %>%
+        dplyr::as_tibble() %>%
+        dplyr::rename("mate_status" = ".")
 
+    evaluateMateStatus(mate_status, arguments$mated, "mated")
+    evaluateMateStatus(mate_status, arguments$unmated, "unmated")
+    evaluateMateStatus(mate_status, arguments$unmated, "ambiguous")
+    
+    # print(paste0(
+    #     "Completed: Evaluating and reporting mate_status levels ('mated', ",
+    #     "'unmated', 'ambiguous') present in '", basename(arguments$bam), "'."
+    # ))
+    cat("\n")
+    
+    
+    #  Separate "unmated" and "ambiguous" reads from "mated" reads ------------
+    # print(paste0(
+    #     "Started: Writing output txt file comprised of 'qname' entries for reads ",
+    #     "to retain in '", basename(arguments$bam), "'."
+    # ))
+    
+    #  Remove reads with $mate_status of "unmated"
+    if(mate_status[mate_status$mate_status == "unmated", 2] != 0) {
+        pertinent <- pertinent[pertinent$mate_status != "unmated", ]
+    }
 
-#  Determine and evaluate mate_status levels present in the data --------------
-#+ ...then create objects for them
-print(paste0(
-    "Started: Evaluating and reporting mate_status levels ('mated', ",
-    "'unmated', 'ambiguous') present in '", basename(arguments$bam), "'."
-))
+    #  Remove reads with $mate_status of "ambiguous"
+    if(mate_status[mate_status$mate_status == "ambiguous", 2] != 0) {
+        pertinent <- pertinent[pertinent$mate_status != "ambiguous", ]
+    }
+    
+    #  Remove all fields except QNAME
+    pertinent <- dplyr::select(pertinent, -c(groupid, mate_status))
 
-mate_status <- pertinent$mate_status %>%
-    table() %>%
-    dplyr::as_tibble() %>%
-    dplyr::rename("mate_status" = ".")
-# pryr::object_size(mate_status)
-#  Disteche_sample_7.CAST.processed.chr1.bam; mate_status: 1,216 B
-#  Disteche_sample_7.mm10.processed.chr1.bam; mate_status: 1,216 B
+    #  Remove duplicate QNAME entries, then write tibble to a gzipped txt file
+    pertinent <- pertinent[seq_len(nrow(pertinent)) %% 2 == 0, ]
 
-evaluateMateStatus(mate_status, arguments$mated, "mated")
-evaluateMateStatus(mate_status, arguments$unmated, "unmated")
-evaluateMateStatus(mate_status, arguments$unmated, "ambiguous")
-
-print(paste0(
-    "Completed: Evaluating and reporting mate_status levels ('mated', ",
-    "'unmated', 'ambiguous') present in '", basename(arguments$bam), "'."
-))
-cat("\n")
-
-
-#  Separate "unmated" and "ambiguous" reads from "mated" reads ----------------
-print(paste0(
-    "Started: Writing output txt file comprised of 'qname' entries for reads ",
-    "to retain in '", basename(arguments$bam), "'."
-))
-
-#  Remove reads with $mate_status of "unmated"
-if(mate_status[mate_status$mate_status == "unmated", 2] != 0) {
-    pertinent <- pertinent[pertinent$mate_status != "unmated", ]
+    #  Write out final txt file containing qnames to retain in the preprocessed
+    #+ bam file
+    outfile <- gsub(".bam", ".mated-qname-dedup.txt", basename(arguments$bam))
+    readr::write_tsv(
+        pertinent,
+        paste0(arguments$outdir, "/", outfile),
+        append = TRUE
+    )
+    
+    # print(paste0(
+    #     "Completed: Writing output txt file comprised of 'qname' entries for ",
+    #     "reads to retain in '", basename(arguments$bam),
+    #     "'. Number of 'qname' entires: ", scales::comma(nrow(pertinent)), "."
+    # ))
+    cat("\n")
+    
+    rec_n <- rec_n + arguments$chunk
+    Sys.sleep(0.05)
+    cat("Have worked with", rec_n, "records so far\n")
 }
-# pryr::object_size(pertinent)
-#  Disteche_sample_7.CAST.processed.chr1.bam; qname, groupid, mate_status: 937.8 MB
-
-#  Remove reads with $mate_status of "ambiguous"
-if(mate_status[mate_status$mate_status == "ambiguous", 2] != 0) {
-    pertinent <- pertinent[pertinent$mate_status != "ambiguous", ]
-}
-
-#  Remove all fields except QNAME
-pertinent <- dplyr::select(pertinent, -c(groupid, mate_status))
-# pryr::object_size(pertinent)
-#  Disteche_sample_7.CAST.processed.chr1.bam; qname only: 882.1 MB
-#  Disteche_sample_7.mm10.processed.chr1.bam; qname only: 833.6 MB
-
-#  Remove duplicate QNAME entries, then write tibble to a gzipped txt file
-pertinent <- pertinent[seq_len(nrow(pertinent)) %% 2 == 0, ]
-# pryr::object_size(pertinent)
-#  Disteche_sample_7.CAST.processed.chr1.bam; only deduplicated qname: 826.9 MB
-#  Disteche_sample_7.mm10.processed.chr1.bam; only deduplicated qname: 781.5 MB
-
-#  Write out final txt file containing qnames to retain in the preprocessed bam
-#+ file
-outfile <- gsub(".bam", ".mated-qname-dedup.txt", basename(arguments$bam))
-readr::write_tsv(
-    pertinent,
-    paste0(arguments$outdir, "/", outfile)
-)
-
-print(paste0(
-    "Completed: Writing output txt file comprised of 'qname' entries for ",
-    "reads to retain in '", basename(arguments$bam),
-    "'. Number of 'qname' entires: ", scales::comma(nrow(pertinent)), "."
-))
-cat("\n")
+close(bam)
 
 
 #  In shell... ----------------------------------------------------------------
