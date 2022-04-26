@@ -10,12 +10,18 @@ calculateRunTime() {
     # 
     # :param 1: start time in $(date +%s) format
     # :param 2: end time in $(date +%s) format
-    # :param 3: message to be displayed when printing the run time
+    # :param 3: message to be displayed when printing run time
     run_time="$(echo "${2}" - "${1}" | bc -l)"
     
     echo ""
     echo "${3}"
-    echo "Run time: ${run_time} seconds."
+    if (( run_time/60 == 0 )); then
+            echo "Run time: ${run_time} seconds"
+    elif (( run_time%60 == 0 )); then
+        echo "Run time: $((run_time/60)) minute(s)"
+    else
+        echo "Run time: $((run_time/60)) minute(s) and $((run_time%60)) second(s)"
+    fi
     echo ""
 }
 
@@ -47,21 +53,30 @@ displaySpinningIcon() {
 }
 
 
-identifyDuplicateQNAMEs() {
-    # Identify duplicate QNAME reads from bam infile; the function runs the
-    # following commands in succession:
-    #    1. piped commands (samtools view to awk) to isolate duplicate QNAME 
-    #       read entries (>2) in a txt file
-    #    2. create a txt-file list of QNAMEs from the above txt file
-    #    3. gzip the txt file from step 1
-    #    4. (optional) if TRUE, generate a bam file comprised of only duplicate
-    #       QNAME reads
+#TODO Split function in two?
+evaluateAndFilterReadsForQnames() {
+    # Identify duplicate qname reads from bam infile; name(s) of bam outfile(s)
+    # is(are) derived from the name of the bam infile; the function runs the
+    # following steps in succession:
+    #    1. piped commands (samtools view, cut, parsort, uniq, parsort) to
+    #       extract all qname read entries into a txt file
+    #    2. using the txt file from step 1, create a txt-file list of all
+    #       qnames equal to 2
+    #    3. using the txt file from step 2, create a txt file in which all
+    #       information except qnames is trimmed away
+    #    4. using the txt file from step 3, generate a bam file comprised of
+    #       reads with with qname entries equals 2 (not greater than 2 or less
+    #       than 2)
+    #    5. (optional) generate (1) a bam file comprised of reads with >2 qname
+    #       entries and (2) a bam file comprised of reads with <2 qname entries
+    #    6. (optional) gzip the txt files output by this function
     #
     # :param 1: number of cores for parallelization (int >= 1)
     # :param 2: name of bam infile, including path (chr)
-    # :param 3: write out bam outfile comprised of reads with >2 QNAMEs: "TRUE"
-    #           or "FALSE" (logical)
-    # :param 4: term for sample in use (chr)
+    # :param 3: create bam outfiles for (1) reads with >2 qnames and (2) reads
+    #           with <2 qnames: "TRUE" or "FALSE" (logical)
+    # :param 4: gzip the txt files output by this function: "TRUE" or "FALSE"
+    #           (logical)
     start="$(date +%s)"
     
     #  Step 1
@@ -70,208 +85,160 @@ identifyDuplicateQNAMEs() {
     | parsort \
     | uniq -c \
     | parsort -nr \
-    | awk '$1 > 2 {print $0}' \
-    > "${2/.bam/.multiple.txt}" &
-    displaySpinningIcon $! "For sample ${4}, running samtools view pipeline on ${2}... "
-    
-    #  Step 2
-    cut -c 6- "${2/.bam/.multiple.txt}" > "${2/.bam/.multiple-QNAME.txt}"
+    > "${2/.bam/.qname.txt}" &
+    displaySpinningIcon $! "Running piped commands (samtools view, cut, parsort, uniq, parsort): $(basename "${2}")"
+
+    #  Step 2: create txt file for qname = 2
+    # shellcheck disable=SC2016
+    getQnameInParallel "${1}" \
+    '$1 == 2' \
+    "${2/.bam/.qname.txt}" \
+    "${2/.bam/.qname-eq-2.txt}"
     
     #  Step 3
-    gzip "${2/.bam/.multiple.txt}"
-    
+    cut -c 6- "${2/.bam/.qname-eq-2.txt}" \
+    > "${2/.bam/.qname-eq-2.trim.txt}"
+
     #  Step 4
+    samtools view -hN "${2/.bam/.qname-eq-2.trim.txt}" "${2}" \
+    | samtools view -b - \
+    > "${2/.bam/.qname-eq-2.bam}" &
+    displaySpinningIcon $! "Running samtools view -hN: $(basename "${2}"), $(basename "${2/.bam/.qname-eq-2.trim.txt}")"
+    
+    #  Step 5 (optional)
     case "$(echo "${3}" | tr '[:upper:]' '[:lower:]')" in
         true | t) \
-            samtools view -hN "${2/.bam/.multiple-QNAME.txt}" "${2}" \
-            | samtools view -b - \
-            > "${2/.bam/.multiple-QNAME.bam}" &
-            displaySpinningIcon $! "For sample ${4}, running samtools view -N on ${2}... "
-            ;;
+            #  Step 2: create txt file for qname > 2
+            # shellcheck disable=SC2016
+            getQnameInParallel "${1}" \
+            '$1 > 2' \
+            "${2/.bam/.qname.txt}" \
+            "${2/.bam/.qname-gt-2.txt}"
 
+            #  Step 3
+            cut -c 6- "${2/.bam/.qname-gt-2.txt}" \
+            > "${2/.bam/.qname-gt-2.trim.txt}"
+
+            #  Step 4
+            samtools view -hN "${2/.bam/.qname-gt-2.trim.txt}" "${2}" \
+            | samtools view -b - \
+            > "${2/.bam/.qname-gt-2.bam}" &
+            displaySpinningIcon $! "Running samtools view -hN: $(basename "${2}"), $(basename "${2/.bam/.qname-gt-2.trim.txt}")"
+
+            #  Step 2: create txt file for qname < 2
+            # shellcheck disable=SC2016
+            getQnameInParallel "${1}" \
+            '$1 < 2' \
+            "${2/.bam/.qname.txt}" \
+            "${2/.bam/.qname-lt-2.txt}"
+
+            #  Step 3
+            cut -c 6- "${2/.bam/.qname-lt-2.txt}" \
+            > "${2/.bam/.qname-lt-2.trim.txt}"
+
+            #  Step 4
+            samtools view -hN "${2/.bam/.qname-lt-2.trim.txt}" "${2}" \
+            | samtools view -b - \
+            > "${2/.bam/.qname-lt-2.bam}" &
+            displaySpinningIcon $! "Running samtools view -hN: $(basename "${2}"), $(basename "${2/.bam/.qname-lt-2.trim.txt}")"
+
+            #  Step 6 (optional)
+            case "$(echo "${4}" | tr '[:upper:]' '[:lower:]')" in
+                true | t) \
+                    gzip "${2/.bam/.qname-gt-2.txt}"
+                    gzip "${2/.bam/.qname-gt-2.trim.txt}"
+                    gzip "${2/.bam/.qname-lt-2.txt}"
+                    gzip "${2/.bam/.qname-lt-2.trim.txt}"
+                    ;;
+                false | f) \
+                    :
+                    ;;
+                *) \
+                    echo "Parameter 4 is not \"TRUE\" or \"FALSE\", so skipping..."
+                    :
+                    ;;
+            esac
+            ;;
         false | f) \
             :
             ;;
-
         *) \
-            echo "Parameter 3 is not \"TRUE\" or \"FALSE\", so skipping step to filter ${2}"
+            echo "Parameter 3 is not \"TRUE\" or \"FALSE\", so skipping..."
             :
             ;;
     esac
 
-    end="$(date +%s)"
-    calculateRunTime \
-    "${start}" \
-    "${end}" \
-    "For sample ${4}, ${2}, identified and listed reads based on duplicate QNAME status"
-}
-
-
-excludeDuplicateQNAMEs() {
-    # Filter out duplicate QNAME reads from bam infile; bam and txt outfile
-    # names are derived bam infile name; the function runs the following
-    # commands in succession:
-    #    1. (optional) coordinate-sort the bam infile
-    #    2. (optional) write out flagstat report for bam infile
-    #    3. filter out duplicate QNAME reads from bam infile
-    #    4. (optional) write out flagstat report for filtered bam
-    # 
-    # :param 1: number of cores for parallelization (int >= 1)
-    # :param 2: name of bam infile, including path (chr); outfile name is
-    #           derived from infile name
-    # :param 3: single-column txt file containing QNAMEs to exclude on each
-    #           line, including path (chr)
-    # :param 4: coordinate-sort the bam infile prior to running picard
-    #           FilterSamReads: "TRUE" or "FALSE" (logical)
-    # :param 5: write out flagstat txt file prior to running picard
-    #           FilterSamReads: "TRUE" or "FALSE" (logical)
-    # :param 6: write out flagstat txt file after running picard
-    #           FilterSamReads: "TRUE" or "FALSE" (logical)
-    # :param 7: term for sample in use (chr)
-    start="$(date +%s)"
-
+    #  Step 6 (optional)
     case "$(echo "${4}" | tr '[:upper:]' '[:lower:]')" in
         true | t) \
-            #  Step 1 (optional)
-            samtools sort -@ "${1}" "${2}" > "${2/.bam/.sort-c.bam}" &
-            displaySpinningIcon $! "Sorting bam by coordinate in preparation for use with picard FilterSamReads... "
-
-            #  Step 2
-            case "$(echo "${5}" | tr '[:upper:]' '[:lower:]')" in
-                true | t) \
-                    samtools flagstat -@ "${1}" "${2/.bam/.sort-c.bam}" > "${2/.bam/.sort-c.flagstat.txt}" &
-                    displaySpinningIcon $! "Running flagstat prior to use with picard FilterSamReads... "
-                    ;;
-                false | f) \
-                    :
-                    ;;
-                *) \
-                    echo "Stopping: Parameter 5 is not \"TRUE\" or \"FALSE\"."
-                    return 1
-                    ;;
-            esac
-
-            #  Step 3
-            picard FilterSamReads \
-            I="${2/.bam/.sort-c.bam}" \
-            O="${2/.bam/.sort-c.filter.bam}" \
-            READ_LIST_FILE="${3}" \
-            FILTER="excludeReadList" &
-            displaySpinningIcon $! "Using picard to filter bam file for duplicate QNAME entries... "
-
-            #  Step 4 (optional)
-            case "$(echo "${6}" | tr '[:upper:]' '[:lower:]')" in
-                true | t) \
-                    samtools flagstat -@ "${1}" "${2/.bam/.sort-c.filter.bam}" > "${2/.bam/.sort-c.filter.flagstat.txt}" &
-                    displaySpinningIcon $! "Running flagstat following use with picard FilterSamReads... "
-                    ;;
-                false | f) \
-                    :
-                    ;;
-                *) \
-                    echo "Stopping: Parameter 6 is not \"TRUE\" or \"FALSE\"."
-                    return 1
-                    ;;
-            esac
+            gzip "${2/.bam/.qname.txt}"
+            gzip "${2/.bam/.qname-eq-2.txt}"
+            gzip "${2/.bam/.qname-eq-2.trim.txt}"
             ;;
-
         false | f) \
-            #  Step 2 (optional)
-            case "$(echo "${5}" | tr '[:upper:]' '[:lower:]')" in
-                true | t) \
-                    samtools flagstat -@ "${1}" "${2}" > "${2/.bam/flagstat.txt}" &
-                    displaySpinningIcon $! "Running flagstat prior to use with picard FilterSamReads... "
-                    ;;
-                false | f) \
-                    :
-                    ;;
-                *) \
-                    echo "Stopping: Parameter 5 is not \"TRUE\" or \"FALSE\"."
-                    return 1
-                    ;;
-            esac
-
-            #  Step 3
-            picard FilterSamReads \
-            I="${2}" \
-            O="${2/.bam/.filter.bam}" \
-            READ_LIST_FILE="${3}" \
-            FILTER="excludeReadList" &
-            displaySpinningIcon $! "Using picard to filter bam file for duplicate QNAME entries... "
-
-            #  Step 4 (optional)
-            case "$(echo "${6}" | tr '[:upper:]' '[:lower:]')" in
-                true | t) \
-                    samtools flagstat -@ "${1}" "${2/.bam/.filter.bam}" > "${2/.bam/.filter.flagstat.txt}" &
-                    displaySpinningIcon $! "Running flagstat following use with picard FilterSamReads... "
-                    ;;
-                false | f) \
-                    :
-                    ;;
-                *) \
-                    echo "Stopping: Parameter 6 is not \"TRUE\" or \"FALSE\"."
-                    return 1
-                    ;;
-            esac
+            :
             ;;
-
         *) \
-            echo "Stopping: Parameter 4 is not \"TRUE\" or \"FALSE\"."
-            return 1
+            echo "Parameter 4 is not \"TRUE\" or \"FALSE\", so skipping..."
+            :
             ;;
     esac
 
     end="$(date +%s)"
     echo ""
-    echo "For sample ${7}, ${2}, filtering out reads based on duplicate QNAME status"
-    calculateRunTime "${start}" "${end}"
+    calculateRunTime "${start}" "${end}" \
+    "Identified and listed reads based on duplicate qname status for $(basename "${2}")"
 }
 
 
+evaluateGreaterEqual() {
+    # Sort two values such that the greater is placed ahead of the lesser
+    # 
+    # :param 1: first value
+    # :param 2: second value
+    printf '%s\n%s\n' "${2}" "${1}" | sort -V -C
+}
 
-#  Check for necessary dependencies; exit if not found ------------------------
-checkDependency parallel
-checkDependency picard
-checkDependency samtools
+
+getQnameInParallel() {
+    # Select qname entries with a awk-comparison string input by the user,
+    # e.g., '$1 == 2' or '$1 > 2' by splitting txt infile into chunks,
+    # processing the chunks with awk in parallel ("pawk"), then outputting a
+    # txt file for qname entries < 2
+    # 
+    # :param 1: number of cores for parallelization (int >= 1)
+    # :param 2: awk evaluation for a field, e.g., '$1 == 2'
+    # :param 3: txt infile, including path (chr)
+    # :param 4: txt outfile, including path (chr)
+    gsplit -n l/"${1}" "${3}" /tmp/_pawk$$
+    # shellcheck disable=SC2231
+    for i in /tmp/_pawk$$*; do
+        awk "${2}" "${i}" > "${i}.out" &
+    done
+    wait
+    cat /tmp/_pawk$$*.out > "${4}"
+    rm /tmp/_pawk$$*
+}
 
 
 #  Handle arguments, assign variables -----------------------------------------
 printUsage() {
     echo ""
     echo "${0}:"
-    echo "Identify and filter out duplicate QNAME reads from bam infile; output..."
+    echo "Identify and filter out duplicate qname reads from bam infile; output..."
     echo ""
     echo ""
     echo "Preprocessing is made up of the following steps:"
-    # echo "    1. QNAME-sort bam file output by the Shendure-Lab pipeline (this"
-    # echo "       is not necessary but speeds up the following step"
-    # echo "       considerably)"
-    echo "    2. Identify QNAMEs with >2 entries in the bam file (this step is"
-    echo "       slow; there's likely room for optimization)"
-    echo "    3. Create a bam file comprised of only duplicated QNAME entries"
-    echo "       (this step is optional; it's not strictly necessary)"
-    echo "    4. Filter bam file to exclude QNAMEs with >2 entries by"
-    echo "       (a) coordinate-sorting the QNAME-sorted bam file and"
-    echo "       (b) filtering the coordinate-sorted bam file with picard"
-    echo "           FilterSamReads (picard FilterSamReads takes only"
-    echo "           coordinate-sorted bam files as input; also, picard"
-    echo "           FilterSamReads is exponentially faster than filtering"
-    echo "           with grep)"
-    # echo "    5. QNAME-sort the filtered bam file; then, to update flag"
-    # echo "       information in the bam file, perform samtools fixmate on the"
-    # echo "       bam file"
-    # echo "    6. Prior to filtering out reads based on pairing status and MAPQ"
-    # echo "       values, sort by coordinate again"
-    # echo "    7. Filter out reads based on pairing status and MAPQ: Run" 
-    # echo "       samtools view with flags -f 3 -F 12 -q 30"
-    # echo "    8. Sort bam by QNAME and perform samtools fixmate to update flag"
-    # echo "       information again"
-    # echo "    9. Coordinate-sort and index the processed bam file, which"
-    # echo "       should now be ready for the subsequent module"
+    echo "    1. Evaluate qnames in the bam file, reporting those with exactly"
+    echo "       2 entries, less than 2 entries (optional), and more than 2"
+    echo "       entries (optional) in txt files"
+    echo "    2. Using txt files generated in step 1, create bam file(s)"
+    echo "       comprised of only qname = 2 read entries, qname < 2 read"
+    echo "       entries (optional), qname > 2 read entries (optional)"
     echo ""
     echo "Dependencies:"
+    echo "    - split (GNU coreutils) >= 8.32"
     echo "    - parallel >= 20200101"
-    echo "    - picard >= 2.26.4"
     echo "    - samtools >= 1.13"
     echo ""
     echo "Arguments:"
@@ -301,72 +268,69 @@ done
 [[ -z "${outpath}" ]] && printUsage
 [[ -z "${parallelize}" ]] && parallelize=6
 
-bam="${1:-"Disteche_sample_7.dedup.bam"}"
+
+#  Check variable assignments -------------------------------------------------
+echo -e ""
+echo -e "Running ${0}... "
+
+#  Check for necessary dependencies; exit if not found
+checkDependency gsplit
+checkDependency parallel
+checkDependency samtools
+evaluateGreaterEqual "$(parallel --version | head -1 | cut -d" " -f3)" "20200101" ||
+    {
+        echo -e "Exiting: GNU Parallel version must be from 2020 or later."
+        exit 1
+    }
+
+#  Evaluate "${safe_mode}"
+case "$(echo "${safe_mode}" | tr '[:upper:]' '[:lower:]')" in
+    true | t) \
+        echo -e "-u: Safe mode is on."
+        set -Eeuxo pipefail
+        ;;
+    false | f) \
+        echo -e "-u: Safe mode is off."
+        :
+        ;;
+    *) \
+        echo -e "Exiting: -u safe-mode argument must be \"TRUE\" or \"FALSE\".\n"
+        exit 1
+        ;;
+esac
+
+#  Check that "${infile}" exists
+[[ -f "${infile}" ]] ||
+    {
+        echo -e "Exiting: -i ${infile} does not exist.\n"
+        exit 1
+    }
+
+#  Make "${outpath}" if it doesn't exist
+[[ -d "${outpath}" ]] ||
+    {
+        echo "-o: Directory ${outpath} does not exist; making the directory."
+        mkdir -p "${outpath}"
+    }
+
+#  Check "${parallelize}"
+[[ ! "${parallelize}" =~ ^[0-9]+$ ]] &&
+    {
+        echo -e "Exiting: -p parallelize argument must be an integer.\n"
+        exit 1
+    }
+
+[[ ! $((parallelize)) -ge 1 ]] &&
+    {
+        echo -e "Exiting: -p parallelize argument must be an integer >= 1.\n"
+        exit 1
+    }
 
 
+#  Process bam infile ---------------------------------------------------------
+evaluateAndFilterReadsForQnames \
+"${parallelize}" \
+"${infile}" \
+"TRUE" \
+"TRUE"
 
-#  Scraps ---------------------------------------------------------------------
-# printUsage() {
-#     echo ""
-#     echo "${0}:"
-#     echo "Identify and filter out duplicate QNAME reads from bam infile; output..."
-#     echo ""
-#     echo ""
-#     echo "Preprocessing is made up of the following steps:"
-#     # echo "    1. QNAME-sort bam file output by the Shendure-Lab pipeline (this"
-#     # echo "       is not necessary but speeds up the following step"
-#     # echo "       considerably)"
-#     echo "    2. Identify QNAMEs with >2 entries in the bam file (this step is"
-#     echo "       slow; there's likely room for optimization)"
-#     echo "    3. Create a bam file comprised of only duplicated QNAME entries"
-#     echo "       (this step is optional; it's not strictly necessary)"
-#     echo "    4. Filter bam file to exclude QNAMEs with >2 entries by"
-#     echo "       (a) coordinate-sorting the QNAME-sorted bam file and"
-#     echo "       (b) filtering the coordinate-sorted bam file with picard"
-#     echo "           FilterSamReads (picard FilterSamReads takes only"
-#     echo "           coordinate-sorted bam files as input; also, picard"
-#     echo "           FilterSamReads is exponentially faster than filtering"
-#     echo "           with grep)"
-#     # echo "    5. QNAME-sort the filtered bam file; then, to update flag"
-#     # echo "       information in the bam file, perform samtools fixmate on the"
-#     # echo "       bam file"
-#     # echo "    6. Prior to filtering out reads based on pairing status and MAPQ"
-#     # echo "       values, sort by coordinate again"
-#     # echo "    7. Filter out reads based on pairing status and MAPQ: Run" 
-#     # echo "       samtools view with flags -f 3 -F 12 -q 30"
-#     # echo "    8. Sort bam by QNAME and perform samtools fixmate to update flag"
-#     # echo "       information again"
-#     # echo "    9. Coordinate-sort and index the processed bam file, which"
-#     # echo "       should now be ready for the subsequent module"
-#     echo ""
-#     echo "Dependencies:"
-#     echo "    - parallel >= 20200101"
-#     echo "    - picard >= 2.26.4"
-#     echo "    - samtools >= 1.13"
-#     echo ""
-#     echo "Arguments:"
-#     echo "    -h <print this help message and exit>"
-#     echo "    -u <use safe mode: \"TRUE\" or \"FALSE\" (logical)>"
-#     echo "    -i <bam infile, including path (chr)>"
-#     echo "    -o <directory for outfile, including path (chr)>"
-#     echo "    -p <number of cores for parallelization (int >= 1); default: 1>"
-#     echo ""
-#     exit
-# }
-#
-#
-# while getopts "h:u:i:o:p:" opt; do
-#     case "${opt}" in
-#         h) printUsage ;;
-#         u) safe_mode="${OPTARG}" ;;
-#         i) infile="${OPTARG}" ;;
-#         o) outpath="${OPTARG}" ;;
-#         p) parallelize="${OPTARG}" ;;
-#         *) printUsage ;;
-#     esac
-# done
-#
-# [[ -z "${safe_mode}" ]] && printUsage
-# [[ -z "${infile}" ]] && printUsage
-# [[ -z "${outpath}" ]] && printUsage
-# [[ -z "${parallelize}" ]] && parallelize=6
