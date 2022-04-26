@@ -40,7 +40,7 @@ makeOperation <- function(x, y) {
 
 
 collapseMatesIntoOneRow <- function(x, y) {
-    # Input a dataframe/tibble in which mate pairs ('mate 1' and 'mate 2')
+    # Input a dataframe or tibble in which mate pairs ('mate 1' and 'mate 2')
     # are in immediately subsequent rows ('row n' and 'row n + 1'); output a
     # tibble in which the mate pairs ('mate n' and 'mate n + 1') are in a
     # single row
@@ -72,8 +72,8 @@ collapseMatesIntoOneRow <- function(x, y) {
         dplyr::rename(groupid.x = groupid)
     z$groupid.y <- z$groupid.x
     
-    colnames(z) <- str_replace_all(colnames(z), "\\.x", "\\.odd")
-    colnames(z) <- str_replace_all(colnames(z), "\\.y", "\\.even")
+    colnames(z) <- stringr::str_replace_all(colnames(z), "\\.x", "\\.odd")
+    colnames(z) <- stringr::str_replace_all(colnames(z), "\\.y", "\\.even")
     
     return(z)
 }
