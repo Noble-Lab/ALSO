@@ -36,11 +36,11 @@ evaluateMateStatus <- function(x, y, z) {
     #TODO Check for class(x)...
     
     if (class(y) != "logical") {
-        stop("Exiting: Argument 'y' should be class 'logical'.")
+        stop("Exiting: Parameter 'y' should be class 'logical'.")
     }
     
     if (class(z) != "character") {
-        stop("Exiting: Argument 'z' should be class 'character'.")
+        stop("Exiting: Parameter 'z' should be class 'character'.")
     }
     
     if(isTRUE(y)) {
@@ -103,7 +103,7 @@ importLibrary <- function(x) {
 
 #  Source libraries, adjust settings ------------------------------------------
 libraries <- c("argparser", "pryr", "Rsamtools", "scales", "tidyverse")
-for(i in 1:length(libraries)) { checkLibraryAvailability(libraries[i]) }
+for(i in 1:length(libraries)) checkLibraryAvailability(libraries[i])
 importLibrary(libraries)
 rm(i, libraries)
 
@@ -120,17 +120,13 @@ ap <- arg_parser(
     name = script,
     description = "
         Script outputs a QNAME txt.gz to be used when filtering with 'samtools
-        view -hN'; the user has the options to output txt.gz lists for 'mated'
-        reads and, if present in the bam file, 'unmated' and 'ambiguous' reads;
-        outfiles are derived from the name of the bam infile.
+        view -hN' or filter-qname.py; the user has the options to output txt.gz
+        lists for 'mated' 'unmated' and 'ambiguous' reads; outfile namess are
+        derived from the name of the bam infile.
         
         #TODO Handle duplicate QNAME issue in which a very small number of
         QNAME entries are >2; filter those out in this script or prior to
         reading in the bam file? #ANSWER Prior to reading in the bam file.
-        
-        #TODO Leverage Rsamtools::BamFile yieldSize option to iterate through
-        large bam files; see, for example, page 14 of
-        bioconductor.org/packages/devel/bioc/manuals/Rsamtools/man/Rsamtools.pdf
         
         #TODO See also https://rdrr.io/bioc/GenomicFiles/man/reduceByYield.html
     ",
@@ -213,11 +209,13 @@ if(isTRUE(test_in_RStudio)) {
     # dir_data <- "results/kga0/2022-0416-0418_test-preprocessing-module"
     dir_data <- "data/2022-0415_rbamtools_tests"
     dir_in_out <- paste0(dir_proj, "/", dir_data)
-    bam <- "Disteche_sample_6.dedup.CAST.chr19.bam"
+    bam <- "Disteche_sample_6.dedup.CAST.bam"
+    # bam <- "Disteche_sample_6.dedup.CAST.chr19.bam"
     # bam <- "Disteche_sample_6.dedup.CAST.sort-c.bam"
     # bam <- "Disteche_sample_7.CAST.processed.chr1.bam"
     # bam <- "Disteche_sample_7.mm10.processed.chr1.bam"
-    bai <- "Disteche_sample_6.dedup.CAST.chr19.bam.bai"
+    bai <- "Disteche_sample_6.dedup.CAST.bam.bai"
+    # bai <- "Disteche_sample_6.dedup.CAST.chr19.bam.bai"
     # bai <- "Disteche_sample_6.dedup.CAST.sort-c.bam.bai"
     # bai <- "Disteche_sample_7.CAST.processed.chr1.bam.bai"
     # bai <- "Disteche_sample_7.mm10.processed.chr1.bam.bai"
@@ -296,8 +294,8 @@ bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = TRUE)
 Rsamtools::yieldSize(bam) <- arguments$chunk
 open(bam)
 
+time_start <- Sys.time()
 while(rec_n < (rec_total / 2) + arguments$chunk) {
-    # time_start <- Sys.time()
     pertinent <- Rsamtools::scanBam(
         bam, param = ScanBamParam(what = c("qname", "groupid", "mate_status"))
     )
@@ -306,22 +304,9 @@ while(rec_n < (rec_total / 2) + arguments$chunk) {
         as.data.frame() %>%
         tibble::as_tibble(column_name = c("qname", "groupid", "mate_status"))
     
-    # time_end <- Sys.time()
-    # print(paste0(
-    #     "Completed: Using Rsamtools to load in '", basename(arguments$bam),
-    #     "' and '", basename(arguments$bai),
-    #     "', and reading 'qname', 'groupid', and 'mate_status' into memory. ",
-    #     "Memory in use: ",
-    #     scales::comma(as.integer(pryr::object_size(pertinent))), " bytes. ",
-    #     "Run time: ",
-    #     round(as.numeric(unlist(stringr::str_split((end_time - start_time), " "))), 3),
-    #     " seconds."
-    # ))  #TODO Report on time spent for the process too...
-    # cat("\n")
-    # rm(start_time, end_time)
     
     #  Determine and evaluate mate_status levels present in the data ----------
-    #+ ...then create objects for them
+    #+ ...then create objects for the levels
     # print(paste0(
     #     "Started: Evaluating and reporting mate_status levels ('mated', ",
     #     "'unmated', 'ambiguous') present in '", basename(arguments$bam), "'."
@@ -386,6 +371,19 @@ while(rec_n < (rec_total / 2) + arguments$chunk) {
     cat("Have worked with", rec_n, "records so far\n")
 }
 close(bam)
+# time_end <- Sys.time()
+# print(paste0(
+#     "Completed: Using Rsamtools to load in '", basename(arguments$bam),
+#     "' and '", basename(arguments$bai),
+#     "', and reading 'qname', 'groupid', and 'mate_status' into memory. ",
+#     "Memory in use: ",
+#     scales::comma(as.integer(pryr::object_size(pertinent))), " bytes. ",
+#     "Run time: ",
+#     round(as.numeric(unlist(stringr::str_split((end_time - start_time), " "))), 3),
+#     " seconds."
+# ))  #TODO Report on time spent for the process too...
+# cat("\n")
+# rm(start_time, end_time)
 
 
 #  In shell... ----------------------------------------------------------------

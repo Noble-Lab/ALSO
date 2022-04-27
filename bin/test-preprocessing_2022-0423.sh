@@ -250,7 +250,7 @@ removeLowQualityReads() {
 }
 
 
-retainQnameReads() {
+retainQnameReadsSamtools() {
     # Using a txt file from identifyQnamesEq2(), identifyQnamesGt2(), or
     # identifyQnamesLt2(), filter a bam infile to include reads with QNAMEs
     # listed in the txt file; write the filtered results to a bam outfile, the
@@ -270,6 +270,31 @@ retainQnameReads() {
     end="$(date +%s)"
     echo ""
     calculateRunTime "${start}" "${end}"  \
+    "Retain reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
+}
+
+
+retainQnameReadsPicard() {
+    # Using a txt file from identifyQnamesEq2(), identifyQnamesGt2(), or
+    # identifyQnamesLt2(), filter a bam infile to include reads with QNAMEs
+    # listed in the txt file; write the filtered results to a bam outfile, the
+    # name and path of which is user-specified
+    # 
+    # :param 1: name of bam infile, including path (chr)
+    # :param 2: name of txt QNAME list, including path (chr)
+    # :param 3: name of bam outfile, including path (chr; cannot be same as bam
+    #           infile)
+    start="$(date +%s)"
+
+    picard FilterSamReads \
+    I="${1}" \
+    O="${3}" \
+    READ_LIST_FILE="${2}" \
+    FILTER="includeReadList" &
+    displaySpinningIcon $! "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")"
+
+    end="$(date +%s)"
+    calculateRunTime "${start}" "${end}" \
     "Retain reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
 }
 
@@ -332,96 +357,6 @@ splitBamByChromosome() {
 }
 
 
-# #  Run preprocessing steps ----------------------------------------------------
-# #  All metrics pertain to "Disteche_sample_7.mm10.bam" as infile
-#
-# removeLowQualityReads "6" \
-# "${infile}" \
-# "${infile/.bam/.filter.bam}"  # 411 seconds, 7.1 G
-#
-#
-# [[ ! -f "${infile/.bam/.filter.bam}" ]] ||
-#     {
-#         listAndTallyQnames "${infile/.bam/.filter.bam}"
-#     }  # 8000 seconds, 4.5 G, 88165342 lines
-#
-#
-# [[ ! -f "${infile/.bam/.filter.QNAME.txt}" ]] ||
-#     {
-#         identifyQnames "6" "eq" "tmpdir" \
-#         "${infile/.bam/.filter.QNAME.txt}" "delete"
-#     }  # 415 seconds, 4.3 G, 88163217 lines
-# echo $(( 88165342 - 88163217 ))  # 2125 lines difference
-#
-#
-# [[ ! -f "${infile/.bam/.filter.QNAME.txt}" ]] ||
-#     {
-#         identifyQnames "6" "gt" "tmpdir" \
-#         "${infile/.bam/.filter.QNAME.txt}" "delete"
-#     }  # 62 seconds, 94 K, 1863 lines
-# echo $(( 88165342 - 1863 ))  # 88163479 lines difference
-#
-#
-# [[ ! -f "${infile/.bam/.filter.QNAME.txt}" ]] ||
-#     {
-#         identifyQnames "6" "lt" "tmpdir" \
-#         "${infile/.bam/.filter.QNAME.txt}" "delete"
-#     }  # 70 seconds, 14 K, 262 lines
-# echo $(( 88165342 - 262 ))  # 88165080 lines difference
-# echo $(( 1863 + 262 ))  # 2125 lines
-#
-#
-# [[ ! -f "${infile/.bam/.filter.bam}" ]] ||
-# [[ ! -f "${infile/.bam/.filter.QNAME.eq.txt}" ]] ||
-#     {
-#         retainQnameReads \
-#         "${infile/.bam/.filter.bam}" \
-#         "${infile/.bam/.filter.QNAME.eq.txt}" \
-#         "${infile/.bam/.filter.QNAME.eq.bam}"
-#     }  # 939 seconds, 7.1 G
-#
-# [[ ! -f "${infile/.bam/.filter.QNAME.eq.bam}" ]] ||
-#     {
-#         runFlagstat "6" \
-#         "${infile/.bam/.filter.QNAME.eq.bam}" \
-#         "${infile/.bam/.filter.QNAME.eq.flagstat.txt}"
-#     }  # 34 seconds, 527 b, 176326434 records
-# echo $(( 88163217 * 2 ))  # 176326434
-#
-#
-# [[ ! -f "${infile/.bam/.filter.QNAME.eq.bam}" ]] ||
-# {
-#     repair -d -T 6 -c \
-#     -i "${infile/.bam/.filter.QNAME.eq.bam}" \
-#     -o "${infile/.bam/.filter.QNAME.eq.repair.bam}"
-# }
-# # All finished in 6.51 minutes
-# # Total input reads: 176326434; Unpaired reads: 0
-#
-#
-# [[ ! -f "${infile/.bam/.filter.QNAME.eq.repair.bam}" ]] ||
-#     {
-#         runFlagstat "6" \
-#         "${infile/.bam/.filter.QNAME.eq.repair.bam}" \
-#         "${infile/.bam/.filter.QNAME.eq.repair.flagstat.txt}"
-#     }  # 65 seconds, 527 b, 176326434 records
-#
-#
-# [[ ! -f "${infile/.bam/.filter.QNAME.eq.bam}" ]] ||
-#     {
-#         runSortFixmate "6" \
-#         "${infile/.bam/.filter.QNAME.eq.bam}"
-#     }  # 1652 seconds, 8.2 G
-#
-#
-# [[ ! -f "${infile/.bam/.filter.QNAME.eq.sort-n.fixmate.bam}" ]] ||
-#     {
-#         runFlagstat "6" \
-#         "${infile/.bam/.filter.QNAME.eq.sort-n.fixmate.bam}" \
-#         "${infile/.bam/.filter.QNAME.eq.sort-n.fixmate.flagstat.txt}"
-#     }  # 45 seconds, 527 b, 176326434 records
-
-
 #  Run preprocessing steps ----------------------------------------------------
 #  All metrics pertain to "Disteche_sample_7.CAST.bam" as infile
 removeLowQualityReads "6" \
@@ -454,15 +389,19 @@ removeLowQualityReads "6" \
     {
         identifyQnames "6" "lt" "tmpdir" \
         "${infile/.bam/.filter.QNAME.txt}" "delete"
-    }  # 70 seconds, 14 K, 262 lines
+    }  # 
 # echo $(( x - y ))  # 
 # echo $(( x + y ))  # 
 
 
+#FIXME 1/4 Occasional core dump at this step; sometimes happens, sometimes does
+#FIXME 2/4 not; also, sometimes fails with the following error without a core
+#FIXME 3/4 dump: '[main_samview] fail to read the header from "-".'; this error
+#FIXME 4/4 message also appears when the core dumps occur
 [[ ! -f "${infile/.bam/.filter.bam}" ]] ||
 [[ ! -f "${infile/.bam/.filter.QNAME.eq.txt}" ]] ||
     {
-        retainQnameReads \
+        retainQnameReadsPicard \
         "${infile/.bam/.filter.bam}" \
         "${infile/.bam/.filter.QNAME.eq.txt}" \
         "${infile/.bam/.filter.QNAME.eq.bam}"
