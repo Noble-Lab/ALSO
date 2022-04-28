@@ -1,16 +1,5 @@
 #!/bin/bash
 
-# qlogin -l mfree=2G -pe serial 6
-# qlogin -l hostname=n004
-# qlogin -l hostname=n015
-
-# cd "${TMPDIR}" || ! echo "cd failed..."
-
-# infile="Disteche_sample_7.mm10.bam"
-# infile="Disteche_sample_7.CAST.bam"
-infile="${1}"
-# cp "/net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0416-0417_test-preprocessing-module/${infile}" .
-
 
 #  Functions ------------------------------------------------------------------
 calculateRunTime() {
@@ -23,7 +12,8 @@ calculateRunTime() {
     
     echo ""
     echo "${3}"
-    echo "Run time: ${run_time} seconds."
+    printf 'Run time: %dh:%dm:%ds\n' \
+    $(( run_time/3600 )) $(( run_time%3600/60 )) $(( run_time%60 ))
     echo ""
 }
 
@@ -55,49 +45,46 @@ displaySpinningIcon() {
 }
 
 
-listAndTallyQnames() {
-    # List and tally QNAMEs in a bam infile; function acts on a bam infile to
-    # perform piped commands (samtools view, cut, sort, uniq -c, sort -nr) that
-    # list and tally QNAMEs; function writes the results to a txt outfile, the
-    # name of which is derived from the txt infile
-    #
-    # :param 1: name of bam infile, including path (chr)
-    start="$(date +%s)"
-    
-    samtools view "${1}" \
-    | cut -f 1 \
-    | sort \
-    | uniq -c \
-    | sort -nr \
-    > "${1/.bam/.QNAME.tmp.txt}" &
-    displaySpinningIcon $! \
-    "Running piped commands (samtools view, cut, parsort, uniq -c, parsort -nr) on $(basename "${1}")... "
+getQnameInParallel() {
+    # Select QNAME entries with a awk-comparison string input by the user,
+    # e.g., '$1 == 2' or '$1 > 2' by splitting txt infile into chunks,
+    # processing the chunks with awk in parallel ("pawk"), then outputting a
+    # txt file for QNAME entries < 2
+    # 
+    # :param 1: number of cores for parallelization (int >= 1)
+    # :param 2: 'tmp' split files in /tmp, 'tmpdir' to split files in ${TMPDIR}
+    # :param 3: awk evaluation for a field, e.g., '$1 == 2'
+    # :param 4: txt infile, including path (chr)
+    # :param 5: txt outfile, including path (chr)
+    case "$(echo "${2}" | tr '[:upper:]' '[:lower:]')" in
+        tmp) \
+            str="/tmp"  # For use on M1 MacBook Pro 2020
 
-    if [[ -f "${1/.bam/.QNAME.tmp.txt}" ]]; then
-        cut -c 6- "${1/.bam/.QNAME.tmp.txt}" > "${1/.bam/.QNAME.txt}" &
-        displaySpinningIcon $! \
-        "Trimming away leading whitespaces in $(basename "${1/.bam/.QNAME.tmp.txt}")... "
-    else
-        echo "${1/.bam/.QNAME.tmp.txt} not found."
-        return 1
-    fi
+            gsplit -n l/"${1}" "${4}" "${str}/_pawk"$$
+            ;;
+        tmpdir) \
+            str="${TMPDIR}"  # For use with GS HPC
 
-    if [[ -f "${1/.bam/.QNAME.txt}" ]]; then
-        rm "${1/.bam/.QNAME.tmp.txt}"
-    else
-        echo "${1/.bam/.QNAME.txt} not found."
-        return 1
-    fi
-        
-    end="$(date +%s)"
-    echo ""
-    calculateRunTime "${start}" "${end}"  \
-    "List and tally QNAMEs in $(basename "${1}")."
+            split -n l/"${1}" "${4}" "${str}/_pawk"$$
+            ;;
+        *) \
+            echo "Exiting: Parameter 2 is not \"tmp\" or \"tmpdir\"."
+            return 1
+            ;;
+    esac
+
+    # shellcheck disable=SC2231
+    for i in "${str}/_pawk"$$*; do
+        awk "${3}" "${i}" > "${i}.out" &
+    done
+    wait
+    cat "${str}/_pawk"$$*.out > "${5}"
+    rm "${str}/_pawk"$$*
 }
 
 
 identifyQnames() {
-    # Using txt infile from listAndTallyQnames(), create txt files for
+    # Using txt infile from listAndTallyQnames(), create txt outfiles for
     # QNAME == 2; outfile names are derived from infile name; function runs the
     # following commands in succession:
     #    1. filter txt infile for 'QNAME == 2', 'QNAME > 2', or 'QNAME < 2'
@@ -109,15 +96,16 @@ identifyQnames() {
     #       step 1
     # 
     # :param 1: number of cores for parallelization (int >= 1)
-    # :param 2: 'eq' (QNAME = 2), 'gt' (QNAME > 2), or 'lt' (QNAME < 2) for
-    #           evaluation of QNAMEs (chr; default: 'eq')
-    # :param 3: 'tmp' split files in /tmp, 'tmpdir' to split files in ${TMPDIR}
+    # :param 2: identify QNAMES as follows: 'eq', QNAME = 2; 'gt', QNAME > 2;
+    #           'lt', QNAME < 2; for (chr; default: 'gt')
+    # :param 3: set where to store temporary split files: 'tmp', split files
+    #           in /tmp; 'tmpdir', split files in ${TMPDIR}
     # :param 4: txt infile, including path (chr)
     # :param 5: 'keep', 'gzip', or 'delete' txt output from step 1 (chr;
     #           default: 'delete')
     start="$(date +%s)"
 
-    case "$(echo "${2:-"eq"}" | tr '[:upper:]' '[:lower:]')" in
+    case "$(echo "${2:-"gt"}" | tr '[:upper:]' '[:lower:]')" in
         eq | e) \
             comp="\$1 == 2"
             str="eq"
@@ -189,41 +177,132 @@ identifyQnames() {
 }
 
 
-getQnameInParallel() {
-    # Select QNAME entries with a awk-comparison string input by the user,
-    # e.g., '$1 == 2' or '$1 > 2' by splitting txt infile into chunks,
-    # processing the chunks with awk in parallel ("pawk"), then outputting a
-    # txt file for QNAME entries < 2
+indexBam() {
+    # Use samtools index to index a bam file; index outfile name is derived
+    # the name of the bam infile
     # 
     # :param 1: number of cores for parallelization (int >= 1)
-    # :param 2: 'tmp' split files in /tmp, 'tmpdir' to split files in ${TMPDIR}
-    # :param 3: awk evaluation for a field, e.g., '$1 == 2'
-    # :param 4: txt infile, including path (chr)
-    # :param 5: txt outfile, including path (chr)
-    case "$(echo "${2}" | tr '[:upper:]' '[:lower:]')" in
-        tmp) \
-            str="/tmp"  # For use on M1 MacBook Pro 2020
+    # :param 2: name of bam infile, including path (chr)
+    start="$(date +%s)"
+    
+    samtools index -@ "${1}" "${2}" &
+    displaySpinningIcon $! \
+    "Running samtools index on $(basename "${2}")... "
 
-            gsplit -n l/"${1}" "${4}" "${str}/_pawk"$$
-            ;;
-        tmpdir) \
-            str="${TMPDIR}"  # For use with GS HPC
+    end="$(date +%s)"
+    echo ""
+    calculateRunTime "${start}" "${end}" \
+    "Index $(basename "${2}")."
+}
 
-            split -n l/"${1}" "${4}" "${str}/_pawk"$$
-            ;;
-        *) \
-            echo "Exiting: Parameter 2 is not \"tmp\" or \"tmpdir\"."
-            return 1
-            ;;
-    esac
 
-    # shellcheck disable=SC2231
-    for i in "${str}/_pawk"$$*; do
-        awk "${3}" "${i}" > "${i}.out" &
-    done
-    wait
-    cat "${str}/_pawk"$$*.out > "${5}"
-    rm "${str}/_pawk"$$*
+listTransQnamesTest() {
+    samtools view -F 14 "${1}" \
+    | awk '$7 !~ /=/' \
+    > "${1/.bam/.trans-QNAME.test.txt}" &
+    displaySpinningIcon $! \
+    "Attempting to remove trans reads from $(basename "${1}")... "
+}
+
+
+listTransQnamesTest2() {
+    samtools view "${1}" \
+    | awk '$7 !~ /=/' \
+    > "${1/.bam/.trans-QNAME.test2.txt}" &
+    displaySpinningIcon $! \
+    "Attempting to remove trans reads from $(basename "${1}")... "
+}
+
+
+listTransQnamesTest3() {
+    samtools view "${1}" \
+    | awk '($3 != $7 && $7 != "=")' \
+    > "${1/.bam/.trans-QNAME.test3.txt}" &
+    displaySpinningIcon $! \
+    "Attempting to remove trans reads from $(basename "${1}")... "
+}
+
+
+
+listTransQnames() {
+    # List and tally interchromosomal QNAMEs in a bam infile; function acts on
+    # a bam infile to perform piped commands (samtools view, awk, cut, sort,
+    # uniq -c) that list and tally QNAMEs; function writes the results to a txt
+    # txt outfile, the name of which is derived from the txt infile
+    # 
+    # :param 1: name of bam infile, including path (chr)
+    start="$(date +%s)"
+
+    samtools view "${1}" \
+    | awk '($3 != $7 && $7 != "=")' \
+    | cut -f 1 \
+    | sort \
+    | uniq -c \
+    > "${1/.bam/.trans-QNAME.tmp.txt}" &
+    displaySpinningIcon $! \
+    "Running piped commands (samtools view, awk, cut, parsort, uniq -c) on $(basename "${1}")... "
+
+    # if [[ -f "${1/.bam/.trans-QNAME.tmp.txt}" ]]; then
+    #     cut -c 6- "${1/.bam/.trans-QNAME.tmp.txt}" > "${1/.bam/.trans-QNAME.txt}" &
+    #     displaySpinningIcon $! \
+    #     "Trimming away leading whitespaces in $(basename "${1/.bam/.trans-QNAME.tmp.txt}")... "
+    # else
+    #     echo "$(basename "${1/.bam/.trans-QNAME.tmp.txt}") not found."
+    #     return 1
+    # fi
+    #
+    # if [[ -f "${1/.bam/.trans-QNAME.txt}" ]]; then
+    #     rm "${1/.bam/.trans-QNAME.tmp.txt}"
+    # else
+    #     echo "$(basename "${1/.bam/.trans-QNAME.txt}") not found."
+    #     return 1
+    # fi
+
+    end="$(date +%s)"
+    echo ""
+    calculateRunTime "${start}" "${end}"  \
+    "List and tally QNAMEs in $(basename "${1}")."
+}
+
+
+listAndTallyQnames() {
+    # List and tally QNAMEs in a bam infile; function acts on a bam infile to
+    # perform piped commands (samtools view, cut, sort, uniq -c, sort -nr) that
+    # list and tally QNAMEs; function writes the results to a txt outfile, the
+    # name of which is derived from the txt infile
+    #
+    # :param 1: name of bam infile, including path (chr)
+    start="$(date +%s)"
+    
+    samtools view "${1}" \
+    | cut -f 1 \
+    | sort \
+    | uniq -c \
+    | sort -nr \
+    > "${1/.bam/.QNAME.tmp.txt}" &
+    displaySpinningIcon $! \
+    "Running piped commands (samtools view, cut, parsort, uniq -c, parsort -nr) on $(basename "${1}")... "
+
+    if [[ -f "${1/.bam/.QNAME.tmp.txt}" ]]; then
+        cut -c 6- "${1/.bam/.QNAME.tmp.txt}" > "${1/.bam/.QNAME.txt}" &
+        displaySpinningIcon $! \
+        "Trimming away leading whitespaces in $(basename "${1/.bam/.QNAME.tmp.txt}")... "
+    else
+        echo "$(basename "${1/.bam/.QNAME.tmp.txt}") not found."
+        return 1
+    fi
+
+    if [[ -f "${1/.bam/.QNAME.txt}" ]]; then
+        rm "${1/.bam/.QNAME.tmp.txt}"
+    else
+        echo "$(basename "${1/.bam/.QNAME.txt}") not found."
+        return 1
+    fi
+        
+    end="$(date +%s)"
+    echo ""
+    calculateRunTime "${start}" "${end}"  \
+    "List and tally QNAMEs in $(basename "${1}")."
 }
 
 
@@ -235,11 +314,9 @@ removeLowQualityReads() {
     # 
     # :param 1: number of cores for parallelization (int >= 1)
     # :param 2: name of bam infile, including path (chr)
-    # :param 3: name of bam outfile, including path (chr; cannot be same as bam
-    #           infile)
     start="$(date +%s)"
     
-    samtools view -@ "${1}" -h -b -f 3 -F 12 -q 30 "${2}" -o "${3}" &
+    samtools view -@ "${1}" -h -b -f 3 -F 12 -q 30 "${2}" -o "${2/.bam/.rm.bam}" &
     displaySpinningIcon $! \
     "Running samtools view (-f 3 -F 12 -q 30) on $(basename "${2}")... "
 
@@ -247,6 +324,25 @@ removeLowQualityReads() {
     echo ""
     calculateRunTime "${start}" "${end}"  \
     "Filter out reads based on MAPQ scores and pairing status for $(basename "${2}")."
+}
+
+
+repairBam() {
+    # Using Subread repair, order bam file contents such that read pairs are
+    # together; bam outfile name is derived from the name of the bam infile
+    # 
+    # :param 1: number of cores for parallelization (int >= 1)
+    # :param 2: name of bam infile, including path (chr)
+    start="$(date +%s)"
+
+    repair -d -T "${1}" -c -i "${2}" -o "${2/.bam/.repair.bam}" &
+    displaySpinningIcon $! \
+    "Running repair -d -c on $(basename "${2}")... "
+
+    end="$(date +%s)"
+    echo ""
+    calculateRunTime "${start}" "${end}"  \
+    "\"Repair\" $(basename "${2}"), i.e., order bam such that pairs are together."
 }
 
 
@@ -300,14 +396,14 @@ retainQnameReadsPicard() {
 
 
 runFlagstat() {
-    # Run samtools flagstat on a bam infile
+    # Run samtools flagstat on a bam infile; txt outfile name is derived from
+    # the name of the bam infile
     # 
     # :param 1: number of cores for parallelization (int >= 1)
     # :param 2: name of bam infile, including path (chr)
-    # :param 3: name of flagstat outfile, including path (chr)
     start="$(date +%s)"
 
-    samtools flagstat -@ "${1}" "${2}" > "${3}" &
+    samtools flagstat -@ "${1}" "${2}" > "${2/.bam/.flagstat.txt}" &
     displaySpinningIcon $! "Running samtools flagstat for $(basename "${2}")... "
 
     end="$(date +%s)"
@@ -316,7 +412,44 @@ runFlagstat() {
 }
 
 
-runSortFixmate() {
+sortBamByCoordinate() {
+    # Run samtools sort-by-coordinate on a bam infile; bam outfile name is
+    # derived from the bam infile name
+    # 
+    # :param 1: Number of cores for parallelization (int >= 1)
+    # :param 2: Name of bam infile, including path (chr)
+    start="$(date +%s)"
+
+    samtools sort -@ "${1}" "${2}" > "${2/.bam/.sort-c.bam}" &
+    displaySpinningIcon $! "Running samtools sort (by coordinate) on $(basename "${2}")... "
+    
+    end="$(date +%s)"
+    calculateRunTime "${start}" "${end}" \
+    "Run samtools sort (by coordinate) on $(basename "${2}")."
+}
+
+
+sortBamByCoordinateOverwriteInfile() {
+    # Run samtools sort-by-coordinate on a bam infile; bam infile is
+    # overwritten by sorted bam file
+    # 
+    # :param 1: Number of cores for parallelization (int >= 1)
+    # :param 2: Name of bam infile, including path (chr)
+    start="$(date +%s)"
+
+    samtools sort -@ "${1}" "${2}" -o "${2/.bam/.tmp.bam}" &
+    displaySpinningIcon $! "Running samtools sort... "
+
+    mv -f "${2/.bam/.tmp.bam}" "${2}" &
+    displaySpinningIcon $! "${2} is being overwritten by ${2/.bam/.tmp.bam}... "
+
+    end="$(date +%s)"
+    calculateRunTime "${start}" "${end}" \
+    "For sample ${3}, ${2}, running samtools sort"
+}
+
+
+sortBamByQnameThenFixmate() {
     # Run samtools sort -n and fixmate on bam infile; outfile name is derived
     # from infile name
     # 
@@ -327,7 +460,7 @@ runSortFixmate() {
     samtools sort -n -@ "${1}" "${2}" > "${2/.bam/.sort-n.bam}" &
     displaySpinningIcon $! "Running samtools sort -n on $(basename "${2}")... "
 
-    samtools fixmate -@ "${1}" "${2/.bam/.sort-n.bam}" "${2/.bam/.sort-n.fixmate.bam}" &
+    samtools fixmate -@ "${1}" "${2/.bam/.sort-n.bam}" "${2/.bam/.fixmate.bam}" &
     displaySpinningIcon $! "Running samtools fixmate on $(basename "${2/.bam/.sort-n.bam}")... "
 
     rm "${2/.bam/.sort-n.bam}"
@@ -355,6 +488,19 @@ splitBamByChromosome() {
     calculateRunTime "${start}" "${end}" \
     "Run samtools view to create $(basename "${2/.bam/.${3}.bam}")."
 }
+
+
+#  Logging in, setting up variables -------------------------------------------
+# qlogin -l mfree=2G -pe serial 6
+# qlogin -l hostname=n004
+# qlogin -l hostname=n015
+
+# cd "${TMPDIR}" || ! echo "cd failed..."
+
+# infile="Disteche_sample_7.mm10.bam"
+# infile="Disteche_sample_7.CAST.bam"
+infile="${1}"
+# cp "/net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0416-0417_test-preprocessing-module/${infile}" .
 
 
 #  Run preprocessing steps ----------------------------------------------------
@@ -398,6 +544,7 @@ removeLowQualityReads "6" \
 #FIXME 2/4 not; also, sometimes fails with the following error without a core
 #FIXME 3/4 dump: '[main_samview] fail to read the header from "-".'; this error
 #FIXME 4/4 message also appears when the core dumps occur
+#NOTE Seems to be related to memory usage
 [[ ! -f "${infile/.bam/.filter.bam}" ]] ||
 [[ ! -f "${infile/.bam/.filter.QNAME.eq.txt}" ]] ||
     {

@@ -8,6 +8,7 @@ Created on Tue Apr 26 17:56:44 2022.
 
 from __future__ import division, absolute_import, print_function
 import argparse
+import os
 import pysam
 from tqdm import tqdm
 
@@ -22,11 +23,11 @@ def detect_filetype_from_path(path):
         Path to check
     """
     #  Convert to lowercase for simpler comparisons
-    path = path.tolower()
+    path = path.lower()
     #  Remove '.gz' at the end of a pathname if it is present
     if path.endswith('.gz'):
         path = path[:-4]
-    #  Parse .sam and .bam extensions
+    #  Parse sam and bam file extensions
     if path.endswith('.sam'):
         return 'sam'
     elif path.endswith('.bam'):
@@ -60,9 +61,9 @@ def filter_qname(file_bam, file_qnames, file_out=None):
     ftype = detect_filetype_from_path(file_out)
     if ftype is None:
         output = None
-    elif ftype == 'SAM':
+    elif ftype == 'sam':
         output = pysam.AlignmentFile(file_out, "w", template=bam)
-    elif ftype == 'BAM':
+    elif ftype == 'bam':
         output = pysam.AlignmentFile(file_out, "wb", template=bam)
     else:
         raise ValueError(
@@ -146,10 +147,16 @@ def main():
         help="Bam outfile, including path"
     )
 
-    arguments = ap.parse_args()
+    # arguments = ap.parse_args()
 
+    # os.getcwd()
+    # os.chdir('/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_bam')
+    # os.listdir()
     filter_qname(
-        file_bam=arguments.bam_in,
-        file_qnames=arguments.qname,
-        file_out=arguments.bam_out
+        # file_bam=arguments.bam_in,
+        # file_qnames=arguments.qname,
+        # file_out=arguments.bam_out
+        file_bam='Disteche_sample_13.dedup.CAST.rm.sort-c.bam',
+        file_qnames='bak.Disteche_sample_13.dedup.CAST.rm.fixmate.duplicated.txt.gz',
+        file_out='Disteche_sample_13.dedup.CAST.rm.tmp.bam'
     )
