@@ -449,6 +449,23 @@ sortBamByCoordinateOverwriteInfile() {
 }
 
 
+sortBamByQname() {
+    # Run samtools sort -n on bam infile; outfile name is derived from infile
+    # name
+    # 
+    # :param 1: number of cores for parallelization (int >= 1)
+    # :param 2: name of bam infile, including path (chr)
+    start="$(date +%s)"
+
+    samtools sort -n -@ "${1}" "${2}" > "${2/.bam/.sort-n.bam}" &
+    displaySpinningIcon $! "Running samtools sort -n on $(basename "${2}")... "
+
+    end="$(date +%s)"
+    calculateRunTime "${start}" "${end}" \
+    "Run samtools sort -n on $(basename "${2}")."
+}
+
+
 sortBamByQnameThenFixmate() {
     # Run samtools sort -n and fixmate on bam infile; outfile name is derived
     # from infile name

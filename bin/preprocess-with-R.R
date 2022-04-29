@@ -42,6 +42,39 @@ checkLibraryAvailability <- function(x) {
 # }
 
 
+countLinesOutfile <- function(x, y, z) {
+    # #TODO Description of function.
+    # 
+    # :param x: set one of five options to count lines in outfile: m (mated),
+    #           u (unmated), a (ambiguous), t (trans), d (duplicated)
+    # :param y: outfile directory, including path
+    # :param z: bam infile without path
+    if(x == "m") status <- "mated"
+    if(x == "u") status <- "unmated"
+    if(x == "a") status <- "ambiguous"
+    if(x == "t") status <- "trans"
+    if(x == "d") status <- "duplicated"
+    if(x == "s") status <- "singleton"
+    outdir <- y
+    bam <- z
+
+    if(file.exists(paste0(
+        outdir, "/", gsub(".bam", paste0(".", status, ".txt.gz"), bam)
+    ))) {
+        lines <- system(
+            paste0(
+                "gunzip -c ", outdir, "/",
+                gsub(".bam", paste0(".", status, ".txt.gz"), bam),
+                " | wc -l"
+            ),
+            intern = TRUE
+        )
+        
+        return(print(paste0("Lines in ", status, ".txt.gz: ", lines)))
+    }
+}
+
+
 evaluateDuplicatedQnames <- function(x) {
     # #TODO Description of function.
     #
@@ -108,6 +141,37 @@ evaluateMates <- function(x, y) {
 }
 
 
+evaluateSingletonQnames <- function(x) {
+    # #TODO Description of function.
+    #
+    # :param x: tibble containing the variable 'qname'
+    # :return y: two-column tibble of duplicate 'qname' entries and associated
+    #            tallies
+    #TODO Check class(x)
+    #TODO Check variables in x
+    y <- x$qname %>%
+        table() %>%
+        dplyr::as_tibble() %>%
+        dplyr::rename("qname" = ".") %>%
+        dplyr::filter(n == 1)
+    
+    if(nrow(y) != 0) {
+        readr::write_tsv(
+            as.data.frame(y$qname),
+            paste0(
+                arguments$outdir, "/",
+                gsub(
+                    ".bam",
+                    paste0(".singleton.txt.gz"),
+                    basename(arguments$bam)
+                )
+            ),
+            append = TRUE
+        )
+    }
+}
+
+
 evaluateTransMates <- function(x) {
     # #TODO Description of function.
     # 
@@ -116,21 +180,22 @@ evaluateTransMates <- function(x) {
     #TODO Check class(x)
     #TODO Check variables in x
     y <- x[x$rname != x$mrnm, ]
-    y <- y %>% dplyr::select(-rname, -mrnm)
     
-    readr::write_tsv(
-        #  Get only unique QNAMEs
-        as.data.frame(unique(y$qname)),
-        paste0(
-            arguments$outdir, "/",
-            gsub(
-                ".bam",
-                paste0(".trans.txt.gz"),
-                basename(arguments$bam)
-            )
-        ),
-        append = TRUE
-    )
+    if(nrow(y) != 0) {
+        readr::write_tsv(
+            #  Get only unique QNAMEs
+            as.data.frame(unique(y$qname)),
+            paste0(
+                arguments$outdir, "/",
+                gsub(
+                    ".bam",
+                    paste0(".trans.txt.gz"),
+                    basename(arguments$bam)
+                )
+            ),
+            append = TRUE
+        )
+    }
 }
 
 
@@ -205,7 +270,6 @@ set.seed(24)
 
 #  Parse arguments ------------------------------------------------------------
 script <- "preprocess-with-R.R"
-test_in_RStudio <- TRUE  # Hardcode T for testing in RStudio; F for CLI
 
 #  Create a parser
 ap <- arg_parser(
@@ -236,7 +300,7 @@ ap <- add_argument(
 )
 ap <- add_argument(
     ap,
-    short = "-a",
+    short = "-i",
     arg = "--bai",
     type = "character",
     default = NULL,
@@ -289,7 +353,18 @@ ap <- add_argument(
     type = "logical",
     default = TRUE,
     help = "
-        save duplicate QNAME (i.e., QNAME entries > 2) list in a txt.gz outfile
+        save duplicated QNAME (i.e., QNAME entries > 2) list in a txt.gz
+        outfile <logical>
+    "
+)
+ap <- add_argument(
+    ap,
+    short = "-s",
+    arg = "--singleton",
+    type = "logical",
+    default = TRUE,
+    help = "
+        save singleton QNAME (i.e., QNAME entries = 1) list in a txt.gz outfile
         <logical>
     "
 )
@@ -315,6 +390,7 @@ ap <- add_argument(
 
 
 #  Parse the command line arguments -------------------------------------------
+test_in_RStudio <- FALSE  # Hardcode T for testing in RStudio; F for CLI
 if(isTRUE(test_in_RStudio)) {
     #  RStudio-interactive work
     dir_base <- "/Users/kalavattam/Dropbox/UW/projects-etc"
@@ -322,14 +398,15 @@ if(isTRUE(test_in_RStudio)) {
     # dir_data <- "results/kga0/2022-0416-0418_test-preprocessing-module"
     dir_data <- "data/files_bam"
     dir_in_out <- paste0(dir_proj, "/", dir_data)
-    bam <- "Disteche_sample_13.dedup.CAST.rm.fixmate.bam"
-    bai <- "Disteche_sample_13.dedup.CAST.rm.sort-c.bam.bai"
+    bam <- "Disteche_sample_13.dedup.CAST.sort-c.rm.chr16.bam"
+    bai <- "Disteche_sample_13.dedup.CAST.sort-c.rm.chr16.bam.bai"
     chunk <- 100000
     mated <- FALSE
     unmated <- TRUE
-    ambiguous <- FALSE
-    trans <- FALSE
+    ambiguous <- TRUE
+    trans <- TRUE
     duplicated <- TRUE
+    singleton <- TRUE
     remove <- TRUE
     cl <- c(
         #  Arguments for analysis
@@ -341,6 +418,7 @@ if(isTRUE(test_in_RStudio)) {
         "--ambiguous", ambiguous,
         "--trans", trans,
         "--duplicated", duplicated,
+        "--singleton", singleton,
         "--outdir", dir_in_out,
         "--remove", remove
     )
@@ -349,7 +427,7 @@ if(isTRUE(test_in_RStudio)) {
         ap, cl,
         dir_base, dir_data, dir_in_out,
         bam, bai, chunk, mated, unmated, ambiguous,
-        duplicated, trans,
+        duplicated, trans, singleton,
         remove
     )
 } else if(isFALSE(test_in_RStudio)) {
@@ -373,8 +451,9 @@ stopifnot((arguments$chunk %% 2) == 0)
 stopifnot(arguments$mated == TRUE | arguments$mated == FALSE)
 stopifnot(arguments$unmated == TRUE | arguments$unmated == FALSE)
 stopifnot(arguments$ambiguous == TRUE | arguments$ambiguous == FALSE)
-stopifnot(arguments$duplicated == TRUE | arguments$duplicated == FALSE)
 stopifnot(arguments$trans == TRUE | arguments$trans == FALSE)
+stopifnot(arguments$duplicated == TRUE | arguments$duplicated == FALSE)
+stopifnot(arguments$singleton == TRUE | arguments$singleton == FALSE)
 stopifnot(arguments$remove == TRUE | arguments$remove == FALSE)
 
 
@@ -388,7 +467,7 @@ dir.create(file.path(arguments$outdir), showWarnings = FALSE)
 print(paste0(
     "Started: Using Rsamtools to load in '", basename(arguments$bam),
     "' and '", basename(arguments$bai),
-    "', and reading various fields such as 'qname' into memort in chunks of ",
+    "', and reading various fields such as 'qname' into memory in chunks of ",
     scales::comma(arguments$chunk), " records per iteration of while loop."
 ))
 cat("\n")
@@ -415,19 +494,40 @@ if(isTRUE(arguments$remove)) {
             ".bam", ".mated.txt.gz", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
-            ".bam", ".mated.txt", basename(arguments$bam)), " ",
+            ".bam", ".mated.txt", basename(arguments$bam)
+        ), " ",
         arguments$outdir, "/", gsub(
-            ".bam", ".unmated.txt.gz", basename(arguments$bam)), " ",
+            ".bam", ".unmated.txt.gz", basename(arguments$bam)
+        ), " ",
         arguments$outdir, "/", gsub(
-            ".bam", ".unmated.txt", basename(arguments$bam)), " ",
+            ".bam", ".unmated.txt", basename(arguments$bam)
+        ), " ",
         arguments$outdir, "/", gsub(
-            ".bam", ".ambiguous.txt.gz", basename(arguments$bam)), " ",
-        arguments$outdir, "/", gsub(".bam", ".ambiguous.txt", basename(arguments$bam)), " ",
-        arguments$outdir, "/", gsub(".bam", ".duplicated.txt.gz", basename(arguments$bam)), " ",
-        arguments$outdir, "/", gsub(".bam", ".duplicated.txt", basename(arguments$bam)), " ",
-        arguments$outdir, "/", gsub(".bam", ".trans.txt.gz", basename(arguments$bam)), " ",
-        arguments$outdir, "/", gsub(".bam", ".trans.txt", basename(arguments$bam))
+            ".bam", ".ambiguous.txt.gz", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".ambiguous.txt", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".duplicated.txt.gz", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".duplicated.txt", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".singleton.txt.gz", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".singleton.txt", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".trans.txt.gz", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".trans.txt", basename(arguments$bam)
+        )
     ))
+    cat("\n")
 }
 
 
@@ -457,6 +557,9 @@ while(rec_n < (rec_total / 2) + arguments$chunk) {
     #  Determine and evaluate duplicate QNAME (>2) entries in the data
     if(isTRUE(arguments$duplicated)) evaluateDuplicatedQnames(pertinent)
     
+    #  Determine and evaluate singleton QNAME entries in the data
+    if(isTRUE(arguments$singleton)) evaluateSingletonQnames(pertinent)
+    
     #  Determine and evaluate trans reads present in the data
     if(isTRUE(arguments$trans)) evaluateTransMates(pertinent)
 
@@ -464,27 +567,29 @@ while(rec_n < (rec_total / 2) + arguments$chunk) {
     cat(rec_n, " ")
 }
 close(bam)
+cat("\n")
 
+
+#  Count lines in outfiles, then report the counts ----------------------------
 if(isTRUE(arguments$mated)) {
-    lines <- system(paste0("gunzip - c", arguments$mated, " | wc -l"))
-    print(paste0("*.mated.txt.gz: ", lines))
+    countLinesOutfile("m", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$unmated)) {
-    lines <- system(paste0("gunzip - c", arguments$unmated, " | wc -l"))
-    print(paste0("*.unmated.txt.gz: ", lines))
+    countLinesOutfile("u", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$ambiguous)) {
-    system(paste0("gunzip - c", arguments$ambiguous, " | wc -l"))
-    print(paste0("*.ambiguous.txt.gz: ", lines))
+    countLinesOutfile("a", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$duplicated)) {
-    system(paste0("gunzip - c", arguments$duplicated, " | wc -l"))
-    print(paste0("*.duplicated.txt.gz: ", lines))
+    countLinesOutfile("d", arguments$outdir, basename(arguments$bam))
+}
+if(isTRUE(arguments$singleton)) {
+    countLinesOutfile("s", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$trans)) {
-    system(paste0("gunzip - c", arguments$trans, " | wc -l"))
-    print(paste0("*.trans.txt.gz: ", lines))
+    countLinesOutfile("t", arguments$outdir, basename(arguments$bam))
 }
+
 
 time_end <- Sys.time()
 cat("\n")
@@ -492,12 +597,7 @@ print(paste0(
     "Completed: Using Rsamtools to load in '", basename(arguments$bam),
     "' and '", basename(arguments$bai),
     "', reading into memory various fields such as 'qname', ",
-    "then writing out txt.gz files of non-duplicated QNAMEs.\n\n",
-    "Run time: ",
-    round(
-        as.numeric(unlist(stringr::str_split((time_end - time_start), " "))), 2
-    ),
-    " minutes"
+    "then writing out txt.gz files of non-duplicated QNAMEs."
 ))
-cat("\n")
+cat("\n\n")
 rm(time_start, time_end)
