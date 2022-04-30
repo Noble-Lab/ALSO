@@ -30,6 +30,24 @@ checkDependency() {
 }
 
 
+countLines() {
+    # shellcheck disable=SC2002
+    cat "${1}" | wc -l
+}
+
+
+countLinesBam() {
+    start="$(date +%s)"
+
+    samtools view "${1}" | wc -l &
+    displaySpinningIcon $! "Running samtools view to wc -l on $(basename "${1}")... "
+
+    end="$(date +%s)"
+    calculateRunTime "${start}" "${end}" \
+    "Run samtools view on $(basename "${1}")."
+}
+
+
 displaySpinningIcon() {
     # Display "spinning icon" while a background process runs
     # 
@@ -45,6 +63,29 @@ displaySpinningIcon() {
 }
 
 
+excludeQnameReadsPicard() {
+    # Filter a bam infile to exclude reads with QNAMEs listed in a txt file;
+    # write the filtered results to a bam outfile
+    # 
+    # :param 1: name of bam infile, including path (chr)
+    # :param 2: name of txt QNAME list, including path (chr)
+    # :param 3: name of bam outfile, including path (chr; cannot be same as bam
+    #           infile)
+    start="$(date +%s)"
+
+    picard FilterSamReads \
+    I="${1}" \
+    O="${3}" \
+    READ_LIST_FILE="${2}" \
+    FILTER="excludeReadList" &
+    displaySpinningIcon $! "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")... "
+
+    end="$(date +%s)"
+    calculateRunTime "${start}" "${end}" \
+    "Retain reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
+}
+
+
 getQnameInParallel() {
     # Select QNAME entries with a awk-comparison string input by the user,
     # e.g., '$1 == 2' or '$1 > 2' by splitting txt infile into chunks,
@@ -56,15 +97,15 @@ getQnameInParallel() {
     # :param 3: awk evaluation for a field, e.g., '$1 == 2'
     # :param 4: txt infile, including path (chr)
     # :param 5: txt outfile, including path (chr)
+    start="$(date +%s)"
+
     case "$(echo "${2}" | tr '[:upper:]' '[:lower:]')" in
         tmp) \
             str="/tmp"  # For use on M1 MacBook Pro 2020
-
             gsplit -n l/"${1}" "${4}" "${str}/_pawk"$$
             ;;
         tmpdir) \
             str="${TMPDIR}"  # For use with GS HPC
-
             split -n l/"${1}" "${4}" "${str}/_pawk"$$
             ;;
         *) \
@@ -80,6 +121,11 @@ getQnameInParallel() {
     wait
     cat "${str}/_pawk"$$*.out > "${5}"
     rm "${str}/_pawk"$$*
+
+    end="$(date +%s)"
+    echo ""
+    calculateRunTime "${start}" "${end}" \
+    "Evaluating QNAME entries (${3}) with parallelized chunking strategy for $(basename "${4}")."
 }
 
 
@@ -196,75 +242,6 @@ indexBam() {
 }
 
 
-listTransQnamesTest() {
-    samtools view -F 14 "${1}" \
-    | awk '$7 !~ /=/' \
-    > "${1/.bam/.trans-QNAME.test.txt}" &
-    displaySpinningIcon $! \
-    "Attempting to remove trans reads from $(basename "${1}")... "
-}
-
-
-listTransQnamesTest2() {
-    samtools view "${1}" \
-    | awk '$7 !~ /=/' \
-    > "${1/.bam/.trans-QNAME.test2.txt}" &
-    displaySpinningIcon $! \
-    "Attempting to remove trans reads from $(basename "${1}")... "
-}
-
-
-listTransQnamesTest3() {
-    samtools view "${1}" \
-    | awk '($3 != $7 && $7 != "=")' \
-    > "${1/.bam/.trans-QNAME.test3.txt}" &
-    displaySpinningIcon $! \
-    "Attempting to remove trans reads from $(basename "${1}")... "
-}
-
-
-
-listTransQnames() {
-    # List and tally interchromosomal QNAMEs in a bam infile; function acts on
-    # a bam infile to perform piped commands (samtools view, awk, cut, sort,
-    # uniq -c) that list and tally QNAMEs; function writes the results to a txt
-    # txt outfile, the name of which is derived from the txt infile
-    # 
-    # :param 1: name of bam infile, including path (chr)
-    start="$(date +%s)"
-
-    samtools view "${1}" \
-    | awk '($3 != $7 && $7 != "=")' \
-    | cut -f 1 \
-    | sort \
-    | uniq -c \
-    > "${1/.bam/.trans-QNAME.tmp.txt}" &
-    displaySpinningIcon $! \
-    "Running piped commands (samtools view, awk, cut, parsort, uniq -c) on $(basename "${1}")... "
-
-    # if [[ -f "${1/.bam/.trans-QNAME.tmp.txt}" ]]; then
-    #     cut -c 6- "${1/.bam/.trans-QNAME.tmp.txt}" > "${1/.bam/.trans-QNAME.txt}" &
-    #     displaySpinningIcon $! \
-    #     "Trimming away leading whitespaces in $(basename "${1/.bam/.trans-QNAME.tmp.txt}")... "
-    # else
-    #     echo "$(basename "${1/.bam/.trans-QNAME.tmp.txt}") not found."
-    #     return 1
-    # fi
-    #
-    # if [[ -f "${1/.bam/.trans-QNAME.txt}" ]]; then
-    #     rm "${1/.bam/.trans-QNAME.tmp.txt}"
-    # else
-    #     echo "$(basename "${1/.bam/.trans-QNAME.txt}") not found."
-    #     return 1
-    # fi
-
-    end="$(date +%s)"
-    echo ""
-    calculateRunTime "${start}" "${end}"  \
-    "List and tally QNAMEs in $(basename "${1}")."
-}
-
-
 listAndTallyQnames() {
     # List and tally QNAMEs in a bam infile; function acts on a bam infile to
     # perform piped commands (samtools view, cut, sort, uniq -c, sort -nr) that
@@ -303,6 +280,67 @@ listAndTallyQnames() {
     echo ""
     calculateRunTime "${start}" "${end}"  \
     "List and tally QNAMEs in $(basename "${1}")."
+}
+
+
+listTransQnames() {
+    # List and tally interchromosomal QNAMEs in a bam infile; function acts on
+    # a bam infile to perform piped commands (samtools view, awk, cut, sort,
+    # uniq -c) that list and tally QNAMEs; function writes the results to a txt
+    # txt outfile, the name of which is derived from the txt infile
+    # 
+    # :param 1: name of bam infile, including path (chr)
+    start="$(date +%s)"
+
+    samtools view "${1}" \
+    | awk '($3 != $7 && $7 != "=")' \
+    | cut -f 1 \
+    | sort \
+    | uniq -c \
+    > "${1/.bam/.trans-QNAME.txt}" &
+    displaySpinningIcon $! \
+    "Running piped commands (samtools view, awk, cut, parsort, uniq -c) on $(basename "${1}")... "
+
+    # if [[ -f "${1/.bam/.trans-QNAME.tmp.txt}" ]]; then
+    #     cut -c 6- "${1/.bam/.trans-QNAME.tmp.txt}" > "${1/.bam/.trans-QNAME.txt}" &
+    #     displaySpinningIcon $! \
+    #     "Trimming away leading whitespaces in $(basename "${1/.bam/.trans-QNAME.tmp.txt}")... "
+    # else
+    #     echo "$(basename "${1/.bam/.trans-QNAME.tmp.txt}") not found."
+    #     return 1
+    # fi
+    #
+    # if [[ -f "${1/.bam/.trans-QNAME.txt}" ]]; then
+    #     rm "${1/.bam/.trans-QNAME.tmp.txt}"
+    # else
+    #     echo "$(basename "${1/.bam/.trans-QNAME.txt}") not found."
+    #     return 1
+    # fi
+
+    end="$(date +%s)"
+    echo ""
+    calculateRunTime "${start}" "${end}"  \
+    "List and tally QNAMEs in $(basename "${1}")."
+}
+
+
+listTransQnamesSimple() {
+    samtools view "${1}" \
+    | awk '($3 != $7 && $7 != "=")' \
+    > "${1/.bam/.trans-QNAME.txt}" &
+    displaySpinningIcon $! \
+    "Attempting to remove trans reads from $(basename "${1}")... "
+}
+
+
+performReverseDiff() {
+    # Prints the lines in file #2 that exactly match lines in file #1; grep -F
+    # searches for fixed string matches, -f uses file #1 as a list of grep
+    # search patterns, and -x prints only lines matched in entirely
+    # 
+    # :param 1: infile #1, including path (chr)
+    # :param 2: infile #2, including path (chr)
+    grep -Fxf "${1}" "${2}"
 }
 
 

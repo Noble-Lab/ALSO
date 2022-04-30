@@ -8,160 +8,143 @@ Created on Tue Apr 26 17:56:44 2022.
 
 from __future__ import division, absolute_import, print_function
 import argparse
-import os
+import gzip
 import pysam
 from tqdm import tqdm
 
+# import os
+# os.chdir("/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_bam")
 
-def detect_filetype_from_path(path):
+
+def detect_filetype_from_path(file):
     """
-    Based on its extension, determine type of file.
+    Determine type of file (bam, sam, txt, txt.gz) based on extension.
 
     Parameters
     ----------
-    path : str
-        Path to check
+    file : str
+        Infile, including path
+
     """
     #  Convert to lowercase for simpler comparisons
-    path = path.lower()
-    #  Remove '.gz' at the end of a pathname if it is present
-    if path.endswith('.gz'):
-        path = path[:-4]
-    #  Parse sam and bam file extensions
-    if path.endswith('.sam'):
+    file = file.lower()
+
+    #  Parse sam, bam, txt, txt.gz file extensions
+    if file.endswith('.sam'):
         return 'sam'
-    elif path.endswith('.bam'):
+    elif file.endswith('.bam'):
         return 'bam'
+    elif file.endswith('.txt'):
+        return 'txt'
+    elif file.endswith('.txt.gz'):
+        return 'txt.gz'
     else:
         return None
 
 
-def samprint(alignment, output=None):
+def write_alignment(alignment, outfile=None):
     """
-    Print to output file or STDOUT if none is supplied.
+    Print alignment to outfile or, if none is supplied, STDOUT .
 
     Parameters
     ----------
     alignment : pysam.AlignedSegment
-        Alignment to be written
-    output : str
-        Output file
+        Alignment to be written to bam outfile
+
+    outfile: str
+        Outfile
+
     """
-    if output is None:
+    if outfile is None:
         print(alignment)
     else:
-        output.write(alignment)
+        outfile.write(alignment)
 
 
-def filter_qname(file_bam, file_qnames, file_out=None):
+def filter_qname(infile, txt, outfile=None):
     """
-    Filter reads in a sam/bamfile by their query names.
+    Filter out reads in a sam/bamfile based on QNAME.
 
     Parameters
     ----------
-    bamfile : str
-        Sorted BAM file path
-    idfile : str
-        Text file path containing qnames to keep
-    outfile : str
-        Output file to write to
+    infile: QNAME-sorted bam file, including path (str)
+
+    txt: text file containing QNAME(s) to exclude, including path (str)
+
+    outfile: bam outfile, including path (str)
     '''
     """
-    file_bam = 'Disteche_sample_13.dedup.CAST.sort-c.rm.chr19.sort-n.bam'
-    file_qnames = 'Disteche_sample_13.dedup.CAST.sort-c.rm.chr19.singleton.txt'
-    file_out = 'Disteche_sample_13.dedup.CAST.sort-c.rm.chr19.sort-n.test.bam'
+    # infile = "Disteche_sample_13.dedup.CAST.sort-c.rm.chr19.sort-n.bam"
+    # txt = "Disteche_sample_13.dedup.CAST.sort-c.rm.chr19.singleton.txt.gz"
+    # outfile = "Disteche_sample_13.dedup.CAST.sort-c.rm.chr19.rm-singleton.bam"
 
     #  Read in QNAME-sorted bam file
-    bam = pysam.AlignmentFile(file_bam, "rb")
+    bam = pysam.AlignmentFile(infile, "rb")
 
-    #  Output bam file
-    ftype = detect_filetype_from_path(file_out)
+    #  Set up outfile
+    ftype = detect_filetype_from_path(outfile)
     if ftype is None:
-        output = None
+        outfile = None
     elif ftype == 'sam':
-        output = pysam.AlignmentFile(file_out, "w", template=bam)
+        outfile = pysam.AlignmentFile(outfile, "w", template=bam)
     elif ftype == 'bam':
-        output = pysam.AlignmentFile(file_out, "wb", template=bam)
+        outfile = pysam.AlignmentFile(outfile, "wb", template=bam)
     else:
         raise ValueError(
-            "Unknown output file format for `file_out`: {}".format(file_out)
+            "Unknown format for `outfile`: {}".format(outfile)
         )
 
-    #  Read in IDs to be removed (list(set(...))
-    ids = list(set([l.rstrip() for l in open(file_qnames, 'r').readlines()]))
-
-    #  Sort IDs to match BAM for efficient processing
-    ids.sort(key=str.lower, reverse=True)
+    # Evaluate QNAME file, read in QNAMEs to be removed, then sort QNAMEs to
+    # match BAM for efficient processing
+    ftype = detect_filetype_from_path(txt)
+    if ftype == 'txt':
+        ids = list(set(
+            [i.rstrip() for i in open(txt, "r").readlines()]
+        ))
+        ids.sort(key=str.lower, reverse=True)
+    elif ftype == 'txt.gz':
+        ids = list(set(
+            [i.decode().rstrip() for i in gzip.open(txt, "r").readlines()]
+        ))
+        ids.sort(key=str.lower, reverse=True)
+    else:
+        raise ValueError(
+            "Unknown format for `txt`: {}".format(txt)
+        )
     n_ids = len(ids)
 
-    # #  Progress bar using total alignment counts
-    # pbar = tqdm()
+    #  Set up progress bar that draws on total alignment counts
+    pbar = tqdm()
 
-    #  This works
-    # #  Define variable for ensuring bam infile is sorted by query name
-    # last_q = None
-    # reads = bam.fetch(until_eof=True)
-    # read = next(reads)
-    # while True:
-    #     # if read name is greater than current top of stack
-    #     if read.query_name > ids[-1]:
-    #         # if this is the last ID
-    #         if n_ids == 1:
-    #             # write remaining reads to new file and break out of while loop
-    #             output.write(read)
-    #             for r in bam:
-    #                 output.write(read)
-    #             break
-    #         # otherwise pop that ID, try again
-    #         else:
-    #             ids.pop()
-    #             n_ids -= 1
-    #     # skip reads that match the top of the stack
-    #     elif read.query_name == ids[-1]:
-    #         read = next(reads)
-    #     # if read name is less that top of stack, write it and move on
-    #     else:
-    #         output.write(read)
-    #         read = next(reads)
-    # output.close()
-
-    #  This needs to be debugged
-    
-    last_q = reads.query_name
+    # #FIXME Loop will run on non-QNAME-sorted bam files, but this is incorrect
+    reads = bam.fetch(until_eof=True)
+    read = next(reads)
     while True:
-        if read.query_name < last_q:
-            raise ValueError(
-                'Alignment file is not sorted. {} < {}'.format(
-                    read.query_name, last_q
-                )
-            )
-        #  If read name is greater than current top of stack
+        #  If QNAME is greater than current top of stack
         if read.query_name > ids[-1]:
-            #  If this is the last ID
+            # if this is the last ID
             if n_ids == 1:
                 #  Write remaining reads to new file, break out of while loop
-                samprint(read, output)
+                outfile.write(read)
                 for r in bam:
-                    samprint(read, output)
+                    outfile.write(read)
                 break
-            #  Otherwise pop that ID, try again
+            #  Otherwise, pop that ID and try again
             else:
                 ids.pop()
                 n_ids -= 1
         #  Skip reads that match the top of the stack
         elif read.query_name == ids[-1]:
             read = next(reads)
-        #  If read name is less that top of stack, write it and move on
+        #  If QNAME is less than top of stack, write it and move on
         else:
-            samprint(read, output)
-            last_q = read.query_name
+            outfile.write(read)
             read = next(reads)
         pbar.update()
-    if output is not None:
-        output.close()
+    outfile.close()
 
 
-# def main():
+def main():
     """
     #TODO Some description of the script.
 
@@ -169,37 +152,38 @@ def filter_qname(file_bam, file_qnames, file_out=None):
     ----------
     #TODO Some description of the parameters.
     """
-    # ap = argparse.ArgumentParser(
-    #     description="#TODO Write a description for the parser.",
-    #     formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    # )
-    # ap.add_argument(
-    #     "-i",
-    #     "--bam_in",
-    #     type=str,
-    #     help="QNAME-sorted bam infile to be filtered, including path"
-    # )
-    # ap.add_argument(
-    #     "-q",
-    #     "--qname",
-    #     type=str,
-    #     help="Text infile containing QNAMEs to be removed, including path"
-    # )
-    # ap.add_argument(
-    #     "-o",
-    #     "--bam_out",
-    #     type=str,
-    #     help="Bam outfile, including path"
-    # )
+    ap = argparse.ArgumentParser(
+        description="""
+        Filter bam infile to exclude reads based on list of QNAMEs (supplied in
+        txt file); write to bam outfile or STDOUT.
+        """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    ap.add_argument(
+        "-i",
+        "--bam_in",
+        type=str,
+        help="QNAME-sorted bam infile to be filtered, including path"
+    )
+    ap.add_argument(
+        "-q",
+        "--txt",
+        type=str,
+        help="text infile containing QNAMEs to be removed, including path"
+    )
+    ap.add_argument(
+        "-o",
+        "--bam_out",
+        type=str,
+        help="bam outfile, including path"
+    )
 
-    # arguments = ap.parse_args()
+    arguments = ap.parse_args()
+    bam_in = arguments.bam_in
+    txt = arguments.txt
+    bam_out = arguments.bam_out
+
+    filter_qname(bam_in, txt, bam_out)
 
 
-os.getcwd()
-os.chdir('/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_bam')
-# os.listdir()
-filter_qname(
-    # file_bam=arguments.bam_in,
-    # file_qnames=arguments.qname,
-    # file_out=arguments.bam_out
-)
+main()

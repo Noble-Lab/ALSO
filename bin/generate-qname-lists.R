@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-#  preprocess-with-R.R
+#  generate-qname-lists.R
 #  KA
 
 
@@ -49,12 +49,14 @@ countLinesOutfile <- function(x, y, z) {
     #           u (unmated), a (ambiguous), t (trans), d (duplicated)
     # :param y: outfile directory, including path
     # :param z: bam infile without path
+    # :return: #TODO
     if(x == "m") status <- "mated"
     if(x == "u") status <- "unmated"
     if(x == "a") status <- "ambiguous"
     if(x == "t") status <- "trans"
     if(x == "d") status <- "duplicated"
     if(x == "s") status <- "singleton"
+    #TODO Check if not one of the above options
     outdir <- y
     bam <- z
 
@@ -75,23 +77,25 @@ countLinesOutfile <- function(x, y, z) {
 }
 
 
-evaluateDuplicatedQnames <- function(x) {
+evaluateDuplicatedQnames <- function(x, y) {
     # #TODO Description of function.
     #
     # :param x: tibble containing the variable 'qname'
-    # :return y: two-column tibble of duplicate 'qname' entries and associated
-    #            tallies
+    # :param y: TRUE/FALSE, return table of duplicate 'qname' entries and
+    #           associated tallies
+    # :return: list of duplicate 'qname' entries
     #TODO Check class(x)
     #TODO Check variables in x
-    y <- x$qname %>%
+    #TODO Check that y is either TRUE or FALSE, and nothing else
+    z <- x$qname %>%
         table() %>%
         dplyr::as_tibble() %>%
         dplyr::rename("qname" = ".") %>%
         dplyr::filter(n > 2)
     
-    if(nrow(y) != 0) {
+    if(nrow(z) != 0) {
         readr::write_tsv(
-            as.data.frame(y$qname),
+            as.data.frame(z$qname),
             paste0(
                 arguments$outdir, "/",
                 gsub(
@@ -102,11 +106,27 @@ evaluateDuplicatedQnames <- function(x) {
             ),
             append = TRUE
         )
+        
+        #TODO Argument to write out tally
+        if(isTRUE(y)) {
+            readr::write_tsv(
+                z,
+                paste0(
+                    arguments$outdir, "/",
+                    gsub(
+                        ".bam",
+                        paste0(".duplicated-tally.txt.gz"),
+                        basename(arguments$bam)
+                    )
+                ),
+                append = TRUE
+            )
+        }
     }
 }
 
 
-evaluateMates <- function(x, y) {
+evaluateMates <- function(x, y, z) {
     # Evaluate mate status for reads in a bam file, reporting if reads with
     # status "mated", "unmated", or "ambiguous" are present; optionally, write
     # out txt.gz tables comprised of 'qname', 'groupid', and 'mate_status' for
@@ -116,17 +136,20 @@ evaluateMates <- function(x, y) {
     #           (factor) with levels "mated", "unmated", and "ambiguous"; the
     #           second column is $n with counts (int) for each level
     # :param y: status to test: "mated", "unmated", or "ambiguous" (chr)
+    # :param z: TRUE/FALSE, return table of 'qname' entries and associated
+    #           tallies
+    # :return: list of 'qname' entries
     #TODO Check for class(x)...
     if (class(y) != "character") {
         stop("Exiting: Parameter 'y' should be class 'character'.")
     }
     
     if(x[x$mate_status == y, 2] != 0) {
+        qnames <- pertinent[pertinent$mate_status == y, ]$qname
+        
         readr::write_tsv(
-            as.data.frame(
-                #  Print only unique QNAMEs
-                unique(pertinent[pertinent$mate_status == y, ]$qname)
-            ),
+            #  Print only unique QNAMEs
+            as.data.frame(unique(qnames)),
             paste0(
                 arguments$outdir, "/",
                 gsub(
@@ -137,27 +160,48 @@ evaluateMates <- function(x, y) {
             ),
             append = TRUE
         )
+        
+        #TODO Argument to write out tally
+        if(isTRUE(z)) {
+            qnames <- qnames %>%
+                table() %>%
+                dplyr::as_tibble() %>%
+                dplyr::rename("qname" = ".")
+            readr::write_tsv(
+                qnames,
+                paste0(
+                    arguments$outdir, "/",
+                    gsub(
+                        ".bam",
+                        paste0(".", y, "-tally.txt.gz"),
+                        basename(arguments$bam)
+                    )
+                ),
+                append = TRUE
+            )
+        }
     }
 }
 
 
-evaluateSingletonQnames <- function(x) {
+evaluateSingletonQnames <- function(x, y) {
     # #TODO Description of function.
     #
     # :param x: tibble containing the variable 'qname'
-    # :return y: two-column tibble of duplicate 'qname' entries and associated
-    #            tallies
+    # :param y: TRUE/FALSE, return table of singleton 'qname' entries and
+    #           associated tallies
+    # :return: list of singleton 'qname' entries
     #TODO Check class(x)
     #TODO Check variables in x
-    y <- x$qname %>%
+    z <- x$qname %>%
         table() %>%
         dplyr::as_tibble() %>%
         dplyr::rename("qname" = ".") %>%
         dplyr::filter(n == 1)
     
-    if(nrow(y) != 0) {
+    if(nrow(z) != 0) {
         readr::write_tsv(
-            as.data.frame(y$qname),
+            as.data.frame(z$qname),
             paste0(
                 arguments$outdir, "/",
                 gsub(
@@ -168,20 +212,38 @@ evaluateSingletonQnames <- function(x) {
             ),
             append = TRUE
         )
+        
+        #TODO Argument to write out tally
+        if(isTRUE(y)) {
+            readr::write_tsv(
+                z,
+                paste0(
+                    arguments$outdir, "/",
+                    gsub(
+                        ".bam",
+                        paste0(".singleton-tally.txt.gz"),
+                        basename(arguments$bam)
+                    )
+                ),
+                append = TRUE
+            )
+        }
     }
 }
 
 
-evaluateTransMates <- function(x) {
+evaluateTransMates <- function(x, y) {
     # #TODO Description of function.
     # 
     # :param x: tibble with variables 'qname', 'rname', and 'mrnm'
-    # :return y: single-column tibble of 'qname' entries
+    # :param y: TRUE/FALSE, return table of trans 'qname' entries and
+    #           associated tallies
+    # :return z: list of trans 'qname' entries
     #TODO Check class(x)
     #TODO Check variables in x
-    y <- x[x$rname != x$mrnm, ]
+    z <- x[x$rname != x$mrnm, ]
     
-    if(nrow(y) != 0) {
+    if(nrow(z) != 0) {
         readr::write_tsv(
             #  Get only unique QNAMEs
             as.data.frame(unique(y$qname)),
@@ -195,6 +257,22 @@ evaluateTransMates <- function(x) {
             ),
             append = TRUE
         )
+        
+        #TODO Argument to write out tally
+        if(isTRUE(y)) {
+            readr::write_tsv(
+                z,
+                paste0(
+                    arguments$outdir, "/",
+                    gsub(
+                        ".bam",
+                        paste0(".trans-tally.txt.gz"),
+                        basename(arguments$bam)
+                    )
+                ),
+                append = TRUE
+            )
+        }
     }
 }
 
@@ -213,53 +291,30 @@ importLibrary <- function(x) {
 }
 
 
-loadFieldsMinimum <- function(x) {
+loadFields <- function(x, y) {
     # #TODO Description of function.
     # 
-    # :param x: object of class BamFile
-    # :return y: tibble made up of qname, groupid, and mate_status fields
-    #TODO Check that BamFile asMates is TRUE
-    #TODO Check that BamFile isOpen is TRUE
-    y <- Rsamtools::scanBam(  
-        x,
-        param = ScanBamParam(what = c(
-            "qname", "groupid", "mate_status"
-        ))
-    )
-    y <- Map(as.data.frame, y) %>%
-        as.data.frame() %>%
-        tibble::as_tibble(column_name = c(
-            "qname", "groupid", "mate_status"
-        ))
-    return(y)
-}
-
-
-loadFieldsTrans <- function(x) {
-    # #TODO Description of function.
-    # 
-    # :param x: object of class BamFile
-    # :return y: tibble made up of qname, rname, mrnm, groupid, and
+    # :param x: 'g', load fields needed for general analysis; 't', load fields
+    #           needed for analysis of interchromosomal paired reads
+    # :param y: object of class BamFile
+    # :return z: tibble made up of qname, rname, mrnm, groupid, and
     #            mate_status fields
     #TODO Check that BamFile asMates is TRUE
     #TODO Check that BamFile isOpen is TRUE
-    y <- Rsamtools::scanBam(
-        x,
-        param = ScanBamParam(what = c(
-            "qname", "rname", "mrnm", "groupid", "mate_status"
-        ))
-    )
-    y <- Map(as.data.frame, y) %>%
+    if(x == "g") vars <- c("qname", "groupid", "mate_status")
+    if(x == "t") vars <- c("qname", "rname", "mrnm", "groupid", "mate_status")
+    #TODO Check if not one of the above options
+
+    z <- Rsamtools::scanBam(y, param = ScanBamParam(what = vars))
+    z <- Map(as.data.frame, z) %>%
         as.data.frame() %>%
-        tibble::as_tibble(column_name = c(
-            "qname", "rname", "mrnm", "groupid", "mate_status"
-        ))
-    return(y)
+        tibble::as_tibble(column_name = vars)
+    return(z)
 }
 
 
 #  Source libraries, adjust settings ------------------------------------------
-libraries <- c("argparser", "pryr", "Rsamtools", "scales", "tidyverse")
+libraries <- c("argparser", "Rsamtools", "scales", "tidyverse")
 for(i in 1:length(libraries)) checkLibraryAvailability(libraries[i])
 importLibrary(libraries)
 rm(i, libraries)
@@ -269,22 +324,17 @@ set.seed(24)
 
 
 #  Parse arguments ------------------------------------------------------------
-script <- "preprocess-with-R.R"
+script <- "generate-qname-lists.R"
 
 #  Create a parser
 ap <- arg_parser(
     name = script,
     description = "
-        Script outputs a QNAME txt.gz to be used when filtering with 'samtools
-        view -hN' or filter-qname.py; the user has the options to output txt.gz
-        lists for 'mated' 'unmated' and 'ambiguous' reads; outfile namess are
-        derived from the name of the bam infile.
-        
-        #TODO Handle duplicate QNAME issue in which a very small number of
-        QNAME entries are >2; filter those out in this script or prior to
-        reading in the bam file? #ANSWER Prior to reading in the bam file.
-        
-        #TODO See also https://rdrr.io/bioc/GenomicFiles/man/reduceByYield.html
+        Script outputs a QNAME txt.gz to be used when filtering bam files to
+        include or exclude reads with specific QNAMEs; the user has the options
+        to output txt.gz lists for 'mated' 'unmated', 'ambiguous',
+        'duplicated', and 'singleton' reads; outfile names are derived from the
+        name of the bam infile.
     ",
     hide.opts = TRUE
 )
@@ -398,8 +448,8 @@ if(isTRUE(test_in_RStudio)) {
     # dir_data <- "results/kga0/2022-0416-0418_test-preprocessing-module"
     dir_data <- "data/files_bam"
     dir_in_out <- paste0(dir_proj, "/", dir_data)
-    bam <- "Disteche_sample_13.dedup.CAST.sort-c.rm.chr16.bam"
-    bai <- "Disteche_sample_13.dedup.CAST.sort-c.rm.chr16.bam.bai"
+    bam <- "Disteche_sample_13.dedup.CAST.sort-c.rm.chr19.bam"
+    bai <- "Disteche_sample_13.dedup.CAST.sort-c.rm.chr19.bam.bai"
     chunk <- 100000
     mated <- FALSE
     unmated <- TRUE
@@ -466,9 +516,8 @@ dir.create(file.path(arguments$outdir), showWarnings = FALSE)
 #+ ...including mate information
 print(paste0(
     "Started: Using Rsamtools to load in '", basename(arguments$bam),
-    "' and '", basename(arguments$bai),
-    "', and reading various fields such as 'qname' into memory in chunks of ",
-    scales::comma(arguments$chunk), " records per iteration of while loop."
+    "' and reading various fields such as 'qname' into memory (in chunks of ",
+    scales::comma(arguments$chunk), " records per iteration)."
 ))
 cat("\n")
 
@@ -494,37 +543,73 @@ if(isTRUE(arguments$remove)) {
             ".bam", ".mated.txt.gz", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
+            ".bam", ".mated-tally.txt.gz", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
             ".bam", ".mated.txt", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".mated-tally.txt", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
             ".bam", ".unmated.txt.gz", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
+            ".bam", ".unmated-tally.txt.gz", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
             ".bam", ".unmated.txt", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".unmated-tally.txt", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
             ".bam", ".ambiguous.txt.gz", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
+            ".bam", ".ambiguous-tally.txt.gz", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
             ".bam", ".ambiguous.txt", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".ambiguous-tally.txt", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
             ".bam", ".duplicated.txt.gz", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
+            ".bam", ".duplicated-tally.txt.gz", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
             ".bam", ".duplicated.txt", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".duplicated-tally.txt", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
             ".bam", ".singleton.txt.gz", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
+            ".bam", ".singleton-tally.txt.gz", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
             ".bam", ".singleton.txt", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".singleton-tally.txt", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
             ".bam", ".trans.txt.gz", basename(arguments$bam)
         ), " ",
         arguments$outdir, "/", gsub(
+            ".bam", ".trans-tally.txt.gz", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
             ".bam", ".trans.txt", basename(arguments$bam)
+        ), " ",
+        arguments$outdir, "/", gsub(
+            ".bam", ".trans-tally.txt", basename(arguments$bam)
         )
     ))
     cat("\n")
@@ -539,9 +624,9 @@ open(bam)
 time_start <- Sys.time()
 while(rec_n < (rec_total / 2) + arguments$chunk) {
     if(isTRUE(arguments$trans)) {
-        pertinent <- loadFieldsTrans(bam)
+        pertinent <- loadFields("t", bam)
     } else {
-        pertinent <- loadFieldsMinimum(bam)
+        pertinent <- loadFields("g", bam)
     }
     
     #  Determine and evaluate mate_status levels present in the data
@@ -550,18 +635,18 @@ while(rec_n < (rec_total / 2) + arguments$chunk) {
         dplyr::as_tibble() %>%
         dplyr::rename("mate_status" = ".")
 
-    if(isTRUE(arguments$mated)) evaluateMates(mate_status, "mated")
-    if(isTRUE(arguments$unmated)) evaluateMates(mate_status, "unmated")
-    if(isTRUE(arguments$ambiguous)) evaluateMates(mate_status, "ambiguous")
+    if(isTRUE(arguments$mated)) evaluateMates(mate_status, "mated", TRUE)
+    if(isTRUE(arguments$unmated)) evaluateMates(mate_status, "unmated", TRUE)
+    if(isTRUE(arguments$ambiguous)) evaluateMates(mate_status, "ambiguous", TRUE)
 
     #  Determine and evaluate duplicate QNAME (>2) entries in the data
-    if(isTRUE(arguments$duplicated)) evaluateDuplicatedQnames(pertinent)
+    if(isTRUE(arguments$duplicated)) evaluateDuplicatedQnames(pertinent, TRUE)
     
     #  Determine and evaluate singleton QNAME entries in the data
-    if(isTRUE(arguments$singleton)) evaluateSingletonQnames(pertinent)
+    if(isTRUE(arguments$singleton)) evaluateSingletonQnames(pertinent, TRUE)
     
     #  Determine and evaluate trans reads present in the data
-    if(isTRUE(arguments$trans)) evaluateTransMates(pertinent)
+    if(isTRUE(arguments$trans)) evaluateTransMates(pertinent, TRUE)
 
     rec_n <- rec_n + arguments$chunk
     cat(rec_n, " ")
@@ -593,11 +678,6 @@ if(isTRUE(arguments$trans)) {
 
 time_end <- Sys.time()
 cat("\n")
-print(paste0(
-    "Completed: Using Rsamtools to load in '", basename(arguments$bam),
-    "' and '", basename(arguments$bai),
-    "', reading into memory various fields such as 'qname', ",
-    "then writing out txt.gz files of non-duplicated QNAMEs."
-))
+print(paste0("Script completed."))
 cat("\n\n")
 rm(time_start, time_end)
