@@ -24,7 +24,7 @@ checkLibraryAvailability <- function(x) {
 
 #FIXME
 # convertSecondsToHMS <- function(x) {
-#     # #TODO Description of function.
+#     # #TODO Description of function
 #     #
 #     # :param x: number of seconds (int)
 #     # :return y: #TODO
@@ -43,13 +43,12 @@ checkLibraryAvailability <- function(x) {
 
 
 countLinesOutfile <- function(x, y, z) {
-    # #TODO Description of function.
+    # #TODO Description of function
     # 
     # :param x: set one of five options to count lines in outfile: m (mated),
     #           u (unmated), a (ambiguous), t (trans), d (duplicated)
     # :param y: outfile directory, including path
     # :param z: bam infile without path
-    # :return: #TODO
     if(x == "m") status <- "mated"
     if(x == "u") status <- "unmated"
     if(x == "a") status <- "ambiguous"
@@ -71,46 +70,159 @@ countLinesOutfile <- function(x, y, z) {
             ),
             intern = TRUE
         )
-        
         return(print(paste0("Lines in ", status, ".txt.gz: ", lines)))
     }
 }
 
 
-evaluateDuplicatedQnames <- function(x, y) {
-    # #TODO Description of function.
+countRecords <- function(x) {
+    # Count number of records in bam file
+    # 
+    # :param x: bam file, including path (chr)
+    # :return y: number of records in bam file (int)
+    y <- system(paste0("samtools view -c ", x), intern = TRUE) %>%
+        as.integer()
+    return(y)
+}
+
+
+importLibrary <- function(x) {
+    # Suppress messages when loading libraries into the R session
+    # 
+    # :param x: a vector of libraries <chr>
+    invisible(
+        suppressWarnings(
+            suppressMessages(
+                lapply(x, library, character.only = TRUE, quietly = TRUE)
+            )
+        )
+    )
+}
+
+
+loadFields <- function(x, y) {
+    # #TODO Description of function
+    # 
+    # :param x: 'g', load fields needed for general analysis; 't', load fields
+    #           needed for analysis of interchromosomal paired reads
+    # :param y: object of class BamFile
+    # :return z: tibble made up of qname, rname, mrnm, groupid, and
+    #            mate_status fields
+    #TODO Check that BamFile asMates is TRUE
+    #TODO Check that BamFile isOpen is TRUE
+    if(x == "g") vars <- c("qname", "groupid", "mate_status")
+    if(x == "t") vars <- c("qname", "rname", "mrnm", "groupid", "mate_status")
+    #TODO Check if not one of the above options
+
+    z <- Rsamtools::scanBam(y, param = ScanBamParam(what = vars))
+    z <- Map(as.data.frame, z) %>%
+        as.data.frame() %>%
+        tibble::as_tibble(column_name = vars)
+    return(z)
+}
+
+
+removeOutfiles <- function(x, y) {
+    # Remove any outfiles present in directory
+    # 
+    # :param x: directory from which to remove outfiles
+    # :param y: bam file from which outfiles were derived
+    system(paste0(
+        "rm -f -- ",
+        x, "/", gsub(".bam", ".mated.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".mated-tally.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".mated.txt", y), " ",
+        x, "/", gsub(".bam", ".mated-tally.txt", y), " ",
+        x, "/", gsub(".bam", ".unmated.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".unmated-tally.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".unmated.txt", y), " ",
+        x, "/", gsub(".bam", ".unmated-tally.txt", y), " ",
+        x, "/", gsub(".bam", ".ambiguous.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".ambiguous-tally.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".ambiguous.txt", y), " ",
+        x, "/", gsub(".bam", ".ambiguous-tally.txt", y), " ",
+        x, "/", gsub(".bam", ".duplicated.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".duplicated-tally.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".duplicated.txt", y), " ",
+        x, "/", gsub(".bam", ".duplicated-tally.txt", y), " ",
+        x, "/", gsub(".bam", ".singleton.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".singleton-tally.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".singleton.txt", y), " ",
+        x, "/", gsub(".bam", ".singleton-tally.txt", y), " ",
+        x, "/", gsub(".bam", ".trans.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".trans-tally.txt.gz", y), " ",
+        x, "/", gsub(".bam", ".trans.txt", y), " ",
+        x, "/", gsub(".bam", ".trans-tally.txt", y)
+    ))
+}
+
+
+stopIfNotLogical <- function(x) {
+    # #TODO Description of function
+    # 
+    # :param x: single-value logical vector to evaluate (logical)
+    stopifnot(x == TRUE | x == FALSE)
+}
+
+
+writeDuplicatedQnames <- function(x, y, z) {
+    # Write out txt.gz outfile(s) for duplicate QNAMEs (>2) in bam file
     #
-    # :param x: tibble containing the variable 'qname'
-    # :param y: TRUE/FALSE, return table of duplicate 'qname' entries and
-    #           associated tallies
-    # :return: list of duplicate 'qname' entries
+    # :param x: tibble containing the variable 'qname' (tbl_df)
+    # :param y: for list txt.gz outfile, write out only unique QNAMEs (logical)
+    # :param z: in addition to list txt.gz outfile, write out table of unique
+    #           duplicate QNAME entries and associated tallies (logical)
+    # :return: write out list of either all or unique duplicated QNAME entries;
+    #          optionally, write out table of unique duplicated QNAME entries
+    #          and associated tallies
     #TODO Check class(x)
     #TODO Check variables in x
     #TODO Check that y is either TRUE or FALSE, and nothing else
-    z <- x$qname %>%
+    #TODO Check that z is either TRUE or FALSE, and nothing else
+    a <- x$qname %>%
         table() %>%
         dplyr::as_tibble() %>%
         dplyr::rename("qname" = ".") %>%
         dplyr::filter(n > 2)
-    
-    if(nrow(z) != 0) {
-        readr::write_tsv(
-            as.data.frame(z$qname),
-            paste0(
-                arguments$outdir, "/",
-                gsub(
-                    ".bam",
-                    paste0(".duplicated.txt.gz"),
-                    basename(arguments$bam)
-                )
-            ),
-            append = TRUE
-        )
-        
-        #TODO Argument to write out tally
-        if(isTRUE(y)) {
+
+    if(isFALSE(y)) {
+        b <- x$qname[x$qname %in% a$qname]
+        if(length(b) != 0) {
             readr::write_tsv(
-                z,
+                as.data.frame(b),
+                paste0(
+                    arguments$outdir, "/",
+                    gsub(
+                        ".bam",
+                        paste0(".duplicated.txt.gz"),
+                        basename(arguments$bam)
+                    )
+                ),
+                append = TRUE
+            )
+        }
+    } else {
+        if(nrow(a) != 0) {
+            readr::write_tsv(
+                as.data.frame(a$qname),
+                paste0(
+                    arguments$outdir, "/",
+                    gsub(
+                        ".bam",
+                        paste0(".duplicated.txt.gz"),
+                        basename(arguments$bam)
+                    )
+                ),
+                append = TRUE
+            )
+        }
+    }
+
+    #TODO Function to write out tally
+    if(isTRUE(z)) {
+        if(nrow(a) != 0) {
+            readr::write_tsv(
+                a,
                 paste0(
                     arguments$outdir, "/",
                     gsub(
@@ -126,7 +238,7 @@ evaluateDuplicatedQnames <- function(x, y) {
 }
 
 
-evaluateMates <- function(x, y, z) {
+writeMatedQnames <- function(x, y, z, a) {
     # Evaluate mate status for reads in a bam file, reporting if reads with
     # status "mated", "unmated", or "ambiguous" are present; optionally, write
     # out txt.gz tables comprised of 'qname', 'groupid', and 'mate_status' for
@@ -136,20 +248,29 @@ evaluateMates <- function(x, y, z) {
     #           (factor) with levels "mated", "unmated", and "ambiguous"; the
     #           second column is $n with counts (int) for each level
     # :param y: status to test: "mated", "unmated", or "ambiguous" (chr)
-    # :param z: TRUE/FALSE, return table of 'qname' entries and associated
-    #           tallies
-    # :return: list of 'qname' entries
+    # :param z: for list txt.gz outfile, write out only unique QNAMEs (logical)
+    # :param a: in addition to list txt.gz outfile, write out table of unique
+    #           duplicate QNAME entries and associated tallies (logical)
+    # :return: write out list of either all or unique QNAME entries for
+    #          $mate_status of "mated", "unmated", or "ambiguous"; optionally,
+    #          write out table of unique duplicated QNAME entries and
+    #          associated tallies for $mate_status of "mated", "unmated", or
+    #          "ambiguous"
     #TODO Check for class(x)...
     if (class(y) != "character") {
         stop("Exiting: Parameter 'y' should be class 'character'.")
     }
+    #TODO Check(s) for z
+    #TODO Check(s) for a
     
     if(x[x$mate_status == y, 2] != 0) {
         qnames <- pertinent[pertinent$mate_status == y, ]$qname
-        
         readr::write_tsv(
-            #  Print only unique QNAMEs
-            as.data.frame(unique(qnames)),
+            if(isFALSE(z)) {
+                as.data.frame(unique(qnames))
+            } else {
+                as.data.frame(qnames)
+            },
             paste0(
                 arguments$outdir, "/",
                 gsub(
@@ -161,8 +282,8 @@ evaluateMates <- function(x, y, z) {
             append = TRUE
         )
         
-        #TODO Argument to write out tally
-        if(isTRUE(z)) {
+        #TODO Function to write out tally
+        if(isTRUE(a)) {
             qnames <- qnames %>%
                 table() %>%
                 dplyr::as_tibble() %>%
@@ -184,39 +305,60 @@ evaluateMates <- function(x, y, z) {
 }
 
 
-evaluateSingletonQnames <- function(x, y) {
-    # #TODO Description of function.
+writeSingletonQnames <- function(x, y, z) {
+    # Write out txt.gz outfile(s) for singleton QNAMEs (1) in bam file
     #
-    # :param x: tibble containing the variable 'qname'
-    # :param y: TRUE/FALSE, return table of singleton 'qname' entries and
-    #           associated tallies
-    # :return: list of singleton 'qname' entries
+    # :param x: tibble containing the variable 'qname' (tbl_df)
+    # :param y: for list txt.gz outfile, write out only unique QNAMEs (logical)
+    # :param z: in addition to list txt.gz outfile, write out table of unique
+    #           singleton QNAME entries and associated tallies (logical)
+    # :return: write out list of either all or unique singleton QNAME entries;
+    #          optionally, write out table of unique singleton QNAME entries
+    #          and associated tallies
     #TODO Check class(x)
     #TODO Check variables in x
-    z <- x$qname %>%
+    a <- x$qname %>%
         table() %>%
         dplyr::as_tibble() %>%
         dplyr::rename("qname" = ".") %>%
         dplyr::filter(n == 1)
-    
-    if(nrow(z) != 0) {
-        readr::write_tsv(
-            as.data.frame(z$qname),
-            paste0(
-                arguments$outdir, "/",
-                gsub(
-                    ".bam",
-                    paste0(".singleton.txt.gz"),
-                    basename(arguments$bam)
+
+    if(nrow(a) != 0) {
+        if(isFALSE(y)) {
+            b <- x$qname[x$qname %in% a$qname]
+            if(length(b) != 0) {
+                readr::write_tsv(
+                    as.data.frame(b),
+                    paste0(
+                        arguments$outdir, "/",
+                        gsub(
+                            ".bam",
+                            paste0(".singleton.txt.gz"),
+                            basename(arguments$bam)
+                        )
+                    ),
+                    append = TRUE
                 )
-            ),
-            append = TRUE
-        )
-        
-        #TODO Argument to write out tally
-        if(isTRUE(y)) {
+            }
+        } else {
             readr::write_tsv(
-                z,
+                as.data.frame(a$qname),
+                paste0(
+                    arguments$outdir, "/",
+                    gsub(
+                        ".bam",
+                        paste0(".singleton.txt.gz"),
+                        basename(arguments$bam)
+                    )
+                ),
+                append = TRUE
+            )
+        }
+            
+        #TODO Function to write out tally
+        if(isTRUE(z)) {
+            readr::write_tsv(
+                a,
                 paste0(
                     arguments$outdir, "/",
                     gsub(
@@ -232,36 +374,63 @@ evaluateSingletonQnames <- function(x, y) {
 }
 
 
-evaluateTransMates <- function(x, y) {
-    # #TODO Description of function.
+writeTransMates <- function(x, y, z) {
+    # Write out txt.gz outfile(s) for interchromosomal QNAMEs in bam file
     # 
-    # :param x: tibble with variables 'qname', 'rname', and 'mrnm'
-    # :param y: TRUE/FALSE, return table of trans 'qname' entries and
-    #           associated tallies
-    # :return z: list of trans 'qname' entries
+    # :param x: tibble containing variables 'qname', 'rname', and 'mrnm'
+    #           (tbl_df)
+    # :param y: for list txt.gz outfile, write out only unique QNAMEs (logical)
+    # :param z: in addition to list txt.gz outfile, write out table of unique
+    #           interchromosomal QNAME entries and associated tallies (logical)
+    # :return: write out list of either all or unique trans QNAME entries;
+    #          optionally, write out table of unique trans QNAME entries
+    #          and associated tallies
     #TODO Check class(x)
     #TODO Check variables in x
-    z <- x[x$rname != x$mrnm, ]
+    a <- x[x$rname != x$mrnm, ]
     
-    if(nrow(z) != 0) {
-        readr::write_tsv(
-            #  Get only unique QNAMEs
-            as.data.frame(unique(y$qname)),
-            paste0(
-                arguments$outdir, "/",
-                gsub(
-                    ".bam",
-                    paste0(".trans.txt.gz"),
-                    basename(arguments$bam)
-                )
-            ),
-            append = TRUE
-        )
+    if(nrow(a) != 0) {
+        a <- a$qname %>%
+            table() %>%
+            dplyr::as_tibble() %>%
+            dplyr::rename("qname" = ".")
         
-        #TODO Argument to write out tally
-        if(isTRUE(y)) {
+        if(isFALSE(y)) {
+            a <- x$qname[x$qname %in% a$qname]
+            if(length(a) != 0) {
+                readr::write_tsv(
+                    as.data.frame(a),
+                    paste0(
+                        arguments$outdir, "/",
+                        gsub(
+                            ".bam",
+                            paste0(".trans.txt.gz"),
+                            basename(arguments$bam)
+                        )
+                    ),
+                    append = TRUE
+                )
+            }
+        } else {
             readr::write_tsv(
-                z,
+                # as.data.frame(unique(y$qname)),
+                as.data.frame(y$qname),
+                paste0(
+                    arguments$outdir, "/",
+                    gsub(
+                        ".bam",
+                        paste0(".trans.txt.gz"),
+                        basename(arguments$bam)
+                    )
+                ),
+                append = TRUE
+            )
+        }
+            
+        #TODO Function to write out tally
+        if(isTRUE(z)) {
+            readr::write_tsv(
+                a,
                 paste0(
                     arguments$outdir, "/",
                     gsub(
@@ -274,42 +443,6 @@ evaluateTransMates <- function(x, y) {
             )
         }
     }
-}
-
-
-importLibrary <- function(x) {
-    # Suppress messages when loading libraries into the R session
-    # 
-    # :param x: a vector of libraries <chr>
-    invisible(
-        suppressWarnings(
-            suppressMessages(
-                lapply(x, library, character.only = TRUE, quietly = TRUE)
-            )
-        )
-    )
-}
-
-
-loadFields <- function(x, y) {
-    # #TODO Description of function.
-    # 
-    # :param x: 'g', load fields needed for general analysis; 't', load fields
-    #           needed for analysis of interchromosomal paired reads
-    # :param y: object of class BamFile
-    # :return z: tibble made up of qname, rname, mrnm, groupid, and
-    #            mate_status fields
-    #TODO Check that BamFile asMates is TRUE
-    #TODO Check that BamFile isOpen is TRUE
-    if(x == "g") vars <- c("qname", "groupid", "mate_status")
-    if(x == "t") vars <- c("qname", "rname", "mrnm", "groupid", "mate_status")
-    #TODO Check if not one of the above options
-
-    z <- Rsamtools::scanBam(y, param = ScanBamParam(what = vars))
-    z <- Map(as.data.frame, z) %>%
-        as.data.frame() %>%
-        tibble::as_tibble(column_name = vars)
-    return(z)
 }
 
 
@@ -330,11 +463,12 @@ script <- "generate-qname-lists.R"
 ap <- arg_parser(
     name = script,
     description = "
-        Script outputs a QNAME txt.gz to be used when filtering bam files to
-        include or exclude reads with specific QNAMEs; the user has the options
-        to output txt.gz lists for 'mated' 'unmated', 'ambiguous',
-        'duplicated', and 'singleton' reads; outfile names are derived from the
-        name of the bam infile.
+        Script outputs QNAME txt.gz list(s) to be used when filtering bam files
+        to include or exclude reads with specific QNAMEs; the user has options
+        to output 'mated' 'unmated', 'ambiguous', 'duplicated', 'trans'
+        (interchromosomal), and 'singleton' QNAME lists; in addition to lists
+        of QNAMEs, the user has an option to output lists of unique QNAMEs with
+        associated tallies as well.
     ",
     hide.opts = TRUE
 )
@@ -355,6 +489,14 @@ ap <- add_argument(
     type = "character",
     default = NULL,
     help = "bam index, including path <chr>"
+)
+ap <- add_argument(
+    ap,
+    short = "-o",
+    arg = "--outdir",
+    type = "character",
+    default = NULL,
+    help = "directory for saving outfile(s), including path <chr>"
 )
 ap <- add_argument(
     ap,
@@ -420,6 +562,28 @@ ap <- add_argument(
 )
 ap <- add_argument(
     ap,
+    short = "-q",
+    arg = "--unique",
+    type = "logical",
+    default = FALSE,
+    help = "
+        for txt.gz outfile(s), save unique QNAME entries, not all QNAME entries
+        <logical>
+    "
+)
+ap <- add_argument(
+    ap,
+    short = "-l",
+    arg = "--tally",
+    type = "logical",
+    default = TRUE,
+    help = "
+        in addition to list(s) of QNAMEs, generate list(s) with tallies in
+        txt.gz outfile(s) <logical>
+    "
+)
+ap <- add_argument(
+    ap,
     short = "-r",
     arg = "--remove",
     type = "logical",
@@ -428,14 +592,6 @@ ap <- add_argument(
         if present, remove outfiles in the outdirectory prior to generating
         outfiles <logical>
     "
-)
-ap <- add_argument(
-    ap,
-    short = "-o",
-    arg = "--outdir",
-    type = "character",
-    default = NULL,
-    help = "directory for saving outfile(s), including path <chr>"
 )
 
 
@@ -448,8 +604,8 @@ if(isTRUE(test_in_RStudio)) {
     # dir_data <- "results/kga0/2022-0416-0418_test-preprocessing-module"
     dir_data <- "data/files_bam"
     dir_in_out <- paste0(dir_proj, "/", dir_data)
-    bam <- "Disteche_sample_13.dedup.CAST.sort-c.rm.chr19.bam"
-    bai <- "Disteche_sample_13.dedup.CAST.sort-c.rm.chr19.bam.bai"
+    bam <- "Disteche_sample_13.dedup.mm10.sort-c.rm.bam"
+    bai <- "Disteche_sample_13.dedup.mm10.sort-c.rm.bam.bai"
     chunk <- 100000
     mated <- FALSE
     unmated <- TRUE
@@ -457,11 +613,14 @@ if(isTRUE(test_in_RStudio)) {
     trans <- TRUE
     duplicated <- TRUE
     singleton <- TRUE
+    uniq <- TRUE
+    tally <- TRUE
     remove <- TRUE
     cl <- c(
         #  Arguments for analysis
         "--bam", paste0(dir_in_out, "/", bam),
         "--bai", paste0(dir_in_out, "/", bai),
+        "--outdir", dir_in_out,
         "--chunk", chunk,
         "--mated", mated,
         "--unmated", unmated,
@@ -469,16 +628,17 @@ if(isTRUE(test_in_RStudio)) {
         "--trans", trans,
         "--duplicated", duplicated,
         "--singleton", singleton,
-        "--outdir", dir_in_out,
+        "--unique", uniq,
+        "--tally", tally,
         "--remove", remove
     )
     arguments <- parse_args(ap, cl)  
     rm(
         ap, cl,
-        dir_base, dir_data, dir_in_out,
+        dir_base, dir_proj, dir_data, dir_in_out,
         bam, bai, chunk, mated, unmated, ambiguous,
         duplicated, trans, singleton,
-        remove
+        uniq, tally, remove
     )
 } else if(isFALSE(test_in_RStudio)) {
     #  Command-line calls
@@ -498,14 +658,15 @@ stopifnot(file.exists(arguments$bam))
 stopifnot(file.exists(arguments$bai))
 stopifnot(arguments$chunk != 0)
 stopifnot((arguments$chunk %% 2) == 0)
-stopifnot(arguments$mated == TRUE | arguments$mated == FALSE)
-stopifnot(arguments$unmated == TRUE | arguments$unmated == FALSE)
-stopifnot(arguments$ambiguous == TRUE | arguments$ambiguous == FALSE)
-stopifnot(arguments$trans == TRUE | arguments$trans == FALSE)
-stopifnot(arguments$duplicated == TRUE | arguments$duplicated == FALSE)
-stopifnot(arguments$singleton == TRUE | arguments$singleton == FALSE)
-stopifnot(arguments$remove == TRUE | arguments$remove == FALSE)
-
+stopIfNotLogical(arguments$mated)
+stopIfNotLogical(arguments$unmated)
+stopIfNotLogical(arguments$ambiguous)
+stopIfNotLogical(arguments$trans)
+stopIfNotLogical(arguments$duplicated)
+stopIfNotLogical(arguments$singleton)
+stopIfNotLogical(arguments$unique)
+stopIfNotLogical(arguments$tally)
+stopIfNotLogical(arguments$remove)
 
 #  If outfile directory does not exist, then create it
 dir.create(file.path(arguments$outdir), showWarnings = FALSE)
@@ -526,92 +687,15 @@ cat("\n")
 print(paste0(
     "Counting the number of records in ", basename(arguments$bam), "..."
 ))
-rec_n <- arguments$chunk
-rec_total <- system(
-    paste0("samtools view -c ", arguments$bam), intern = TRUE
-) %>%
-    as.integer()
+rec_n <- as.integer(arguments$chunk)
+rec_total <- countRecords(arguments$bam)
 print(paste0("Number of records: ", scales::comma(rec_total)))
 cat("\n")
 
 #  Remove already-created outfiles in outdirectory (optional)
 if(isTRUE(arguments$remove)) {
     print(paste0("If present, removing outfiles in the outdirectory..."))
-    system(paste0(
-        "rm -f -- ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".mated.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".mated-tally.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".mated.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".mated-tally.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".unmated.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".unmated-tally.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".unmated.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".unmated-tally.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".ambiguous.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".ambiguous-tally.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".ambiguous.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".ambiguous-tally.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".duplicated.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".duplicated-tally.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".duplicated.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".duplicated-tally.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".singleton.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".singleton-tally.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".singleton.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".singleton-tally.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".trans.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".trans-tally.txt.gz", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".trans.txt", basename(arguments$bam)
-        ), " ",
-        arguments$outdir, "/", gsub(
-            ".bam", ".trans-tally.txt", basename(arguments$bam)
-        )
-    ))
+    removeOutfiles(arguments$outdir, basename(arguments$bam))
     cat("\n")
 }
 
@@ -621,41 +705,61 @@ bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = TRUE)
 Rsamtools::yieldSize(bam) <- arguments$chunk
 open(bam)
 
+if(isTRUE(arguments$tally)) tally <- TRUE else tally <- FALSE
+if(isTRUE(arguments$unique)) uniq <- TRUE else uniq <- FALSE
+
 time_start <- Sys.time()
+cat((2 * rec_n), " ")
+#  Iterate through bam file in chunks
 while(rec_n < (rec_total / 2) + arguments$chunk) {
+    #  Load in pertinent bam fields
     if(isTRUE(arguments$trans)) {
         pertinent <- loadFields("t", bam)
     } else {
         pertinent <- loadFields("g", bam)
     }
     
-    #  Determine and evaluate mate_status levels present in the data
-    mate_status <- pertinent$mate_status %>%
+    #  Determine and evaluate mate status levels present in the data; write out
+    #+ tables for the mate statuses
+    status <- pertinent$mate_status %>%
         table() %>%
         dplyr::as_tibble() %>%
         dplyr::rename("mate_status" = ".")
 
-    if(isTRUE(arguments$mated)) evaluateMates(mate_status, "mated", TRUE)
-    if(isTRUE(arguments$unmated)) evaluateMates(mate_status, "unmated", TRUE)
-    if(isTRUE(arguments$ambiguous)) evaluateMates(mate_status, "ambiguous", TRUE)
+    if(isTRUE(arguments$mated)) {
+        writeMatedQnames(status, "mated", uniq, tally)
+    }
+    if(isTRUE(arguments$unmated)) {
+        writeMatedQnames(status, "unmated", uniq, tally)
+    }
+    if(isTRUE(arguments$ambiguous)) {
+        writeMatedQnames(status, "ambiguous", uniq, tally)
+    }
 
-    #  Determine and evaluate duplicate QNAME (>2) entries in the data
-    if(isTRUE(arguments$duplicated)) evaluateDuplicatedQnames(pertinent, TRUE)
+    #  Determine and evaluate duplicate QNAME (>2) entries, writing out tables
+    if(isTRUE(arguments$duplicated)) {
+        writeDuplicatedQnames(pertinent, uniq, tally)
+    }
+
+    #  Determine and evaluate singleton QNAME entries, writing out tables
+    if(isTRUE(arguments$singleton)) {
+        writeSingletonQnames(pertinent, uniq, tally)
+    }
     
-    #  Determine and evaluate singleton QNAME entries in the data
-    if(isTRUE(arguments$singleton)) evaluateSingletonQnames(pertinent, TRUE)
-    
-    #  Determine and evaluate trans reads present in the data
-    if(isTRUE(arguments$trans)) evaluateTransMates(pertinent, TRUE)
+    #  Determine and evaluate QNAMEs associated with trans reads, writing out
+    #+ tables
+    if(isTRUE(arguments$trans)) {
+        writeTransMates(pertinent, uniq, tally)
+    }
 
     rec_n <- rec_n + arguments$chunk
-    cat(rec_n, " ")
+    cat((2 * rec_n), " ")
 }
 close(bam)
 cat("\n")
 
 
-#  Count lines in outfiles, then report the counts ----------------------------
+#  Count lines in outfiles, report the counts, end the script -----------------
 if(isTRUE(arguments$mated)) {
     countLinesOutfile("m", arguments$outdir, basename(arguments$bam))
 }
@@ -674,7 +778,6 @@ if(isTRUE(arguments$singleton)) {
 if(isTRUE(arguments$trans)) {
     countLinesOutfile("t", arguments$outdir, basename(arguments$bam))
 }
-
 
 time_end <- Sys.time()
 cat("\n")

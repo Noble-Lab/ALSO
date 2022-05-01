@@ -1,9 +1,15 @@
 #!/bin/bash
 
 
+#  Set up variables, home directory, functions --------------------------------
+# shellcheck disable=1091
+# shellcheck disable=SC2002
+
 dir_base="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross"
 dir_data="${dir_base}/data/files_bam"
-in="Disteche_sample_13.dedup.CAST.bam"
+# in="Disteche_sample_13.dedup.CAST.bam"
+in="Disteche_sample_13.dedup.mm10.bam"
+infile="${dir_data}/${in}"
 
 cd "${dir_base}" || 
     {
@@ -11,224 +17,527 @@ cd "${dir_base}" ||
         exit 1
     }
 
-cd "${dir_data}" || 
-    {
-        echo "Exiting: cd failed. Check on this."
-        exit 1
-    }
+. ./bin/auxiliary/functions_preprocessing.sh
 
-sortBamByCoordinate 4 "${in}"
-indexBam 4 "${in/.bam/.sort-c.bam}"
 
-removeLowQualityReads 4 "${in/.bam/.sort-c.bam}"
-indexBam 4 "${in/.bam/.sort-c.rm.bam}"
+#  Perform preprocessing ------------------------------------------------------
+sortBamByCoordinate 4 "${infile}"
+indexBam 4 "${infile/.bam/.sort-c.bam}"
 
-splitBamByChromosome 4 "${in/.bam/.sort-c.rm.bam}" "chr19"
-indexBam 4 "${in/.bam/.sort-c.rm.chr19.bam}"
+removeLowQualityReads 4 "${infile/.bam/.sort-c.bam}"
+indexBam 4 "${infile/.bam/.sort-c.rm.bam}"
 
-splitBamByChromosome 4 "${in/.bam/.sort-c.rm.bam}" "chr18"
-indexBam 4 "${in/.bam/.sort-c.rm.chr18.bam}"
+runFlagstat 4 "${infile/.bam/.sort-c.rm.bam}"
 
-splitBamByChromosome 4 "${in/.bam/.sort-c.rm.bam}" "chr17"
-indexBam 4 "${in/.bam/.sort-c.rm.chr17.bam}"
+splitBamByChromosome 4 "${infile/.bam/.sort-c.rm.bam}" "chr19"
+indexBam 4 "${infile/.bam/.sort-c.rm.chr19.bam}"
 
-cd "${dir_base}" || 
-    {
-        echo "Exiting: cd failed. Check on this."
-        exit 1
-    }
+splitBamByChromosome 4 "${infile/.bam/.sort-c.rm.bam}" "chr18"
+indexBam 4 "${infile/.bam/.sort-c.rm.chr18.bam}"
 
-echo "${in/.bam/.sort-c.rm.chr19.bam}"
-echo "${in/.bam/.sort-c.rm.chr19.bam.bai}"
+splitBamByChromosome 4 "${infile/.bam/.sort-c.rm.bam}" "chr17"
+indexBam 4 "${infile/.bam/.sort-c.rm.chr17.bam}"
 
-for i in 17 18 19; do
-    Rscript ./bin/preprocess-with-R.R \
-    -b "${dir_data}/${in/.bam/.sort-c.rm.chr${i}.bam}" \
-    -i "${dir_data}/${in/.bam/.sort-c.rm.chr${i}.bam.bai}" \
-    -m FALSE \
-    -u TRUE \
-    -a TRUE \
-    -t TRUE \
-    -d TRUE \
-    -s TRUE \
-    -r FALSE \
-    -o "${dir_data}"
+splitBamByChromosome 4 "${infile/.bam/.sort-c.rm.bam}" "chr16"
+indexBam 4 "${infile/.bam/.sort-c.rm.chr16.bam}"
+
+splitBamByChromosome 4 "${infile/.bam/.sort-c.rm.bam}" "chr15"
+indexBam 4 "${infile/.bam/.sort-c.rm.chr15.bam}"
+
+splitBamByChromosome 4 "${infile/.bam/.sort-c.rm.bam}" "chr14"
+indexBam 4 "${infile/.bam/.sort-c.rm.chr14.bam}"
+
+# shellcheck disable=2043
+# for i in 14 15 16 17 18 19; do
+for i in 18; do
+    Rscript ./bin/generate-qname-lists.R \
+    --bam "${infile/.bam/.sort-c.rm.chr${i}.bam}" \
+    --bai "${infile/.bam/.sort-c.rm.chr${i}.bam.bai}" \
+    --outdir "${dir_data}" \
+    --chunk 100000 \
+    --mated FALSE \
+    --unmated TRUE \
+    --ambiguous TRUE \
+    --trans TRUE \
+    --duplicated TRUE \
+    --singleton TRUE \
+    --tally TRUE \
+    --remove TRUE
+    
+    catQnameList \
+    "${infile/.bam/.sort-c.rm.chr${i}.singleton.txt.gz}" \
+    "${infile/.bam/.sort-c.rm.chr${i}.duplicated.txt.gz}" \
+    "${infile/.bam/.sort-c.rm.chr${i}.combined.txt.gz}"
+
+    excludeQnameReadsPicard \
+    "${infile/.bam/.sort-c.rm.chr${i}.bam}" \
+    "${infile/.bam/.sort-c.rm.chr${i}.combined.txt.gz}" \
+    "${infile/.bam/.sort-c.rm.chr${i}.filtered.bam}"
 done
 
-splitBamByChromosome 4 "${in/.bam/.sort-c.rm.bam}" "chr16"
-indexBam 4 "${in/.bam/.sort-c.rm.chr16.bam}"
+countLinesBam "${infile/.bam/.sort-c.rm.chr18.bam}"  # 3013449
+countLinesBam "${infile/.bam/.sort-c.rm.chr18.filtered.bam}"  # 3013440
 
-splitBamByChromosome 4 "${in/.bam/.sort-c.rm.bam}" "chr15"
-indexBam 4 "${in/.bam/.sort-c.rm.chr15.bam}"
+runFlagstat 4 "${infile/.bam/.sort-c.rm.chr18.bam}"
+runFlagstat 4 "${infile/.bam/.sort-c.rm.chr18.filtered.bam}"
 
-splitBamByChromosome 4 "${in/.bam/.sort-c.rm.bam}" "chr14"
-indexBam 4 "${in/.bam/.sort-c.rm.chr14.bam}"
+h25 "Disteche_sample_13.dedup.mm10.sort-c.rm.chr18.flagstat.txt"
+# 3013449 + 0 in total (QC-passed reads + QC-failed reads)
+# 3013449 + 0 primary
+# 0 + 0 secondary
+# 0 + 0 supplementary
+# 0 + 0 duplicates
+# 0 + 0 primary duplicates
+# 3013449 + 0 mapped (100.00% : N/A)
+# 3013449 + 0 primary mapped (100.00% : N/A)
+# 3013449 + 0 paired in sequencing
+# 1506723 + 0 read1
+# 1506726 + 0 read2
+# 3013449 + 0 properly paired (100.00% : N/A)
+# 3013449 + 0 with itself and mate mapped
+# 0 + 0 singletons (0.00% : N/A)
+# 0 + 0 with mate mapped to a different chr
+# 0 + 0 with mate mapped to a different chr (mapQ>=5)
 
-for i in 14 15 16 17 18 19; do
-    Rscript ./bin/preprocess-with-R.R \
-    -b "${dir_data}/${in/.bam/.sort-c.rm.chr${i}.bam}" \
-    -i "${dir_data}/${in/.bam/.sort-c.rm.chr${i}.bam.bai}" \
-    -m FALSE \
-    -u TRUE \
-    -a TRUE \
-    -t TRUE \
-    -d TRUE \
-    -s TRUE \
-    -r FALSE \
-    -o "${dir_data}"
-done
-
-# -b, --bam         bam infile, including path <chr>
-# -i, --bai         bam index, including path <chr>
-# -c, --chunk       number of records to read into memory at a single
-#                   time <even int> [default: 100000]
-# -m, --mated       save mated read QNAME list in a txt.gz outfile
-#                   <logical> [default: FALSE]
-# -u, --unmated     save unmated read QNAME list in a txt.gz outfile
-#                   <logical> [default: TRUE]
-# -a, --ambiguous   save ambiguous read QNAME list in a txt.gz outfile
-#                   <logical> [default: TRUE]
-# -t, --trans       save trans read QNAME list in a txt.gz outfile
-#                   <logical> [default: TRUE]
-# -d, --duplicated  save duplicate QNAME (i.e., QNAME entries > 2) list
-#                   in a txt.gz outfile <logical> [default: TRUE]
-# -r, --remove      if present, remove outfiles in the outdirectory
-#                   prior to generating outfiles <logical> [default:
-#                   TRUE]
-# -o, --outdir      directory for saving outfile(s), including path
-#                   <chr>
-
-
-# -----------------------------------------------------------------------------
-sortBamByCoordinate 4 "${in}"
-indexBam 4 "${in/.bam/.sort-c.bam}"
-
-removeLowQualityReads 4 "${in/.bam/.sort-c.bam}"
-indexBam 4 "${in/.bam/.sort-c.rm.bam}"
-
-splitBamByChromosome 4 "${in/.bam/.sort-c.rm.bam}" "chr19"
-indexBam 4 "${in/.bam/.sort-c.rm.chr19.bam}"
-
-sortBamByQname 4 "${in/.bam/.sort-c.rm.chr19.bam}"
-
-for i in 19; do
-    Rscript ./bin/preprocess-with-R.R \
-    -b "${dir_data}/${in/.bam/.sort-c.rm.chr${i}.bam}" \
-    -i "${dir_data}/${in/.bam/.sort-c.rm.chr${i}.bam.bai}" \
-    -m FALSE \
-    -u TRUE \
-    -a TRUE \
-    -t TRUE \
-    -d TRUE \
-    -s TRUE \
-    -r FALSE \
-    -o "${dir_data}"
-done
-
-#FIXME Does not work
-python ./bin/filter-qname.py \
---bam_in "${dir_data}/${in/.bam/.sort-c.rm.chr19.sort-n.bam}" \
---txt "${dir_data}/${in/.bam/.sort-c.rm.chr19.singleton.txt.gz}" \
---bam_out "${dir_data}/${in/.bam/.sort-c.rm.chr19.sort-n.test_rm-dup-QNAME.bam}"
-countLinesBam "${dir_data}/${in/.bam/.sort-c.rm.chr19.sort-n.test_rm-dup-QNAME.bam}"  # 2038987
-
-#FIXME Does not work
-python ./bin/filter-qname.py \
---bam_in "${dir_data}/${in/.bam/.sort-c.rm.chr19.sort-n.bam}" \
---txt "${dir_data}/${in/.bam/.sort-c.rm.chr19.singleton.txt}" \
---bam_out "${dir_data}/${in/.bam/.sort-c.rm.chr19.sort-n.test-2_rm-dup-QNAME.bam}"
-countLinesBam "${dir_data}/${in/.bam/.sort-c.rm.chr19.sort-n.test-2_rm-dup-QNAME.bam}"  # 2038987
-
-excludeQnameReadsPicard \
-"${dir_data}/${in/.bam/.sort-c.rm.chr19.bam}" \
-"${dir_data}/${in/.bam/.sort-c.rm.chr19.singleton.txt}" \
-"${dir_data}/${in/.bam/.sort-c.rm.chr19.test-3_rm-dup-QNAME.bam}"
-countLinesBam "${dir_data}/${in/.bam/.sort-c.rm.chr19.test-3_rm-dup-QNAME.bam}"  # 2038984
+h25 "Disteche_sample_13.dedup.mm10.sort-c.rm.chr18.filtered.flagstat.txt"
+# 3013440 + 0 in total (QC-passed reads + QC-failed reads)
+# 3013440 + 0 primary
+# 0 + 0 secondary
+# 0 + 0 supplementary
+# 0 + 0 duplicates
+# 0 + 0 primary duplicates
+# 3013440 + 0 mapped (100.00% : N/A)
+# 3013440 + 0 primary mapped (100.00% : N/A)
+# 3013440 + 0 paired in sequencing
+# 1506720 + 0 read1
+# 1506720 + 0 read2
+# 3013440 + 0 properly paired (100.00% : N/A)
+# 3013440 + 0 with itself and mate mapped
+# 0 + 0 singletons (0.00% : N/A)
+# 0 + 0 with mate mapped to a different chr
+# 0 + 0 with mate mapped to a different chr (mapQ>=5)
 
 
-# -----------------------------------------------------------------------------
+#  mm10_all_with-unique-QNAMEs ------------------------------------------------
 Rscript ./bin/generate-qname-lists.R \
--b "${dir_data}/${in/.bam/.sort-c.rm.bam}" \
--i "${dir_data}/${in/.bam/.sort-c.rm.bam.bai}" \
--m FALSE \
--u TRUE \
--a TRUE \
--t TRUE \
--d TRUE \
--s TRUE \
--r FALSE \
--o "${dir_data}"
+--bam "${infile/.bam/.sort-c.rm.bam}" \
+--bai "${infile/.bam/.sort-c.rm.bam.bai}" \
+--outdir "${dir_data}" \
+--chunk 100000 \
+--mated FALSE \
+--unmated TRUE \
+--ambiguous TRUE \
+--trans TRUE \
+--duplicated TRUE \
+--singleton TRUE \
+--unique TRUE \
+--tally TRUE \
+--remove TRUE
 
-# [1] "Started: Using Rsamtools to load in 'Disteche_sample_13.dedup.CAST.sort-c.rm.bam' and 'Disteche_sample_13.dedup.CAST.sort-c.rm.bam.bai', and reading various fields such as 'qname' into memory in chunks of 100,000 records per iteration of while loop."
-#
-# [1] "Counting the number of records in Disteche_sample_13.dedup.CAST.sort-c.rm.bam..."
-# [1] "Number of records: 80,638,866"
-#
-# 200000  300000  400000  500000  600000  700000  800000  900000  1000000  1100000  1200000  1300000  1400000  1500000  1600000  1700000  1800000  1900000  2000000  2100000  2200000  2300000  2400000  2500000  2600000  2700000  2800000  2900000  3000000  3100000  3200000  3300000  3400000  3500000  3600000  3700000  3800000  3900000  4000000  4100000  4200000  4300000  4400000  4500000  4600000  4700000  4800000  4900000  5000000  5100000  5200000  5300000  5400000  5500000  5600000  5700000  5800000  5900000  6000000  6100000  6200000  6300000  6400000  6500000  6600000  6700000  6800000  6900000  7000000  7100000  7200000  7300000  7400000  7500000  7600000  7700000  7800000  7900000  8000000  8100000  8200000  8300000  8400000  8500000  8600000  8700000  8800000  8900000  9000000  9100000  9200000  9300000  9400000  9500000  9600000  9700000  9800000  9900000  10000000  10100000  10200000  10300000  10400000  10500000  10600000  10700000  10800000  10900000  11000000  11100000  11200000  11300000  11400000  11500000  11600000  11700000  11800000  11900000  12000000  12100000  12200000  12300000  12400000  12500000  12600000  12700000  12800000  12900000  13000000  13100000  13200000  13300000  13400000  13500000  13600000  13700000  13800000  13900000  14000000  14100000  14200000  14300000  14400000  14500000  14600000  14700000  14800000  14900000  15000000  15100000  15200000  15300000  15400000  15500000  15600000  15700000  15800000  15900000  16000000  16100000  16200000  16300000  16400000  16500000  16600000  16700000  16800000  16900000  17000000  17100000  17200000  17300000  17400000  17500000  17600000  17700000  17800000  17900000  18000000  18100000  18200000  18300000  18400000  18500000  18600000  18700000  18800000  18900000  19000000  19100000  19200000  19300000  19400000  19500000  19600000  19700000  19800000  19900000  20000000  20100000  20200000  20300000  20400000  20500000  20600000  20700000  20800000  20900000  21000000  21100000  21200000  21300000  21400000  21500000  21600000  21700000  21800000  21900000  22000000  22100000  22200000  22300000  22400000  22500000  22600000  22700000  22800000  22900000  23000000  23100000  23200000  23300000  23400000  23500000  23600000  23700000  23800000  23900000  24000000  24100000  24200000  24300000  24400000  24500000  24600000  24700000  24800000  24900000  25000000  25100000  25200000  25300000  25400000  25500000  25600000  25700000  25800000  25900000  26000000  26100000  26200000  26300000  26400000  26500000  26600000  26700000  26800000  26900000  27000000  27100000  27200000  27300000  27400000  27500000  27600000  27700000  27800000  27900000  28000000  28100000  28200000  28300000  28400000  28500000  28600000  28700000  28800000  28900000  29000000  29100000  29200000  29300000  29400000  29500000  29600000  29700000  29800000  29900000  30000000  30100000  30200000  30300000  30400000  30500000  30600000  30700000  30800000  30900000  31000000  31100000  31200000  31300000  31400000  31500000  31600000  31700000  31800000  31900000  32000000  32100000  32200000  32300000  32400000  32500000  32600000  32700000  32800000  32900000  33000000  33100000  33200000  33300000  33400000  33500000  33600000  33700000  33800000  33900000  34000000  34100000  34200000  34300000  34400000  34500000  34600000  34700000  34800000  34900000  35000000  35100000  35200000  35300000  35400000  35500000  35600000  35700000  35800000  35900000  36000000  36100000  36200000  36300000  36400000  36500000  36600000  36700000  36800000  36900000  37000000  37100000  37200000  37300000  37400000  37500000  37600000  37700000  37800000  37900000  38000000  38100000  38200000  38300000  38400000  38500000  38600000  38700000  38800000  38900000  39000000  39100000  39200000  39300000  39400000  39500000  39600000  39700000  39800000  39900000  40000000  40100000  40200000  40300000  40400000  40500000
-# [1] "Lines in unmated.txt.gz: 114"
-# [1] "Lines in ambiguous.txt.gz: 2"
-# [1] "Lines in duplicated.txt.gz: 20"
-# [1] "Lines in singleton.txt.gz: 110"
-#
-# [1] "Completed: Using Rsamtools to load in 'Disteche_sample_13.dedup.CAST.sort-c.rm.bam' and 'Disteche_sample_13.dedup.CAST.sort-c.rm.bam.bai', reading into memory various fields such as 'qname', then writing out txt.gz files for QNAMEs."
-
-list=(
-    "Disteche_sample_13.dedup.CAST.sort-c.rm.unmated.txt.gz"
-    "Disteche_sample_13.dedup.CAST.sort-c.rm.ambiguous.txt.gz"
-    "Disteche_sample_13.dedup.CAST.sort-c.rm.duplicated.txt.gz"
-    "Disteche_sample_13.dedup.CAST.sort-c.rm.singleton.txt.gz"
-)
-for i in "${list[@]}"; do gzip -dk "${i}"; done
-
-unset list2
-typeset list2=(
-    "Disteche_sample_13.dedup.CAST.sort-c.rm.unmated.txt"
-    "Disteche_sample_13.dedup.CAST.sort-c.rm.ambiguous.txt"
-    "Disteche_sample_13.dedup.CAST.sort-c.rm.duplicated.txt"
-    "Disteche_sample_13.dedup.CAST.sort-c.rm.singleton.txt"
-)
-
-for i in "${list2[@]}"; do echo "${i}: $(countLines "${i}")"; echo ""; done
-
-for i in "${list2[@]}"; do
-    for j in "${list2[@]}"; do
-        {
-            echo -e "----------------------------------------"
-            echo -e "${i}: $(countLines "${i}")"
-            echo -e "${j}: $(countLines "${j}")"
-            echo -e "\n"
-
-            echo -e "--------------------"
-            echo "diff: ${i} vs. ${j}"
-            diff "${i}" "${j}"
-            echo -e "\n"
-            
-            echo -e "--------------------"
-            echo -e "performReverseDiff: ${j} in ${i}"
-            performReverseDiff "${i}" "${j}"
-        } \
-        > "${i%.txt}-vs-${j%.txt}.diff.txt"
-    done
-done
-
-rm "diff.txt"
-
-
-# -----------------------------------------------------------------------------
-cat \
-"${dir_data}/${in/.bam/.sort-c.rm.singleton.txt.gz}" \
-"${dir_data}/${in/.bam/.sort-c.rm.duplicated.txt.gz}" \
-> "${dir_data}/${in/.bam/.sort-c.rm.combined.txt.gz}"
-
-gzip -dk "${dir_data}/${in/.bam/.sort-c.rm.combined.txt.gz}"
+combineQnameList \
+"${infile/.bam/.sort-c.rm.singleton.txt.gz}" \
+"${infile/.bam/.sort-c.rm.duplicated.txt.gz}" \
+"${infile/.bam/.sort-c.rm.combined.txt.gz}"
 
 excludeQnameReadsPicard \
-"${dir_data}/${in/.bam/.sort-c.rm.bam}" \
-"${dir_data}/${in/.bam/.sort-c.rm.combined.txt}" \
-"${dir_data}/${in/.bam/.sort-c.rm.clean.bam}"
+"${infile/.bam/.sort-c.rm.bam}" \
+"${infile/.bam/.sort-c.rm.combined.txt.gz}" \
+"${infile/.bam/.sort-c.rm.filtered.bam}"
 
-countLinesBam "${dir_data}/${in/.bam/.sort-c.rm.bam}"  # 80638866
-countLinesBam "${dir_data}/${in/.bam/.sort-c.rm.clean.bam}"  # 80638668
-countLines "${dir_data}/${in/.bam/.sort-c.rm.combined.txt}"  # 130
-echo $(( 80638668 + 130 ))  # 80638798
-echo $(( 80638866 - 80638668 ))  # 198
+countLinesBam "${infile/.bam/.sort-c.rm.bam}"  # 85513712
+countLinesBam "${infile/.bam/.sort-c.rm.filtered.bam}"  # 85513504
+
+runFlagstat 4 "${infile/.bam/.sort-c.rm.bam}"
+runFlagstat 4 "${infile/.bam/.sort-c.rm.filtered.bam}"
+
+h25 "${infile/.bam/.sort-c.rm.flagstat.txt}"
+# 85513712 + 0 in total (QC-passed reads + QC-failed reads)
+# 85513712 + 0 primary
+# 0 + 0 secondary
+# 0 + 0 supplementary
+# 0 + 0 duplicates
+# 0 + 0 primary duplicates
+# 85513712 + 0 mapped (100.00% : N/A)
+# 85513712 + 0 primary mapped (100.00% : N/A)
+# 85513712 + 0 paired in sequencing
+# 42756850 + 0 read1
+# 42756862 + 0 read2
+# 85513712 + 0 properly paired (100.00% : N/A)
+# 85513712 + 0 with itself and mate mapped
+# 0 + 0 singletons (0.00% : N/A)
+# 0 + 0 with mate mapped to a different chr
+# 0 + 0 with mate mapped to a different chr (mapQ>=5)
+
+h25 "${infile/.bam/.sort-c.rm.filtered.flagstat.txt}"
+# 85513504 + 0 in total (QC-passed reads + QC-failed reads)
+# 85513504 + 0 primary
+# 0 + 0 secondary
+# 0 + 0 supplementary
+# 0 + 0 duplicates
+# 0 + 0 primary duplicates
+# 85513504 + 0 mapped (100.00% : N/A)
+# 85513504 + 0 primary mapped (100.00% : N/A)
+# 85513504 + 0 paired in sequencing
+# 42756754 + 0 read1
+# 42756750 + 0 read2
+# 85513504 + 0 properly paired (100.00% : N/A)
+# 85513504 + 0 with itself and mate mapped
+# 0 + 0 singletons (0.00% : N/A)
+# 0 + 0 with mate mapped to a different chr
+# 0 + 0 with mate mapped to a different chr (mapQ>=5)
+
+echo $(( 85513712 - 85513504 ))  # 208
+
+repairBam 4 "${infile/.bam/.sort-c.rm.filtered.bam}"
+# Running repair -d -c on Disteche_sample_13.dedup.mm10.sort-c.rm.filtered.bam...
+# Finished scanning the input file. Processing unpaired reads.
+
+# All finished in 2.15 minutes
+# Total input reads: 85513446 ; Unpaired reads: 0
+sortBamByQnameThenFixmate 4 "${infile/.bam/.sort-c.rm.filtered.bam}"
+
+countLinesBam "${infile/.bam/.sort-c.rm.filtered.bam}"  # 85513504
+countLinesBam "${infile/.bam/.sort-c.rm.filtered.repair.bam}"  # 85513504
+countLinesBam "${infile/.bam/.sort-c.rm.filtered.fixmate.bam}"  # 85513504
+
+runFlagstat 4 "${infile/.bam/.sort-c.rm.filtered.fixmate.bam}"
+h25 "${infile/.bam/.sort-c.rm.filtered.fixmate.flagstat.txt}"
+# 85513504 + 0 in total (QC-passed reads + QC-failed reads)
+# 85513504 + 0 primary
+# 0 + 0 secondary
+# 0 + 0 supplementary
+# 0 + 0 duplicates
+# 0 + 0 primary duplicates
+# 85513504 + 0 mapped (100.00% : N/A)
+# 85513504 + 0 primary mapped (100.00% : N/A)
+# 85513504 + 0 paired in sequencing
+# 42756754 + 0 read1
+# 42756750 + 0 read2
+# 85493298 + 0 properly paired (99.98% : N/A)
+# 85513504 + 0 with itself and mate mapped
+# 0 + 0 singletons (0.00% : N/A)
+# 19120 + 0 with mate mapped to a different chr
+# 19120 + 0 with mate mapped to a different chr (mapQ>=5)
+
+#NOTE 1/4 So, filtering with the combined.txt.gz file apparently did not remove
+#NOTE 2/4 all of the duplicated entries: Why? Is it because, for duplicated
+#NOTE 3/4 QNAMEs, I reduced instances of any QNAME to one, and so only one of
+#NOTE 4/4 of the duplicates is being filtered out?
+
+decompressGzip "${infile/.bam/.sort-c.rm.singleton.txt.gz}"
+decompressGzip "${infile/.bam/.sort-c.rm.duplicated.txt.gz}"
+decompressGzip "${infile/.bam/.sort-c.rm.combined.txt.gz}"
+
+cat "${infile/.bam/.sort-c.rm.singleton.txt}"  # 108
+cat "${infile/.bam/.sort-c.rm.duplicated.txt}"  # 24
+cat "${infile/.bam/.sort-c.rm.combined.txt}"  # 132
+cat "${infile/.bam/.sort-c.rm.combined.txt}" | uniq  # 132
+
+
+#  mm10_all_with-all-QNAMEs ---------------------------------------------------
+Rscript ./bin/generate-qname-lists.R -h
+
+Rscript ./bin/generate-qname-lists.R \
+--bam "${infile/.bam/.sort-c.rm.bam}" \
+--bai "${infile/.bam/.sort-c.rm.bam.bai}" \
+--outdir "${dir_data}" \
+--chunk 100000 \
+--mated FALSE \
+--unmated TRUE \
+--ambiguous TRUE \
+--trans TRUE \
+--duplicated TRUE \
+--singleton TRUE \
+--unique FALSE \
+--tally TRUE \
+--remove TRUE
+
+unset list
+typeset -a list=(
+    "${infile/.bam/.sort-c.rm.ambiguous.txt.gz}"
+    "${infile/.bam/.sort-c.rm.ambiguous-tally.txt.gz}"
+    "${infile/.bam/.sort-c.rm.singleton.txt.gz}"
+    "${infile/.bam/.sort-c.rm.singleton-tally.txt.gz}"
+    "${infile/.bam/.sort-c.rm.duplicated.txt.gz}"
+    "${infile/.bam/.sort-c.rm.duplicated-tally.txt.gz}"
+    "${infile/.bam/.sort-c.rm.unmated.txt.gz}"
+    "${infile/.bam/.sort-c.rm.unmated-tally.txt.gz}"
+)
+for i in "${list[@]}"; do decompressGzip "${i}"; done
+for i in "${list[@]}"; do echo "$(basename "${i}" .gz): $(countLines "$(basename "${i}" .gz)")"; done
+# Disteche_sample_13.dedup.mm10.sort-c.rm.ambiguous.txt:        4
+# Disteche_sample_13.dedup.mm10.sort-c.rm.ambiguous-tally.txt:        4
+# Disteche_sample_13.dedup.mm10.sort-c.rm.singleton.txt:      108
+# Disteche_sample_13.dedup.mm10.sort-c.rm.singleton-tally.txt:      108
+# Disteche_sample_13.dedup.mm10.sort-c.rm.duplicated.txt:       92
+# Disteche_sample_13.dedup.mm10.sort-c.rm.duplicated-tally.txt:       24
+# Disteche_sample_13.dedup.mm10.sort-c.rm.unmated.txt:      112
+# Disteche_sample_13.dedup.mm10.sort-c.rm.unmated-tally.txt:      112
+
+excludeQnameReadsPicard \
+"${infile/.bam/.sort-c.rm.bam}" \
+"${infile/.bam/.sort-c.rm.duplicated.txt.gz}" \
+"${infile/.bam/.sort-c.rm.excl-dup.bam}"
+
+excludeQnameReadsPicard \
+"${infile/.bam/.sort-c.rm.excl-dup.bam}" \
+"${infile/.bam/.sort-c.rm.singleton.txt.gz}" \
+"${infile/.bam/.sort-c.rm.excl-dup-sing.bam}"
+
+countLinesBam "${infile/.bam/.sort-c.rm.bam}"  # 85513712
+countLinesBam "${infile/.bam/.sort-c.rm.excl-dup.bam}"  # 85513612
+countLinesBam "${infile/.bam/.sort-c.rm.excl-dup-sing.bam}"  # 85513504
+
+runFlagstat 4 "${infile/.bam/.sort-c.rm.bam}"
+h25 "${infile/.bam/.sort-c.rm.flagstat.txt}"
+# 85513712 + 0 in total (QC-passed reads + QC-failed reads)
+# 85513712 + 0 primary
+# 0 + 0 secondary
+# 0 + 0 supplementary
+# 0 + 0 duplicates
+# 0 + 0 primary duplicates
+# 85513712 + 0 mapped (100.00% : N/A)
+# 85513712 + 0 primary mapped (100.00% : N/A)
+# 85513712 + 0 paired in sequencing
+# 42756850 + 0 read1
+# 42756862 + 0 read2
+# 85513712 + 0 properly paired (100.00% : N/A)
+# 85513712 + 0 with itself and mate mapped
+# 0 + 0 singletons (0.00% : N/A)
+# 0 + 0 with mate mapped to a different chr
+# 0 + 0 with mate mapped to a different chr (mapQ>=5)
+
+runFlagstat 4 "${infile/.bam/.sort-c.rm.excl-dup.bam}"
+h25 "${infile/.bam/.sort-c.rm.excl-dup.flagstat.txt}"
+# 85513612 + 0 in total (QC-passed reads + QC-failed reads)
+# 85513612 + 0 primary
+# 0 + 0 secondary
+# 0 + 0 supplementary
+# 0 + 0 duplicates
+# 0 + 0 primary duplicates
+# 85513612 + 0 mapped (100.00% : N/A)
+# 85513612 + 0 primary mapped (100.00% : N/A)
+# 85513612 + 0 paired in sequencing
+# 42756800 + 0 read1
+# 42756812 + 0 read2
+# 85513612 + 0 properly paired (100.00% : N/A)
+# 85513612 + 0 with itself and mate mapped
+# 0 + 0 singletons (0.00% : N/A)
+# 0 + 0 with mate mapped to a different chr
+# 0 + 0 with mate mapped to a different chr (mapQ>=5)
+
+runFlagstat 4 "${infile/.bam/.sort-c.rm.excl-dup-sing.bam}"
+h25 "${infile/.bam/.sort-c.rm.excl-dup-sing.flagstat.txt}"
+# 85513504 + 0 in total (QC-passed reads + QC-failed reads)
+# 85513504 + 0 primary
+# 0 + 0 secondary
+# 0 + 0 supplementary
+# 0 + 0 duplicates
+# 0 + 0 primary duplicates
+# 85513504 + 0 mapped (100.00% : N/A)
+# 85513504 + 0 primary mapped (100.00% : N/A)
+# 85513504 + 0 paired in sequencing
+# 42756754 + 0 read1
+# 42756750 + 0 read2
+# 85513504 + 0 properly paired (100.00% : N/A)
+# 85513504 + 0 with itself and mate mapped
+# 0 + 0 singletons (0.00% : N/A)
+# 0 + 0 with mate mapped to a different chr
+# 0 + 0 with mate mapped to a different chr (mapQ>=5)
+
+#NOTE 01  So, filtering with the combined.txt.gz file apparently did not remove
+#NOTE 02  all of the duplicated entries: Why? Is it because, for duplicated
+#NOTE 03  QNAMEs, I reduced instances of any QNAME to one, and so only one of
+#NOTE 04  of the duplicates is being filtered out?
+
+#NOTE 05  I guess this is not the issue; might it be that the file needs to be
+#NOTE 06  queryname-sorted prior to filtering, and the list of QNAMEs to filter
+#NOTE 07  out needs to be lexogrpahically sorted?
+
+#NOTE 08  How does picard FilterSamReads want the file to be sorted prior to
+#NOTE 09  filtering?
+
+sortBamByCoordinate 4 "${infile/.bam/.sort-c.rm.excl-dup-sing.bam}"
+indexBam 4 "${infile/.bam/.sort-c.rm.excl-dup-sing.sort-c.bam}"
+
+Rscript ./bin/generate-qname-lists.R \
+--bam "${infile/.bam/.sort-c.rm.excl-dup-sing.bam}" \
+--bai "${infile/.bam/.sort-c.rm.excl-dup-sing.sort-c.bam}" \
+--outdir "${dir_data}" \
+--chunk 100000 \
+--mated FALSE \
+--unmated TRUE \
+--ambiguous TRUE \
+--trans TRUE \
+--duplicated TRUE \
+--singleton TRUE \
+--unique FALSE \
+--tally TRUE \
+--remove TRUE
+#  [1] "Lines in unmated.txt.gz: 4"
+
+#NOTE 10  It seems the sorting is not an issue... There were some records
+#NOTE 11  unique to unmated, i.e., neither present in duplicated nor in
+#NOTE 12  singleton, that need to be removed too
+
+#NOTE 13  Next step: combine all unique entries in unmated, duplicated, and
+#NOTE 14  singleton, then filter those out of the bam
+
+#NOTE 15  If that works, test with a very, very large file, which should answer
+#NOTE 16  whether the approach is applicable to all files
+
+#NOTE 17  Need to understand why some reads are marked as unmated but are
+#NOTE 18  neither duplicated nor singleton
+
+unset list
+typeset -a list=(
+    Disteche_sample_13.dedup.mm10.sort-c.rm.excl-dup-sing.unmated-tally.txt.gz
+    Disteche_sample_13.dedup.mm10.sort-c.rm.excl-dup-sing.unmated.txt.gz
+)
+for i in "${list[@]}"; do decompressGzip "${i}"; done
+
+retainQnameReadsPicard \
+"${infile/.bam/.sort-c.rm.excl-dup-sing.bam}" \
+"${infile/.bam/.sort-c.rm.excl-dup-sing.unmated.txt.gz}" \
+"${infile/.bam/.sort-c.rm.excl-dup-sing.unmated.bam}"
+
+samtools view "${infile/.bam/.sort-c.rm.excl-dup-sing.unmated.bam}" | h25
+# CGCTCCTTGGGATCATGATAATTGAGGATACTCAGCAACC:2219819760 83  chr5    43781764    42  50M =   43781764    -50 GTCCCGCGAGCGCTCGTCCCAGGCCGCGGCCAGCGCGGGCTCCCGGGACC  F,FFFFF:FFFFF::F,FFF:,,FF:FFFFFF,FFFFFFFFFFF,,,,FF  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:50 YS:i:-6 YT:Z:CP
+# CGCTCCTTGGGATCATGATAATTGAGGATACTCAGCAACC:2219819760 83  chr5    43781764    42  50M =   43781764    -50 GTCCCGCGAGCGCTCGTCCCAGGCCGCGGCCAGCGCGGGCTCCCGGGACC  F,FFFFF:FFFFF::F,FFF:,,FF:FFFFFF,FFFFFFFFFFF,,,,FF  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:50 YS:i:-6 YT:Z:CP
+# GTATGGAGGAATCGGCTTGAGAATGAATAATGCTCAACTC:2214537445 147 chr13   56753228    42  50M =   56753228    -50 GGGCCAGCGCGGCACTTCCCGCCGCCTCCGGCCCGCTAGTGGCGTTGAAC  FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:FFFFFFFFFF:F  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:50 YS:i:-4 YT:Z:CP
+# GTATGGAGGAATCGGCTTGAGAATGAATAATGCTCAACTC:2214537445 147 chr13   56753228    42  50M =   56753228    -50 GGGCCAGCGCGGCACTTCCCGCCGCCTCCGGCCCGCTAGTGGCGTTGAAC  FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:FFFFFFFFFF:F  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:50 YS:i:-4 YT:Z:CP
+# TGGTTACGCTTGACCATCAGTGGACCAAGGCCAAGAGCAA:1262738469 83  chr15   93519563    42  50M =   93519563    -50 AGGGGGCGGTGCTGAGCCTCGAACTCGCGGCCCCACACGCTGGGCTAGGG  ,FFF:FF::,:,FFF:F:FF:FF:F,,FFF:F:FFFFFF:FFFFFFF::F  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:50 YS:i:-3 YT:Z:CP
+# TGGTTACGCTTGACCATCAGTGGACCAAGGCCAAGAGCAA:1262738469 83  chr15   93519563    42  50M =   93519563    -50 AGGGGGCGGTGCTGAGCCTCGAACTCGCGGCCCCACACGCTGGGCTAGGG  ,FFF:FF::,:,FFF:F:FF:FF:F,,FFF:F:FFFFFF:FFFFFFF::F  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:50 YS:i:-3 YT:Z:CP
+# ATAGGAGTTCGATCATGATATGGACCAAGGAAGGTACTAA:457284034  83  chr17   87798590    42  50M =   87798590    -50 ACCGCGGACAGCGCATCGGTGCCGCAGCCTGCGGGTGGGAGGCTCCAGAC  FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:50 YS:i:-3 YT:Z:CP
+# ATAGGAGTTCGATCATGATATGGACCAAGGAAGGTACTAA:457284034  83  chr17   87798590    42  50M =   87798590    -50 ACCGCGGACAGCGCATCGGTGCCGCAGCCTGCGGGTGGGAGGCTCCAGAC  FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:50 YS:i:-3 YT:Z:CP
+
+#NOTE 19  These should definitely be removed...
+
+combineQnameList \
+"${infile/.bam/.sort-c.rm.singleton.txt.gz}" \
+"${infile/.bam/.sort-c.rm.duplicated.txt.gz}" \
+"${infile/.bam/.sort-c.rm.combined.txt.gz}"
+
+decompressGzip "${infile/.bam/.sort-c.rm.combined.txt.gz}"
+decompressGzip "${infile/.bam/.sort-c.rm.unmated.txt.gz}"
+
+#  Get the following code standardized and into a function --------------------
+getUniqueRecords \
+"${infile/.bam/.sort-c.rm.unmated.txt}" \
+"${infile/.bam/.sort-c.rm.combined.txt}" \
+> "${infile/.bam/.sort-c.rm.unmated-unique.txt}"
+
+cat \
+"${infile/.bam/.sort-c.rm.combined.txt}" \
+"${infile/.bam/.sort-c.rm.unmated-unique.txt}" \
+| uniq \
+> "${infile/.bam/.sort-c.rm.combined-final.txt}"
+#  Get the above code standardized and into a function -----------------------
+
+
+excludeQnameReadsPicard \
+"${infile/.bam/.sort-c.rm.bam}" \
+"${infile/.bam/.sort-c.rm.combined-final.txt}" \
+"${infile/.bam/.sort-c.rm.CORRECTED.bam}"
+
+runFlagstat 4 "${infile/.bam/.sort-c.rm.CORRECTED.bam}"
+h25 "${infile/.bam/.sort-c.rm.CORRECTED.flagstat.txt}"
+# 85513496 + 0 in total (QC-passed reads + QC-failed reads)
+# 85513496 + 0 primary
+# 0 + 0 secondary
+# 0 + 0 supplementary
+# 0 + 0 duplicates
+# 0 + 0 primary duplicates
+# 85513496 + 0 mapped (100.00% : N/A)
+# 85513496 + 0 primary mapped (100.00% : N/A)
+# 85513496 + 0 paired in sequencing
+# 42756748 + 0 read1
+# 42756748 + 0 read2
+# 85513496 + 0 properly paired (100.00% : N/A)
+# 85513496 + 0 with itself and mate mapped
+# 0 + 0 singletons (0.00% : N/A)
+# 0 + 0 with mate mapped to a different chr
+# 0 + 0 with mate mapped to a different chr (mapQ>=5)
+
+#  Contrast with...
+runFlagstat 4 "${infile/.bam/.sort-c.rm.bam}"
+h25 "${infile/.bam/.sort-c.rm.flagstat.txt}"
+# 85513712 + 0 in total (QC-passed reads + QC-failed reads)
+# 85513712 + 0 primary
+# 0 + 0 secondary
+# 0 + 0 supplementary
+# 0 + 0 duplicates
+# 0 + 0 primary duplicates
+# 85513712 + 0 mapped (100.00% : N/A)
+# 85513712 + 0 primary mapped (100.00% : N/A)
+# 85513712 + 0 paired in sequencing
+# 42756850 + 0 read1
+# 42756862 + 0 read2
+# 85513712 + 0 properly paired (100.00% : N/A)
+# 85513712 + 0 with itself and mate mapped
+# 0 + 0 singletons (0.00% : N/A)
+# 0 + 0 with mate mapped to a different chr
+# 0 + 0 with mate mapped to a different chr (mapQ>=5)
+
+
+# # -----------------------------------------------------------------------------
+# list=(
+#     "Disteche_sample_13.dedup.CAST.sort-c.rm.unmated.txt.gz"
+#     "Disteche_sample_13.dedup.CAST.sort-c.rm.ambiguous.txt.gz"
+#     "Disteche_sample_13.dedup.CAST.sort-c.rm.duplicated.txt.gz"
+#     "Disteche_sample_13.dedup.CAST.sort-c.rm.singleton.txt.gz"
+# )
+# for i in "${list[@]}"; do gzip -dk "${i}"; done
+#
+# unset list2
+# typeset list2=(
+#     "Disteche_sample_13.dedup.CAST.sort-c.rm.unmated.txt"
+#     "Disteche_sample_13.dedup.CAST.sort-c.rm.ambiguous.txt"
+#     "Disteche_sample_13.dedup.CAST.sort-c.rm.duplicated.txt"
+#     "Disteche_sample_13.dedup.CAST.sort-c.rm.singleton.txt"
+# )
+#
+# for i in "${list2[@]}"; do echo "${i}: $(countLines "${i}")"; echo ""; done
+#
+# for i in "${list2[@]}"; do
+#     for j in "${list2[@]}"; do
+#         {
+#             echo -e "----------------------------------------"
+#             echo -e "${i}: $(countLines "${i}")"
+#             echo -e "${j}: $(countLines "${j}")"
+#             echo -e "\n"
+#
+#             echo -e "--------------------"
+#             echo "performDiff: ${i} vs. ${j}"
+#             performDiff "${i}" "${j}"
+#             echo -e "\n"
+#
+#             echo -e "--------------------"
+#             echo -e "performReverseDiff: ${j} in ${i}"
+#             performReverseDiff "${i}" "${j}"
+#         } \
+#         > "${i%.txt}-vs-${j%.txt}.diff.txt"
+#     done
+# done
+#
+# rm "diff.txt"
+#
+#
+# # -----------------------------------------------------------------------------
+# cat \
+# "${infile/.bam/.sort-c.rm.singleton.txt.gz}" \
+# "${infile/.bam/.sort-c.rm.duplicated.txt.gz}" \
+# > "${infile/.bam/.sort-c.rm.combined.txt.gz}"
+#
+# gzip -dk "${infile/.bam/.sort-c.rm.combined.txt.gz}"
+#
+# excludeQnameReadsPicard \
+# "${infile/.bam/.sort-c.rm.bam}" \
+# "${infile/.bam/.sort-c.rm.combined.txt}" \
+# "${infile/.bam/.sort-c.rm.clean.bam}"
+#
+# countLinesBam "${infile/.bam/.sort-c.rm.bam}"  # 80638866
+# countLinesBam "${infile/.bam/.sort-c.rm.clean.bam}"  # 80638668
+# countLines "${infile/.bam/.sort-c.rm.combined.txt}"  # 130
+# echo $(( 80638668 + 130 ))  # 80638798
+# echo $(( 80638866 - 80638668 ))  # 198
