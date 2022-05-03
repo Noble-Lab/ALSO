@@ -25,45 +25,6 @@ fi
         exit 1
     }
 
-#  Additional functions
-echo_completion_file() {
-    # #TODO Description of function
-    #
-    # :param 1: outpath (chr)
-    # :param 2: step number (int)
-    # :param 3: bam infile (chr)
-    echo "${1}/filter-qnames.step-${2}.$(basename "${3/.bam/.txt}")"
-}
-
-
-echo_completion_message() {
-    # #TODO Description of function
-    #
-    # :param 1: step number (int)
-    echo "Step ${1} completed; moving to next step..."
-}
-
-
-echo_exit_message() {
-    # #TODO Description of function
-    #
-    # :param 1: step number (int)
-    echo "Exiting: Step ${1}."
-}
-
-
-echo_flagstat() {
-    # Echo a filename then print the first 25 lines of the file
-    #
-    # :param 1: file, e.g., a txt file (chr)
-    echo ""
-    echo "${1}"
-    head -25 "${1}"
-}
-
-
-echo_loop() { for i in "${@:-*}"; do echo "${i}"; done; }
-
 
 #  Handle arguments, assign variables -----------------------------------------
 printUsage() {
@@ -262,7 +223,7 @@ else
 fi
 
 
-#  5: Tally number of records in outfiles -------------------------------------
+# #  5: Tally number of records in outfiles -------------------------------------
 unset outfiles
 typeset -a outfiles
 while IFS=" " read -r -d $'\0'; do
@@ -271,24 +232,28 @@ done < <(
     find "${outpath}" \
     -maxdepth 1 \
     -type f \
-    -name "$(basename "${infile/.bam/.rm}").*.txt.gz" \
-    -not -name "*tally*" \
+    \( -name "$(basename "${infile/.bam/.rm}").ambiguous.txt.gz" -o \
+    -name "$(basename "${infile/.bam/.rm}").duplicated.txt.gz" -o \
+    -name "$(basename "${infile/.bam/.rm}").singleton.txt.gz" -o \
+    -name "$(basename "${infile/.bam/.rm}").unmated.txt.gz" \) \
     -print0
 )
 # echo_loop "${outfiles[@]}"; echo ""
 
-if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
-    for i in "${outfiles[@]}"; do
-        echo "$(basename "${i}"): $(zcat < "${i}" | wc -l)"
-    done && \
-    touch "${step_5}"
-elif [[ -f "${step_5}" && -f "${step_4}" ]]; then
-    echo_completion_message 5
-    :
-else
-    echo_exit_message 5
-    exit 1
-fi
+# if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
+#     for i in "${outfiles[@]}"; do
+#         echo "$(basename "${i}"): $(zcat < "${i}" | wc -l)"  #FIXME
+#     done && \
+#     touch "${step_5}"
+# elif [[ -f "${step_5}" && -f "${step_4}" ]]; then
+#     echo_completion_message 5
+#     :
+# else
+#     echo_exit_message 5
+#     exit 1
+# fi
+
+touch "${step_5}"
 
 
 #  6: Combine outfiles into file used for exclusion ---------------------------
@@ -311,17 +276,17 @@ else
 fi
 
 
-#  7: Tally number of records in "to-exclude" file ----------------------------
-if [[ ! -f "${step_7}" && -f "${step_6}" ]]; then
-    gzcat "${outpath}/$(basename "${infile/.bam/.rm}").to-exclude.txt.gz" | wc -l && \
-    touch "${step_7}"
-elif [[ -f "${step_7}" && -f "${step_6}" ]]; then
-    echo_completion_message 7
-    :
-else
-    echo_exit_message 7
-    exit 1
-fi
+# #  7: Tally number of records in "to-exclude" file ----------------------------
+# if [[ ! -f "${step_7}" && -f "${step_6}" ]]; then
+#     gzcat "${outpath}/$(basename "${infile/.bam/.rm}").to-exclude.txt.gz" | wc -l && \
+#     touch "${step_7}"  #FIXME
+# elif [[ -f "${step_7}" && -f "${step_6}" ]]; then
+#     echo_completion_message 7
+#     :
+# else
+#     echo_exit_message 7
+#     exit 1
+# fi
 
 
 #  8: Exclude problematic QNAME reads from bam infile -------------------------

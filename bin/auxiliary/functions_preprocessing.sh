@@ -140,6 +140,45 @@ display_spinning_icon() {
 }
 
 
+echo_completion_file() {
+    # #TODO Description of function
+    #
+    # :param 1: outpath (chr)
+    # :param 2: step number (int)
+    # :param 3: bam infile (chr)
+    echo "${1}/filter-qnames.step-${2}.$(basename "${3/.bam/.txt}")"
+}
+
+
+echo_completion_message() {
+    # #TODO Description of function
+    #
+    # :param 1: step number (int)
+    echo "Step ${1} completed; moving to next step..."
+}
+
+
+echo_exit_message() {
+    # #TODO Description of function
+    #
+    # :param 1: step number (int)
+    echo "Exiting: Step ${1}."
+}
+
+
+echo_flagstat() {
+    # Echo a filename then print the first 25 lines of the file
+    #
+    # :param 1: file, e.g., a txt file (chr)
+    echo ""
+    echo "${1}"
+    head -25 "${1}"
+}
+
+
+echo_loop() { for i in "${@:-*}"; do echo "${i}"; done; }
+
+
 exclude_qname_reads_picard() {
     # Filter a bam infile to exclude reads with QNAMEs listed in a txt file;
     # write the filtered results to a bam outfile
