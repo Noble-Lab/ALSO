@@ -235,10 +235,13 @@ done < <(
     \( -name "$(basename "${infile/.bam/.rm}").ambiguous.txt.gz" -o \
     -name "$(basename "${infile/.bam/.rm}").duplicated.txt.gz" -o \
     -name "$(basename "${infile/.bam/.rm}").singleton.txt.gz" -o \
+    -name "$(basename "${infile/.bam/.rm}").trans.txt.gz" -o \
     -name "$(basename "${infile/.bam/.rm}").unmated.txt.gz" \) \
     -print0
 )
-# echo_loop "${outfiles[@]}"; echo ""
+echo "Number of elements in \${outfiles[@]}: ${#outfiles[@]}"
+echo "Elements in \${outfiles[@]}:"
+echo_loop "${outfiles[@]}"; echo ""
 
 # if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
 #     for i in "${outfiles[@]}"; do
@@ -258,15 +261,19 @@ touch "${step_5}"
 
 #  6: Combine outfiles into file used for exclusion ---------------------------
 if [[ ! -f "${step_6}" && -f "${step_5}" ]]; then
-    if [[ "${#outfiles[@]}" -eq 4 ]]; then
-        combine_gz_qname_lists_return_unique_gzip \
-        "${cluster}" "${outfiles[@]}" \
-        > "${outpath}/$(basename "${infile/.bam/.rm}").to-exclude.txt.gz" && \
-        touch "${step_6}"
-    else
-        echo "Exiting: Step 6: Number of outfiles does not equal 4."
-        exit 1
-    fi
+    # if [[ "${#outfiles[@]}" -eq 4 ]]; then
+    #     combine_gz_qname_lists_return_unique_gzip \
+    #     "${cluster}" "${outfiles[@]}" \
+    #     > "${outpath}/$(basename "${infile/.bam/.rm}").to-exclude.txt.gz" && \
+    #     touch "${step_6}"
+    # else
+    #     echo "Exiting: Step 6: Number of outfiles does not equal 4."
+    #     exit 1
+    # fi
+    combine_gz_qname_lists_return_unique_gzip \
+    "${cluster}" "${outfiles[@]}" \
+    > "${outpath}/$(basename "${infile/.bam/.rm}").to-exclude.txt.gz" && \
+    touch "${step_6}"
 elif [[ -f "${step_6}" && -f "${step_5}" ]]; then
     echo_completion_message 6
     :

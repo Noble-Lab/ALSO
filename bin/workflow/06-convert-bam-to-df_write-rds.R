@@ -120,7 +120,7 @@ ap <- add_argument(
     help = "
     strain name to be appended to rds outfile columns; current options are
     'mm10', 'CAST', 'SPRET', and 'CAROLI' <chr>
-    "
+    "  #TODO Make it user-selected
 )
 ap <- add_argument(
     ap,
