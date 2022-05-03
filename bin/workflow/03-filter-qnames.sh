@@ -89,19 +89,20 @@ printUsage() {
     echo "-c run on GS HPC: \"TRUE\" or \"FALSE\" (logical)"
     echo "-i bam infile, including path (chr)"
     echo "-o path for outfile(s; chr); path will be made if it does not exist"
-    echo "-r remove intermediate files: \"TRUE\" or \"FALSE\" (logical)"
+    # echo "-r remove intermediate files: \"TRUE\" or \"FALSE\" (logical)"
     echo "-p number of cores for parallelization (int >= 1); default: 1"
     exit
 }
 
-while getopts "h:u:c:i:o:r:p:" opt; do
+# while getopts "h:u:c:i:o:r:p:" opt; do
+while getopts "h:u:c:i:o:p:" opt; do
     case "${opt}" in
         h) printUsage ;;
         u) safe_mode="${OPTARG}" ;;
         c) cluster="${OPTARG}" ;;
         i) infile="${OPTARG}" ;;
         o) outpath="${OPTARG}" ;;
-        r) remove="${OPTARG}" ;;
+        # r) remove="${OPTARG}" ;;
         p) parallelize="${OPTARG}" ;;
         *) printUsage ;;
     esac
@@ -111,7 +112,7 @@ done
 [[ -z "${infile}" ]] && printUsage
 [[ -z "${cluster}" ]] && printUsage
 [[ -z "${outpath}" ]] && printUsage
-[[ -z "${remove}" ]] && printUsage
+# [[ -z "${remove}" ]] && printUsage  #TODO Build out code for this...
 [[ -z "${parallelize}" ]] && parallelize=1
 
 
