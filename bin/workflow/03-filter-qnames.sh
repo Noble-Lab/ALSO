@@ -288,6 +288,8 @@ fi
 #     exit 1
 # fi
 
+touch "${step_7}"
+
 
 #  8: Exclude problematic QNAME reads from bam infile -------------------------
 if [[ ! -f "${step_8}" && -f "${step_7}" ]]; then
