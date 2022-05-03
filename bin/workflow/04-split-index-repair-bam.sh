@@ -4,7 +4,6 @@
 #  KA
 
 
-#  Start recording time -------------------------------------------------------
 start="$(date +%s)"
 
 
@@ -533,7 +532,7 @@ end="$(date +%s)"
 run_time="$(echo "${end}" - "${start}" | bc -l)"
 echo ""
 echo "Completed: ${0}"
-echo "${0} run time: ${run_time} seconds."
+echo "Run time: ${run_time} seconds."
 echo ""
 
 exit 0

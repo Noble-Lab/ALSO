@@ -680,8 +680,8 @@ dir.create(file.path(arguments$outdir), showWarnings = FALSE)
 #  Set up variables, environment prior to loading in .bam information... ------
 #+ ...including mate information
 cat(paste0(
-    "Started: Using Rsamtools to load in '", basename(arguments$bam),
-    "' and reading various fields such as 'qname' into memory (in chunks of ",
+    "Using Rsamtools to load in '", basename(arguments$bam),
+    "' and reading fields such as 'qname' into memory (in chunks of ",
     scales::comma(arguments$chunk), " records per iteration).\n"
 ))
 cat("\n")
@@ -771,7 +771,7 @@ cat(paste0("Completed: Processing ", basename(arguments$bam), "\n\n"))
 
 
 #  Count lines in outfiles, report the counts, end the script -----------------
-if(isTRUE(arguments$mated)) {
+if(isTRUE(arguments$mated)) {  #FIXME These calls sometimes throw errors
     countLinesOutfile("m", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$unmated)) {

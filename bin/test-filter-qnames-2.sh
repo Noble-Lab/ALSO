@@ -21,6 +21,7 @@ cd "${dir_base}" ||
 
 . ./bin/auxiliary/functions_preprocessing.sh
 
+
 #  Make test bam files --------------------------------------------------------
 split_bam_chromosome 4 "${f_mm10}" "chr19"
 index_bam 4 "${f_mm10/.bam/.chr19.bam}"
@@ -197,11 +198,64 @@ head -10 "${dir_data}/Disteche_sample_13.dedup.mm10.sort-c.rm.duplicated.txt"
 
 
 #  HPC work -------------------------------------------------------------------
+combine_gz_qname_lists_return_unique_gzip() {
+    # Use zcat on txt.gz infiles to combine, sort, and select unique entries;
+    # txt stream is gzipped
+    #
+    # :param @: QNAME txt.gz infiles, including paths
+    zcat "${@}" | sort -u | gzip
+}
+
+
+#  CAST -------------------------------
 gangliuw_CAST
 cp Disteche_sample_20.dedup.bam /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0501_test-preprocessing-module
 cd /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0501_test-preprocessing-module || ! echo "cd failed"
 mv Disteche_sample_20.dedup.bam Disteche_sample_20.dedup.CAST.bam
 
+. ./bin/auxiliary/functions_preprocessing.sh
+
+dir_data="/net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0501_test-preprocessing-module"
+f_CAST="${dir_data}/Disteche_sample_20.dedup.CAST.bam"
+
+mv "${f_CAST}" "${TMPDIR}" && cd "${TMPDIR}" || ! echo "cd failed."
+
+dir_data="${TMPDIR}"
+f_CAST="${TMPDIR}/Disteche_sample_20.dedup.CAST.bam"
+
+sort_bam_coordinate_samtools_auto 1 "${f_CAST}"
+index_bam 1 "${f_CAST/.bam/.sort-c.bam}"
+
+remove_reads_low_quality_auto 1 "${f_CAST/.bam/.sort-c.bam}"
+index_bam 1 "${f_CAST/.bam/.sort-c.rm.bam}"
+
+Rscript /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/bin/generate-qname-lists.R \
+--bam "${f_CAST/.bam/.sort-c.rm.bam}" \
+--bai "${f_CAST/.bam/.sort-c.rm.bam.bai}" \
+--outdir "${dir_data}" \
+--chunk 100000 \
+--mated FALSE \
+--unmated TRUE \
+--ambiguous TRUE \
+--trans TRUE \
+--duplicated TRUE \
+--singleton TRUE \
+--unique TRUE \
+--tally TRUE \
+--remove TRUE
+
+combine_gz_qname_lists_return_unique_gzip \
+"${f_CAST/.bam/.sort-c.rm}."{ambiguous,duplicated,singleton,unmated}".txt.gz" \
+> "${f_CAST/.bam/.sort-c.rm}.to-exclude.txt.gz"
+
+exclude_qname_reads_picard \
+"${f_CAST/.bam/.sort-c.rm.bam}" \
+"${f_CAST/.bam/.sort-c.rm}.to-exclude.txt.gz" \
+"${f_CAST/.bam/.corrected.bam}" \
+"TRUE"
+
+
+#  mm10 -------------------------------
 gangliuw_mm10
 cp Disteche_sample_20.dedup.bam /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0501_test-preprocessing-module
 cd /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0501_test-preprocessing-module || ! echo "cd failed"
@@ -210,21 +264,20 @@ mv Disteche_sample_20.dedup.bam Disteche_sample_20.dedup.mm10.bam
 . ./bin/auxiliary/functions_preprocessing.sh
 
 dir_data="/net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0501_test-preprocessing-module"
-f_CAST="${dir_data}/Disteche_sample_20.dedup.CAST.bam"
 f_mm10="${dir_data}/Disteche_sample_20.dedup.mm10.bam"
 
-mv "${f_CAST}" "${TMPDIR}" && cd "${TMPDIR}"
-mv "${f_mm10}" "${TMPDIR}" && cd "${TMPDIR}"
+mv "${f_mm10}" "${TMPDIR}" && cd "${TMPDIR}" || ! echo "cd failed."
 
 dir_data="${TMPDIR}"
-f_CAST="${TMPDIR}/Disteche_sample_20.dedup.CAST.bam"
 f_mm10="${TMPDIR}/Disteche_sample_20.dedup.mm10.bam"
 
-sort_bam_coordinate_samtools_auto 1 "${f_CAST}"
-index_bam 1 "${f_CAST/.bam/.sort-c.bam}"
+remove_reads_low_quality_auto 2 "${f_mm10}"
+sort_bam_coordinate_samtools_overwrite_infile 2 "${f_mm10/.bam/.rm.bam}"
+index_bam 2 "${f_mm10/.bam/.rm.bam}"
+
 Rscript /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/bin/generate-qname-lists.R \
---bam "${f_CAST/.bam/.sort-c.bam}" \
---bai "${f_CAST/.bam/.sort-c.bam.bai}" \
+--bam "${f_mm10/.bam/.rm.bam}" \
+--bai "${f_mm10/.bam/.rm.bam.bai}" \
 --outdir "${dir_data}" \
 --chunk 100000 \
 --mated FALSE \
@@ -237,11 +290,50 @@ Rscript /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/bin/generate-qname-lists.
 --tally TRUE \
 --remove TRUE
 
-sort_bam_coordinate_samtools_auto 1 "${f_mm10}"
-index_bam 1 "${f_mm10/.bam/.sort-c.bam}"
-Rscript /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/bin/generate-qname-lists.R \
---bam "${f_mm10/.bam/.sort-c.bam}" \
---bai "${f_mm10/.bam/.sort-c.bam.bai}" \
+combine_gz_qname_lists_return_unique_gzip \
+"${f_mm10/.bam/.rm}."{ambiguous,duplicated,singleton,unmated}".txt.gz" \
+> "${f_mm10/.bam/.rm}.to-exclude.txt.gz"
+
+exclude_qname_reads_picard \
+"${f_mm10/.bam/.rm.bam}" \
+"${f_mm10/.bam/.rm}.to-exclude.txt.gz" \
+"${f_mm10/.bam/.corrected.bam}" \
+"TRUE"
+
+
+#  Local work -----------------------------------------------------------------
+#  CAST -------------------------------
+dir_base="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross"
+dir_data="${dir_base}/data/files_bam"
+f_CAST="${dir_data}/Disteche_sample_1.dedup.CAST.bam"
+f_mm10="${dir_data}/Disteche_sample_1.dedup.mm10.bam"
+
+cd "${dir_base}" || 
+    {
+        echo "Exiting: cd failed. Check on this."
+        # exit 1
+    }
+
+sGrab /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-23/get_unique_fragments/Disteche_sample_1.dedup.bam
+mv Disteche_sample_1.dedup.bam "${f_CAST}"
+
+cd "${dir_base}" || 
+    {
+        echo "Exiting: cd failed. Check on this."
+        # exit 1
+    }
+
+. ./bin/auxiliary/functions_preprocessing.sh
+
+#  Remove low-quality reads, sort, then index
+remove_reads_low_quality_auto 4 "${f_CAST}"
+sort_bam_coordinate_samtools_overwrite_infile 4 "${f_CAST/.bam/.rm.bam}"
+index_bam 4 "${f_CAST/.bam/.rm.bam}"
+
+#  Generate lists of QNAMEs to exclude
+Rscript ./bin/generate-qname-lists.R \
+--bam "${f_CAST/.bam/.rm.bam}" \
+--bai "${f_CAST/.bam/.rm.bam.bai}" \
 --outdir "${dir_data}" \
 --chunk 100000 \
 --mated FALSE \
@@ -253,3 +345,55 @@ Rscript /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/bin/generate-qname-lists.
 --unique TRUE \
 --tally TRUE \
 --remove TRUE
+# Lines in unmated.txt.gz: 
+# Lines in ambiguous.txt.gz: 
+# Lines in duplicated.txt.gz: 
+# Lines in singleton.txt.gz: 
+
+for i in "${f_CAST/.bam/.rm}."{ambiguous,duplicated,singleton,unmated}".txt.gz"; do
+    echo "$(basename ${i}): $(gzcat "${i}" | wc -l)"
+done
+# Disteche_sample_1.dedup.CAST.rm.ambiguous.txt.gz: 2
+# Disteche_sample_1.dedup.CAST.rm.duplicated.txt.gz: 9
+# Disteche_sample_1.dedup.CAST.rm.singleton.txt.gz: 100
+# Disteche_sample_1.dedup.CAST.rm.unmated.txt.gz: 102
+
+#  Is the --duplicate issue fixed?
+gzcat "${f_CAST/.bam/.rm}.duplicated.txt.gz" | less  # Yes
+gzcat "${f_CAST/.bam/.rm}.singleton.txt.gz" | less
+
+combine_gz_qname_lists_return_unique_gzip \
+"${f_CAST/.bam/.rm}."{ambiguous,duplicated,singleton,unmated}".txt.gz" \
+> "${f_CAST/.bam/.rm}.to-exclude.txt.gz"
+
+gzcat "${f_CAST/.bam/.rm}.to-exclude.txt.gz" | wc -l  # 111
+
+exclude_qname_reads_picard \
+"${f_CAST/.bam/.rm.bam}" \
+"${f_CAST/.bam/.rm}.to-exclude.txt.gz" \
+"${f_CAST/.bam/.corrected.bam}"
+
+run_flagstat 2 "${f_CAST}"
+run_flagstat 2 "${f_CAST/.bam/.rm.bam}"
+run_flagstat 2 "${f_CAST/.bam/.corrected.bam}"
+
+h25 "${f_CAST/.bam/.flagstat.txt}" && echo ""
+h25 "${f_CAST/.bam/.rm.flagstat.txt}" && echo ""
+h25 "${f_CAST/.bam/.corrected.flagstat.txt}" && echo ""
+
+
+#  all -------------------------------
+list=(
+    Disteche_sample_1.dedup.CAST.bam
+    Disteche_sample_1.dedup.mm10.bam
+    Disteche_sample_13.dedup.CAST.bam
+    Disteche_sample_13.dedup.mm10.bam
+)
+for i in "${list[@]}"; do
+    bash ./bin/workflow/03-filter-qnames.sh \
+    -u FALSE \
+    -c FALSE \
+    -i ./data/files_bam/"${i}" \
+    -o ./data/files_bam \
+    -p 4
+done

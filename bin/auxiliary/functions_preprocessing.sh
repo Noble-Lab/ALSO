@@ -35,8 +35,21 @@ combine_gz_qname_lists_return_unique_gzip() {
     # Use gzcat on txt.gz infiles to combine, sort, and select unique entries;
     # txt stream is gzipped
     #
-    # :param @: QNAME txt.gz infiles, including paths
-    gzcat "${@}" | sort -u | gzip
+    # :param 1: Set "TRUE" for setting with GNU coreutils installed (logical)
+    # :param @: QNAME txt.gz infiles, including paths    
+    # shellcheck disable=SC2002
+    case "$(echo "${1}" | tr '[:upper:]' '[:lower:]')" in
+        true | t) \
+            zcat "${@}" | sort -u | gzip
+            ;;
+        false | f) \
+            gzcat "${@}" | sort -u | gzip
+            ;;
+        *) \
+            echo "Exiting: Parameter 2 is not \"TRUE\" or \"FALSE\"."
+            return 1
+            ;;
+    esac
 }
 
 
@@ -86,9 +99,21 @@ count_lines_bam() {
 count_lines_gzip() {
     # Count number of records in a file
     #
-    # :param 1: gzipped file, including path (chr)
+    # :param 1: Set "TRUE" for setting with GNU coreutils installed (logical)
+    # :param 2: gzipped file, including path (chr)
     # shellcheck disable=SC2002
-    gzcat "${1}" | wc -l
+    case "$(echo "${1}" | tr '[:upper:]' '[:lower:]')" in
+        true | t) \
+            zcat "${2}" | wc -l
+            ;;
+        false | f) \
+            gzcat "${2}" | wc -l
+            ;;
+        *) \
+            echo "Exiting: Parameter 2 is not \"TRUE\" or \"FALSE\"."
+            return 1
+            ;;
+    esac
 }
 
 
@@ -123,19 +148,38 @@ exclude_qname_reads_picard() {
     # :param 2: name of txt QNAME list, including path (chr)
     # :param 3: name of bam outfile, including path (cannot be same as bam
     #           infile) (chr)
+    # :param 4: use the picard.jar available on the GS grid system (logical)
     start="$(date +%s)"
+    dir_picard="/net/gs/vol3/software/modules-sw/picard/2.26.4/Linux/CentOS7/x86_64"
 
-    picard FilterSamReads \
-    I="${1}" \
-    O="${3}" \
-    READ_LIST_FILE="${2}" \
-    FILTER="excludeReadList" &
-    display_spinning_icon $! \
-    "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")... "
+    case "$(echo "${4}" | tr '[:upper:]' '[:lower:]')" in
+        true | t) \
+            java -jar "${dir_picard}"/picard.jar FilterSamReads \
+            I="${1}" \
+            O="${3}" \
+            READ_LIST_FILE="${2}" \
+            FILTER="excludeReadList" &
+            display_spinning_icon $! \
+            "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")... "
+            ;;
+        false | f) \
+            picard FilterSamReads \
+            I="${1}" \
+            O="${3}" \
+            READ_LIST_FILE="${2}" \
+            FILTER="excludeReadList" &
+            display_spinning_icon $! \
+            "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")... "
+            ;;
+        *) \
+            echo "Exiting: Parameter 4 is not \"TRUE\" or \"FALSE\"."
+            return 1
+            ;;
+    esac
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
-    "Retain reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
+    "Exclude reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
 }
 
 
@@ -460,7 +504,7 @@ remove_reads_low_quality_auto() {
     
     samtools view -@ "${1}" -h -b -f 3 -F 12 -q 30 "${2}" -o "${2/.bam/.rm.bam}" &
     display_spinning_icon $! \
-    "Running samtools view (-f 3 -F 12 -q 30) on $(basename "${2}")... "
+    "Running samtools view -f 3 -F 12 -q 30 on $(basename "${2}")... "
 
     end="$(date +%s)"
     echo ""
@@ -517,15 +561,33 @@ retain_qname_reads_picard() {
     # :param 2: name of txt QNAME list, including path (chr)
     # :param 3: name of bam outfile, including path (chr; cannot be same as bam
     #           infile)
+    # :param 4: use the picard.jar available on the GS grid system (logical)
     start="$(date +%s)"
 
-    picard FilterSamReads \
-    I="${1}" \
-    O="${3}" \
-    READ_LIST_FILE="${2}" \
-    FILTER="includeReadList" &
-    display_spinning_icon $! \
-    "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")"
+    case "$(echo "${4}" | tr '[:upper:]' '[:lower:]')" in
+        true | t) \
+            java -jar "${dir_picard}"/picard.jar FilterSamReads \
+            I="${1}" \
+            O="${3}" \
+            READ_LIST_FILE="${2}" \
+            FILTER="includeReadList" &
+            display_spinning_icon $! \
+            "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")"
+            ;;
+        false | f) \
+            picard FilterSamReads \
+            I="${1}" \
+            O="${3}" \
+            READ_LIST_FILE="${2}" \
+            FILTER="includeReadList" &
+            display_spinning_icon $! \
+            "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")"                        
+            ;;
+        *) \
+            echo "Exiting: Parameter 4 is not \"TRUE\" or \"FALSE\"."
+            return 1
+            ;;
+    esac
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
