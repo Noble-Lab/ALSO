@@ -6,12 +6,19 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 
 ## News and Updates
 
+* 2022-05-02
+  + upload/update test code for debugging the preprocess module
+  + add worflow script `03-filter-qname.sh`, an in-progress shell pipeline to handle the preprocessing
+  + update `README` for using the script
+  + `#TODO` write code for handling intermediate files, e.g., deleting, keeping, etc.
+  + `#TODO` further updates, cleanup of the `README`
+
 * 2022-04-13
   + upload/update test code for debugging the preprocess module
-  + update README for information on running the test code
+  + update `README` for information on running the test code
 
 * 2022-04-08
-  + replace the workflow chart.
+  + replace the workflow chart
   + upload code to debug preprocess module
   
 * 2022-03-27
@@ -46,14 +53,12 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
   + update code for (filter reads with MAPQ < 30; then removing singleton; subread repair.)
 
 * 2022-03-17
-  + add new workflow image.
-  + CX updated get_unique_fragments.py. Kris will test it on duplicates.
-  + After Shendure lab pipeline, we will first filter reads with MAPQ < 30; then removing singleton; (Kris: no need to sort anymore) subread repair. 
+  + add new workflow image
+  + CX updated get_unique_fragments.py. Kris will test it on duplicates
+  + After Shendure lab pipeline, we will first filter reads with MAPQ < 30; then removing singleton; (Kris: no need to sort anymore) subread repair
 
 ## Installation
 
-`#TODO` Need to add later.
-`#TODO` Need to include additional dependencies.
   + [argparser](https://bitbucket.org/djhshih/argparser) = 0.7.1
   + [bedtools](https://bedtools.readthedocs.io/en/latest/) >= 2.29.0
   + [liftOver](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads) >= 366
@@ -62,6 +67,7 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
   + [R](https://www.r-project.org/) >= 4.0
   + [Rsamtools](https://bioconductor.org/packages/release/bioc/html/Rsamtools.html) = 2.8.0
   + [samtools](http://www.htslib.org/) >= 1.13
+  + [scales](https://scales.r-lib.org/) >= 1.1.1
   + [subread](http://subread.sourceforge.net/) = 2.0.1
   + [Tidyverse](https://www.tidyverse.org/) = 1.3.1
 
@@ -95,84 +101,25 @@ done
 
 ```
 
-test code for proprocessing
+test code for proprocessing (`workflow/03-filter-qname.sh`)
 ```{bash preprocess-bam-updated}
-#  Log into cluster node with 6 cores, 12GB memory total available
-qlogin -l mfree=2G -pe serial 6
+#  Call from 2021_kga0_4dn-mouse-cross
+file="Disteche_sample_1.dedup.bam"
+bash ./bin/workflow/03-filter-qnames.sh \
+-u FALSE \
+-c TRUE \
+-i ./data/"${file}" \
+-o ./data \
+-p 4
 
-#  Because there will be a lot of reading from/writing to disk, perform work
-#+ in a "${TMPDIR}"
-cd "${TMPDIR}" || ! echo "cd into \"\${TMPDIR}\" failed. Did you run qlogin to get into a node?"
-
-#  Copy bam infile into "${TMPDIR}"; for example...
-cp "/net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-23/get_unique_fragments/Disteche_sample_6.dedup.bam" . && \
-mv Disteche_sample_6.dedup.bam Disteche_sample_6.dedup.CAST.bam
-
-#  Copy test script into "${TMPDIR}"; for example...
-# cp /path/to/2021_kga0_4dn-mouse-cross/bin/test-preprocessing-gangliuw_2022-0411.sh .
-
-#  Activate conda environment or load UGE modules for samtools and picard, for
-#+ example...
-module load picard/2.26.4
-module load samtools/1.14
-
-#  Run the test script; infile will be read from and outfiles will be written
-#+ to "${TMPDIR}"
-bash ./test-preprocessing-gangliuw_2022-0411.sh -u FALSE -i ./Disteche_sample_6.dedup.CAST.bam -o . -p 6
-
-#  When the script is finished (will ~2 hours), copy infile/outfiles to non-TMPDIR
-#+ directory (files on "${TMPDIR}" will be removed when you log off the node);
-#+ for example...
-cp *.{bam,txt,gz} /path/to/2021_kga0_4dn-mouse-cross/bin/results/kga0/2022-0413_test-preprocessing-gangliuw
-
-
-#  Help information for test-preprocessing-gangliuw_2022-0411.sh
-test-preprocessing-gangliuw_2022-0411.sh -h
-
-# test-preprocessing-gangliuw_2022-0411.sh:
-# Run bam file through the steps of the test 2021_kga0_4dn-mouse-cross
-# preprocessing module as of 2022-0411-0413.
-# 
-# Preprocessing is made up of the following steps:
-#     1. QNAME-sort bam file output by the Shendure-Lab pipeline (this
-#        is not necessary but speeds up the following step
-#        considerably)
-#     2. Identify QNAMEs with >2 entries in the bam file (this step is
-#        slow; there's likely room for optimization)
-#     3. Create a bam file comprised of only duplicated QNAME entries
-#        (this step is optional; it's not strictly necessary)
-#     4. Filter bam file to exclude QNAMEs with >2 entries by
-#        (a) coordinate-sorting the QNAME-sorted bam file and
-#        (b) filtering the coordinate-sorted bam file with picard
-#            FilterSamReads (picard FilterSamReads takes only
-#            coordinate-sorted bam files as input; also, picard
-#            FilterSamReads is exponentially faster than filtering
-#            with grep)
-#     5. QNAME-sort the filtered bam file; then, to update flag
-#        information in the bam file, perform samtools fixmate on the
-#        bam file
-#     6. Prior to filtering out reads based on pairing status and MAPQ
-#        values, sort by coordinate again
-#     7. Filter out reads based on pairing status and MAPQ: Run
-#        samtools view with flags -f 3 -F 12 -q 30
-#     8. Sort bam by QNAME and perform samtools fixmate to update flag
-#        information again
-#     9. Coordinate-sort and index the processed bam file, which
-#        should now be ready for the subsequent module
-# 
-# Dependencies:
-#     - picard >= 2.26.4
-#     - samtools >= 1.13
-# 
-# Arguments:
-#     -h <print this help message and exit>
-#     -u <use safe mode: "TRUE" or "FALSE" (logical)>
-#     -i <bam infile, including path (chr)>
-#     -o <directory for outfile, including path (chr)>
-#     -p <number of cores for parallelization (int >= 1); default: 1>
+#  -u is for "safe mode" (set -Eeuxo)
+#+ -c is for whether using on the GS HPC or not (T or F)
+#+ -i is for infile
+#+ -o is for outpath
+#+ -p is for number of cores for parallelization (for calls to samtools)
 ```
 
-This pipeline takes as input two paired parental bam files (strain 1 assembly and strain 2 assembly) that have been sorted, subject to duplicate removal, and outputs a 3D tensor: (Cell, Allele, Category), where Category can be one of the ["paternal","maternal","ambiguous"].
+This pipeline takes as input two paired parental bam files (strain 1 assembly and strain 2 assembly) that have been sorted, subject to duplicate removal, and outputs ~~a 3D tensor: (Cell, Allele, Category), where Category can be one of the ["paternal","maternal","ambiguous"].~~
 
 1. Split the bam file by chromosome and liftOver to mm10 (if not mm10).
    +  Split the bam file by chromosome.
@@ -187,6 +134,7 @@ Here, we use the downsampled mm10/CAST data as an example:
 
 ### 1. Split bam infile by chromosome; index and "repair" split bam files; and if not mm10, then generate bed files for needed for liftOver.
 
+`#TODO` Update the below
 ```{bash split-index-repair-bam}
 #  Call script from the repo's home directory, 2021_kga0_4dn-mouse-cross
 
@@ -252,7 +200,7 @@ bash bin/workflow/04-split-index-repair-bam.sh \
 ```
 
 ### 2. Lift coordinates over from the initial alignment-strain coordinates (e.g., "CAST-EiJ" coordinates) to "mm10" coordinates (if not mm10)
-
+`#TODO` Remove this section; this processing is only needed for cases in which QNAMEs are not properly labeled
 ```{bash lift-strain-to-mm10}
 #  Call script from the repo's home directory, 2021_kga0_4dn-mouse-cross
 #  (Requirement: GNU Parallel should be in your "${PATH}"; install it if not)
@@ -302,6 +250,7 @@ parallel --header : -k -j 4 \
 ```
 
 ### 3. Create R dataset for subsequent allele-assignment
+`#TODO` Update to handle memory issues in progress
 ```{Rscript convert-bam-to-df_join-bed_write-rds}
 dir_data="./data"
 dir_in="${dir_data}/2022-0320_test_04-05_all"
@@ -333,7 +282,8 @@ Rscript bin/workflow/06-convert-bam-to-df_join-bed_write-rds.R \
 
 ### 4. Allele-assignment based on alignment scores
 `#TODO #INPROGRESS`
+`#TODO` Update to handle memory issues in progress
 
 ```{R liftover}
-R CMD 05-AS.R?
+#INPROGRESS
 ```

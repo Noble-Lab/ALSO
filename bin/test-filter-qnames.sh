@@ -350,9 +350,9 @@ h25 "${infile/.bam/.sort-c.rm.excl-dup-sing.flagstat.txt}"
 #NOTE 03  QNAMEs, I reduced instances of any QNAME to one, and so only one of
 #NOTE 04  of the duplicates is being filtered out?
 
-#NOTE 05  I guess this is not the issue; might it be that the file needs to be
-#NOTE 06  queryname-sorted prior to filtering, and the list of QNAMEs to filter
-#NOTE 07  out needs to be lexogrpahically sorted?
+#NOTE 05  I guess the above is not the issue; might it be that the file needs 
+#NOTE 06  to be queryname-sorted prior to filtering, and the list of QNAMEs to
+#NOTE 07  filter out needs to be lexogrpahically sorted?
 
 #NOTE 08  How does picard FilterSamReads want the file to be sorted prior to
 #NOTE 09  filtering?
@@ -376,7 +376,7 @@ Rscript ./bin/generate-qname-lists.R \
 --remove TRUE
 #  [1] "Lines in unmated.txt.gz: 4"
 
-#NOTE 10  It seems the sorting is not an issue... There were some records
+#NOTE 10  It seems that sorting is not an issue... There were some records
 #NOTE 11  unique to unmated, i.e., neither present in duplicated nor in
 #NOTE 12  singleton, that need to be removed too
 
@@ -388,6 +388,10 @@ Rscript ./bin/generate-qname-lists.R \
 
 #NOTE 17  Need to understand why some reads are marked as unmated but are
 #NOTE 18  neither duplicated nor singleton
+
+#NOTE 19  They seem to from mate pairs in which the other member of the pair
+#NOTE 20  was filtered out, leaving behind reads that wuould be marked as
+#NOTE 21 duplicates if these were data from single-end sequencing
 
 unset list
 typeset -a list=(
@@ -411,7 +415,7 @@ samtools view "${infile/.bam/.sort-c.rm.excl-dup-sing.unmated.bam}" | h25
 # ATAGGAGTTCGATCATGATATGGACCAAGGAAGGTACTAA:457284034  83  chr17   87798590    42  50M =   87798590    -50 ACCGCGGACAGCGCATCGGTGCCGCAGCCTGCGGGTGGGAGGCTCCAGAC  FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:50 YS:i:-3 YT:Z:CP
 # ATAGGAGTTCGATCATGATATGGACCAAGGAAGGTACTAA:457284034  83  chr17   87798590    42  50M =   87798590    -50 ACCGCGGACAGCGCATCGGTGCCGCAGCCTGCGGGTGGGAGGCTCCAGAC  FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  AS:i:0  XN:i:0  XM:i:0  XO:i:0  XG:i:0  NM:i:0  MD:Z:50 YS:i:-3 YT:Z:CP
 
-#NOTE 19  These should definitely be removed...
+#NOTE 22  These should definitely be removed...
 
 combineQnameList \
 "${infile/.bam/.sort-c.rm.singleton.txt.gz}" \
@@ -421,7 +425,9 @@ combineQnameList \
 decompressGzip "${infile/.bam/.sort-c.rm.combined.txt.gz}"
 decompressGzip "${infile/.bam/.sort-c.rm.unmated.txt.gz}"
 
+#  ----------------------------------------------------------------------------
 #  Get the following code standardized and into a function --------------------
+#  ----------------------------------------------------------------------------
 getUniqueRecords \
 "${infile/.bam/.sort-c.rm.unmated.txt}" \
 "${infile/.bam/.sort-c.rm.combined.txt}" \
@@ -432,8 +438,9 @@ cat \
 "${infile/.bam/.sort-c.rm.unmated-unique.txt}" \
 | uniq \
 > "${infile/.bam/.sort-c.rm.combined-final.txt}"
+#  ----------------------------------------------------------------------------
 #  Get the above code standardized and into a function -----------------------
-
+#  ----------------------------------------------------------------------------
 
 excludeQnameReadsPicard \
 "${infile/.bam/.sort-c.rm.bam}" \

@@ -4,11 +4,17 @@
 #  KA
 
 
+script <- "generate-qname-lists.R"
+time_start <- Sys.time()
+cat(paste0(script, " started: ", time_start, "\n"))
+
+
 #  Functions ------------------------------------------------------------------
 checkLibraryAvailability <- function(x) {
-    # Check that library is available in environment; return a message if not
+    # Check that library is available in environment; stop and return a message
+    # if not
     # 
-    # :param x: name (string) for library to check (chr)
+    # :param x: name of library to check (chr)
     ifelse(
         nzchar(system.file(package = as.character(x))),
         "",
@@ -22,24 +28,24 @@ checkLibraryAvailability <- function(x) {
 }
 
 
-#FIXME
-# convertSecondsToHMS <- function(x) {
-#     # #TODO Description of function
-#     #
-#     # :param x: number of seconds (int)
-#     # :return y: #TODO
-#     days <- round(x %/% (60 * 60 * 24))
-#     hours <- round((x - days * 60 * 60 * 24) %/% (60 * 60))
-#     minutes <- round((x - (days * 60 * 60 * 24) - (hours * 60 * 60)) %/% 60)
-#     seconds <- round(x - (days * 60 * 60 * 24) - (hours * 60 * 60) - (minutes * 60))
-#     str_days <- ifelse(days == 0, "", paste0(days, "d:"))
-#     str_hours <- ifelse((hours == 0 & days == 0), "", paste0(hours, "h:"))
-#     str_minutes <- ifelse((minutes == 0 & days == 0 & hours == 0), "", paste0(minutes, "m:"))
-#     str_seconds <- paste0(seconds, "s")
-#     # y <- paste0(str_days, str_hours, str_minutes, str_seconds)
-#     y <- paste0(str_hours, str_minutes, str_seconds)
-#     return(y)
-# }
+convertTimeToHMS <- function(x, y) {
+    # #TODO Description of function
+    #
+    # :param x: start time (POSIXct)
+    # :param y: end time  (POSIXct)
+    # :return: #TODO
+    dsec <- as.numeric(difftime(y, x, unit = "secs"))
+    hours <- floor(dsec / 3600)
+    minutes <- floor((dsec - 3600 * hours) / 60)
+    seconds <- dsec - (3600 * hours) - (60 * minutes)
+    paste0(
+        sapply(
+            c(hours, minutes, seconds),
+            function(x) formatC(x, width = 2, format = "d", flag = "0")
+        ),
+        collapse = ":"
+    )
+}
 
 
 countLinesOutfile <- function(x, y, z) {
@@ -70,7 +76,7 @@ countLinesOutfile <- function(x, y, z) {
             ),
             intern = TRUE
         )
-        return(print(paste0("Lines in ", status, ".txt.gz: ", lines)))
+        return(cat(paste0("Lines in ", status, ".txt.gz: ", lines, "\n")))
     }
 }
 
@@ -185,11 +191,11 @@ writeDuplicatedQnames <- function(x, y, z) {
         dplyr::rename("qname" = ".") %>%
         dplyr::filter(n > 2)
 
-    if(isFALSE(y)) {
+    if(isTRUE(y)) {
         b <- x$qname[x$qname %in% a$qname]
         if(length(b) != 0) {
             readr::write_tsv(
-                as.data.frame(b),
+                as.data.frame(unique(b)),  #CHECK Does use of unique() here solve the problem?
                 paste0(
                     arguments$outdir, "/",
                     gsub(
@@ -201,7 +207,7 @@ writeDuplicatedQnames <- function(x, y, z) {
                 append = TRUE
             )
         }
-    } else {
+    } else if(isFALSE(y)) {
         if(nrow(a) != 0) {
             readr::write_tsv(
                 as.data.frame(a$qname),
@@ -266,9 +272,9 @@ writeMatedQnames <- function(x, y, z, a) {
     if(x[x$mate_status == y, 2] != 0) {
         qnames <- pertinent[pertinent$mate_status == y, ]$qname
         readr::write_tsv(
-            if(isFALSE(z)) {
+            if(isTRUE(z)) {
                 as.data.frame(unique(qnames))
-            } else {
+            } else if(isFALSE(z)) {
                 as.data.frame(qnames)
             },
             paste0(
@@ -324,7 +330,7 @@ writeSingletonQnames <- function(x, y, z) {
         dplyr::filter(n == 1)
 
     if(nrow(a) != 0) {
-        if(isFALSE(y)) {
+        if(isTRUE(y)) {
             b <- x$qname[x$qname %in% a$qname]
             if(length(b) != 0) {
                 readr::write_tsv(
@@ -340,7 +346,7 @@ writeSingletonQnames <- function(x, y, z) {
                     append = TRUE
                 )
             }
-        } else {
+        } else if(isFALSE(y)) {
             readr::write_tsv(
                 as.data.frame(a$qname),
                 paste0(
@@ -395,7 +401,7 @@ writeTransMates <- function(x, y, z) {
             dplyr::as_tibble() %>%
             dplyr::rename("qname" = ".")
         
-        if(isFALSE(y)) {
+        if(isTRUE(y)) {
             a <- x$qname[x$qname %in% a$qname]
             if(length(a) != 0) {
                 readr::write_tsv(
@@ -411,7 +417,7 @@ writeTransMates <- function(x, y, z) {
                     append = TRUE
                 )
             }
-        } else {
+        } else if(isFALSE(y)) {
             readr::write_tsv(
                 # as.data.frame(unique(y$qname)),
                 as.data.frame(y$qname),
@@ -457,8 +463,6 @@ set.seed(24)
 
 
 #  Parse arguments ------------------------------------------------------------
-script <- "generate-qname-lists.R"
-
 #  Create a parser
 ap <- arg_parser(
     name = script,
@@ -468,7 +472,7 @@ ap <- arg_parser(
         to output 'mated' 'unmated', 'ambiguous', 'duplicated', 'trans'
         (interchromosomal), and 'singleton' QNAME lists; in addition to lists
         of QNAMEs, the user has an option to output lists of unique QNAMEs with
-        associated tallies as well.
+        associated tallies.
     ",
     hide.opts = TRUE
 )
@@ -567,8 +571,8 @@ ap <- add_argument(
     type = "logical",
     default = FALSE,
     help = "
-        for txt.gz outfile(s), save unique QNAME entries, not all QNAME entries
-        <logical>
+        for txt.gz outfile(s), save unique QNAME entries (if FALSE, save all
+        QNAME entries) <logical>
     "
 )
 ap <- add_argument(
@@ -604,8 +608,8 @@ if(isTRUE(test_in_RStudio)) {
     # dir_data <- "results/kga0/2022-0416-0418_test-preprocessing-module"
     dir_data <- "data/files_bam"
     dir_in_out <- paste0(dir_proj, "/", dir_data)
-    bam <- "Disteche_sample_13.dedup.mm10.sort-c.rm.bam"
-    bai <- "Disteche_sample_13.dedup.mm10.sort-c.rm.bam.bai"
+    bam <- "Disteche_sample_13.dedup.mm10.sort-c.rm.chr19.bam"
+    bai <- "Disteche_sample_13.dedup.mm10.sort-c.rm.chr19.bam.bai"
     chunk <- 100000
     mated <- FALSE
     unmated <- TRUE
@@ -675,26 +679,26 @@ dir.create(file.path(arguments$outdir), showWarnings = FALSE)
 
 #  Set up variables, environment prior to loading in .bam information... ------
 #+ ...including mate information
-print(paste0(
-    "Started: Using Rsamtools to load in '", basename(arguments$bam),
-    "' and reading various fields such as 'qname' into memory (in chunks of ",
-    scales::comma(arguments$chunk), " records per iteration)."
+cat(paste0(
+    "Using Rsamtools to load in '", basename(arguments$bam),
+    "' and reading fields such as 'qname' into memory (in chunks of ",
+    scales::comma(arguments$chunk), " records per iteration).\n"
 ))
 cat("\n")
 
 #  Record the number of records in a chunk; tally and record the total number
 #+ of records in the bam file
-print(paste0(
-    "Counting the number of records in ", basename(arguments$bam), "..."
+cat(paste0(
+    "Counting the number of records in ", basename(arguments$bam), "...\n"
 ))
 rec_n <- as.integer(arguments$chunk)
 rec_total <- countRecords(arguments$bam)
-print(paste0("Number of records: ", scales::comma(rec_total)))
+cat(paste0("Number of records: ", scales::comma(rec_total), "\n"))
 cat("\n")
 
 #  Remove already-created outfiles in outdirectory (optional)
 if(isTRUE(arguments$remove)) {
-    print(paste0("If present, removing outfiles in the outdirectory..."))
+    cat(paste0("If present, removing outfiles in the outdirectory...\n"))
     removeOutfiles(arguments$outdir, basename(arguments$bam))
     cat("\n")
 }
@@ -708,10 +712,14 @@ open(bam)
 if(isTRUE(arguments$tally)) tally <- TRUE else tally <- FALSE
 if(isTRUE(arguments$unique)) uniq <- TRUE else uniq <- FALSE
 
-time_start <- Sys.time()
-cat((2 * rec_n), " ")
 #  Iterate through bam file in chunks
-while(rec_n < (rec_total / 2) + arguments$chunk) {
+cat(paste0("Started: Processing ", basename(arguments$bam), "\n"))
+n <- ceiling((rec_total / 2) / rec_n) %>% as.integer()
+bar <- utils::txtProgressBar(min = 0, max = n, initial = 0, style = 3)
+
+for(i in 1:n) {
+# cat((2 * rec_n), " ")
+# while(rec_n < (rec_total / 2) + arguments$chunk) {
     #  Load in pertinent bam fields
     if(isTRUE(arguments$trans)) {
         pertinent <- loadFields("t", bam)
@@ -752,15 +760,18 @@ while(rec_n < (rec_total / 2) + arguments$chunk) {
         writeTransMates(pertinent, uniq, tally)
     }
 
-    rec_n <- rec_n + arguments$chunk
-    cat((2 * rec_n), " ")
+    utils::setTxtProgressBar(bar, i)
+    # rec_n <- rec_n + arguments$chunk
+    # cat((2 * rec_n), " ")
 }
 close(bam)
+rm(i)
 cat("\n")
+cat(paste0("Completed: Processing ", basename(arguments$bam), "\n\n"))
 
 
 #  Count lines in outfiles, report the counts, end the script -----------------
-if(isTRUE(arguments$mated)) {
+if(isTRUE(arguments$mated)) {  #FIXME These calls sometimes throw errors
     countLinesOutfile("m", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$unmated)) {
@@ -781,6 +792,7 @@ if(isTRUE(arguments$trans)) {
 
 time_end <- Sys.time()
 cat("\n")
-print(paste0("Script completed."))
+cat(paste0(script, " completed: ", time_end, "\n"))
+print(convertTimeToHMS(time_start, time_end))
 cat("\n\n")
 rm(time_start, time_end)
