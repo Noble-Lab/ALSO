@@ -5,6 +5,44 @@
 
 
 #  Functions ------------------------------------------------------------------
+checkLibraryAvailability <- function(x) {
+    # Check that library is available in environment; stop and return a message
+    # if not
+    # 
+    # :param x: name of library to check (chr)
+    ifelse(
+        nzchar(system.file(package = as.character(x))),
+        "",
+        stop(paste0(
+            "Library '", x, "' was not found. Check on this: ",
+            "Did you load a module for ", x,"? ",
+            "Are you in the correct environment? ",
+            "Do you need to install '", x, "' in the current environment?"
+        ))
+    )
+}
+
+
+convertTimeToHMS <- function(x, y) {
+    # #TODO Description of function
+    #
+    # :param x: start time (POSIXct)
+    # :param y: end time  (POSIXct)
+    # :return: #TODO
+    dsec <- as.numeric(difftime(y, x, unit = "secs"))
+    hours <- floor(dsec / 3600)
+    minutes <- floor((dsec - 3600 * hours) / 60)
+    seconds <- dsec - (3600 * hours) - (60 * minutes)
+    paste0(
+        sapply(
+            c(hours, minutes, seconds),
+            function(x) formatC(x, width = 2, format = "d", flag = "0")
+        ),
+        collapse = ":"
+    )
+}
+
+
 evaluateOperation <- function(x) {
     # Evaluate a string as an R operation
     # 
@@ -80,7 +118,10 @@ collapseMatesIntoOneRow <- function(x, y) {
 
 
 #  Source libraries, adjust settings ------------------------------------------
-importLibrary(c("argparser", "Rsamtools", "tidyverse"))
+libraries <- c("argparser", "Rsamtools", "tidyverse")
+for(i in 1:length(libraries)) checkLibraryAvailability(libraries[i])
+importLibrary(libraries)
+rm(i, libraries)
 
 options(pillar.sigfig = 8, scipen = 10000)
 set.seed(24)
@@ -155,44 +196,57 @@ ap <- add_argument(
     help = "write rds file for ambiguous reads <logical>"
 )
 
-# #  Parse the command line arguments
-# dir_base <- "."
-# dir_data <- "data"
-# dir_in <- paste0(
-#     dir_base, "/", dir_data, "/", "2022-0404_prepare_test-datasets_mm10-CAST"
-# )
-# dir_out <- paste0(
-#     dir_base, "/", dir_data, "/", "2022-0404_prepare_test-datasets_mm10-CAST"
-# )
-# bam <- paste0(dir_in, "/", "Disteche_sample_6.dedup.mm10.prepro.chr19.repair.bam")
-# bai <- paste0(dir_in, "/", "Disteche_sample_6.dedup.mm10.prepro.chr19.bam.bai")
-# # pos <- paste0(dir_in, "/", "")
-# # mpos <- paste0(dir_in, "/", "")
-# strain <- "CAST"
-# mated <- TRUE
-# unmated <- TRUE
-# ambiguous <- TRUE
-# # rds <- "Disteche_sample_6.dedup.mm10.prepro.chr19.rds"
-# cl <- c(
-#     "--bam", bam,
-#     "--bai", bai,
-#     # "--pos", pos,
-#     # "--mpos", mpos,
-#     "--strain", strain,
-#     "--outdir", dir_out,
-#     # "--rds", rds
-#     "--mated", mated,
-#     "--unmated", unmated,
-#     "--ambiguous", ambiguous
-# )
-# arguments <- parse_args(ap, cl)  # RStudio-interactive work
-arguments <- parse_args(ap)  # Command-line calls
+#  Parse the arguments --------------------------------------------------------
+test_in_RStudio <- FALSE  # Hardcode T for testing in RStudio; F for CLI
+if(isTRUE(test_in_RStudio)) {
+    #  RStudio-interactive work
+    dir_base <- "."
+    dir_data <- "data"
+    dir_in <- paste0(
+        dir_base, "/", dir_data, "/", "2022-0404_prepare_test-datasets_mm10-CAST"
+    )
+    dir_out <- paste0(
+        dir_base, "/", dir_data, "/", "2022-0404_prepare_test-datasets_mm10-CAST"
+    )
+    bam <- paste0(dir_in, "/", "Disteche_sample_6.dedup.mm10.prepro.chr19.repair.bam")
+    bai <- paste0(dir_in, "/", "Disteche_sample_6.dedup.mm10.prepro.chr19.bam.bai")
+    # pos <- paste0(dir_in, "/", "")
+    # mpos <- paste0(dir_in, "/", "")
+    strain <- "CAST"
+    mated <- TRUE
+    unmated <- TRUE
+    ambiguous <- TRUE
+    # rds <- "Disteche_sample_6.dedup.mm10.prepro.chr19.rds"
+    cl <- c(
+        "--bam", bam,
+        "--bai", bai,
+        # "--pos", pos,
+        # "--mpos", mpos,
+        "--strain", strain,
+        "--outdir", dir_out,
+        # "--rds", rds
+        "--mated", mated,
+        "--unmated", unmated,
+        "--ambiguous", ambiguous
+    )
+    arguments <- parse_args(ap, cl)
+    rm(
+        ambiguous, ap, bam, bai, cl, dir_base, dir_data,
+        dir_in, dir_out, mated, strain, unmated
+    )
+} else if(isFALSE(test_in_RStudio)) {
+    #  Command-line calls
+    arguments <- parse_args(ap)
+    rm(ap)
+} else {
+    stop(paste0(
+        "Stopping: Variable 'test_in_RStudio' is not properly set. ",
+        "'test_in_RStudio' should be hardcoded as either TRUE or FALSE."
+    ))
+}
+rm(test_in_RStudio)
 
-# # rm(dir_base, dir_data, dir_in, dir_out, bam, bai, rds, ap)
-# rm(
-#     ambiguous, ap, bam, bai, cl, dir_base, dir_data,
-#     dir_in, dir_out, mated, strain, unmated
-# )
+
 
 
 #  Check that files exist -----------------------------------------------------
