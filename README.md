@@ -1,10 +1,16 @@
 # 2021_kga0_4dn-mouse-cross
 
-### KA Allele Segregation Pipeline
+### ALSO ALlele SegregatiOn Pipeline
 
-This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles of origin based on alignment scores.
+This ALSO pipeline is used to segregate sci-ATAC-seq alignments to parental alleles of origin based on alignment scores.
 
 ## News and Updates
+
+* 2022-05-04
+ + `#TODO` Gang will test on the one sample from mm10, one sample from CAST.
+ + `#TODO` Kris will test on the largest bam we have.
+ + Bill will figure out the space of vol6, and we will store all the future results in vol6.
+ + update the workflow according to Kris's newest preprocess module (4 steps).
 
 * 2022-05-02
   + upload/update test code for debugging the preprocess module
@@ -73,7 +79,7 @@ This pipeline is used to segregate sci-ATAC-seq alignments to parental alleles o
 
 ## Workflow
 
-![plot](AlleleSegregation-04-20-2022.png)
+![plot](AlleleSegregation-05-04-2022.png)
 
 The user needs to run the following steps to prepare the input for KA's pipeline:
 1. Demux. ([Example Code 1](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/01-demux.sh))
