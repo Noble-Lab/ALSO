@@ -1,0 +1,76 @@
+## KA new preprocess module
+# 05.04.2022
+
+qlogin -l mfree=12G -pe serial 4 #,cuda=1,gpgpu=TRUE
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-05-03-preprocess
+module add samtools/1.14
+
+
+######################
+## set up to vol6 ####
+######################
+
+cd /net/noble/vol6
+# mkdir /net/noble/vol6/user/gangliuw/mouse-cross/results
+# mkdir /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-05-04
+# mkdir /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-05-04/CAST-EiJ-preprocessed
+# mkdir /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-05-04/mm10-preprocessed
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-05-03-preprocess
+ln -s /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-23/ CAST-EiJ
+ln -s /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-21/ mm10
+ln -s /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-05-04 results
+
+##############################
+## download the script #######
+##############################
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-05-03-preprocess
+
+chmod 751 *.sh
+
+filter-qnames.sh  functions_preprocessing.sh
+
+## install 4 R pakcage required for R 4.0
+module add pcre2/10.39
+module add R/4.1.2
+# argparser tidyverse Rsamtools scales
+# all pre-installed
+
+module add samtools/1.14
+
+# #  Call from 2021_kga0_4dn-mouse-cross
+# file="Disteche_sample_1.dedup.bam"
+# bash ./filter-qnames.sh \
+# -u FALSE \
+# -c TRUE \
+# -i ./data/"${file}" \
+# -o ./data \
+# -p 4
+
+# #  -u is for "safe mode" (set -Eeuxo)
+# #+ -c is for whether using on the GS HPC or not (T or F)
+# #+ -i is for infile
+# #+ -o is for outpath
+# #+ -p is for number of cores for parallelization (for calls to samtools)
+
+
+##############################
+## Test on one sample ########
+##############################
+i=6
+strain="CAST-EiJ"
+Job_name="CAST_pre"_$i
+chmod 751 *.sh
+qsub -l mfree=12G -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-05-04-CAST-pre-${i}.submit
+echo "Submitted."
+
+
+
+
+
+
+
+
+######## END ############
