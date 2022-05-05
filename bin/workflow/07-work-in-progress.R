@@ -140,3 +140,61 @@ if(mm10[1] == CAST[1]) {
 
 line.mm10.u <- 
 line.CAST.u <- read.delim(CAST, header = FALSE, skip = 0, nrows = 1) %>% tibble::as_tibble()
+
+
+#  Notes on the logic
+# do lexicographic sort of ♂.AS.txt.gz, ♀.AS.txt.gz
+# 
+# 	♀	♂
+# a	1	1
+# b	2	2
+# c	3	4
+# d	4	5
+# e	5	6
+# f	7	7
+# g	9	10
+# h	10	11
+# ...
+# 
+# line a: match, ∴ do comparison and store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
+# line b: match, ∴ do comparison and store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
+# line c: mismatch, ∴ store 3 in tmp.♀, store 4 in tmp.♂; compare tmp.♀ with tmp.♂, find no matches; move on to next line
+# line d: mismatch, ∴ store 4 in tmp.♀, store 5 in tmp.♂; compare tmp.♀ with tmp.♂, find that 4♀ and 4♂ match, store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
+# line e: mismatch, ∴ store 5 in tmp.♀, store 6 in tmp.♂; compare tmp.♀ with tmp.♂, find that 5♀ and 5♂ match, store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
+# line f: match, ∴ do comparison and store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
+# line g:	mismatch, ∴ store 9 in tmp.♀, store 10 in tmp.♂; compare tmp.♀ with tmp.♂, find no matches; move on to next line
+# line h: mismatch, ∴ store 10 in tmp.♀, store 11 in tmp.♂; compare tmp.♀ with tmp.♂, find that 10♀ and 10♂ match, store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
+# 
+# #  pseudocode
+# read in line a of ♂.AS.txt.gz
+# read in line a of ♀.AS.txt.gz
+# 
+# test if QNAME matches
+# 	if so, do
+# 		AS comparison
+# 			if ♀.AS > ♂.AS, append QNAME to final.♀.txt.gz
+# 			if ♀.AS < ♂.AS, append QNAME to final.♂.txt.gz
+# 			if ♀.AS = ♂.AS, append QNAME to final.⚥.txt.gz
+# 
+# 	if not, do
+# 		append QNAME.♀ to object tmp.♀ (in memory)
+# 		append QNAME.♂ to object tmp.♂ (in memory)
+# 
+# 		test if QNAME in tmp.♀ matches QNAME in tmp.♂
+# 			if so, do
+# 				AS comparison
+# 					if ♀.AS > ♂.AS, append QNAME to final.♀.txt.gz
+# 					if ♀.AS < ♂.AS, append QNAME to final.♂.txt.gz
+# 					if ♀.AS = ♂.AS, append QNAME to final.⚥.txt.gz
+# 
+# 			if not, do
+# 				nothing
+# 
+# read in line b of ♂.AS.txt.gz
+# read in line b of ♀.AS.txt.gz
+# 
+# test if QNAME matches
+# ...
+# 
+# How to handle if lines remain in one file but all lines have been read in the other file?
+# How to handle if, after comparisons between tmp.♀ and tmp.♂, there are no more matches?
