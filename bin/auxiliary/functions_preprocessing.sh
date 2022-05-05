@@ -1,7 +1,6 @@
 #!/bin/bash
 
 
-#TODO User-specified outfiles
 #  Functions ------------------------------------------------------------------
 calculate_run_time() {
     # Calculate run time for chunk of code
@@ -32,24 +31,12 @@ check_dependency() {
 
 
 combine_gz_qname_lists_return_unique_gzip() {
-    # Use gzcat on txt.gz infiles to combine, sort, and select unique entries;
+    # Use zcat on txt.gz infiles to combine, sort, and select unique entries;
     # txt stream is gzipped
     #
-    # :param 1: Set "TRUE" for setting with GNU coreutils installed (logical)
     # :param @: QNAME txt.gz infiles, including paths    
     # shellcheck disable=SC2002
-    case "$(echo "${1}" | tr '[:upper:]' '[:lower:]')" in
-        true | t) \
-            zcat "${@}" | sort -u | gzip
-            ;;
-        false | f) \
-            gzcat "${@}" | sort -u | gzip
-            ;;
-        *) \
-            echo "Exiting: Parameter 2 is not \"TRUE\" or \"FALSE\"."
-            return 1
-            ;;
-    esac
+    zcat "${@}" | sort -u | gzip
 }
 
 
@@ -99,21 +86,9 @@ count_lines_bam() {
 count_lines_gzip() {
     # Count number of records in a file
     #
-    # :param 1: Set "TRUE" for setting with GNU coreutils installed (logical)
-    # :param 2: gzipped file, including path (chr)
+    # :param 1: gzipped file, including path (chr)
     # shellcheck disable=SC2002
-    case "$(echo "${1}" | tr '[:upper:]' '[:lower:]')" in
-        true | t) \
-            zcat "${2}" | wc -l
-            ;;
-        false | f) \
-            gzcat "${2}" | wc -l
-            ;;
-        *) \
-            echo "Exiting: Parameter 2 is not \"TRUE\" or \"FALSE\"."
-            return 1
-            ;;
-    esac
+    zcat "${1}" | wc -l
 }
 
 
@@ -176,6 +151,7 @@ echo_flagstat() {
 }
 
 
+#TODO Write a function description
 echo_loop() { for i in "${@:-*}"; do echo "${i}"; done; }
 
 
@@ -826,4 +802,45 @@ split_bam_chromosome() {
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
     "Run samtools view to create $(basename "${2/.bam/.${3}.bam}")."
+}
+
+
+sort_file_AS() {
+    #TODO Write a description
+    #
+    # :param 1: txt.gz infile, including path
+    # :param 2: txt.gz outfile, including path
+    start="$(date +%s)"
+    
+    sort -k1,1 -k2n <(gunzip -c "${1}") \
+    | gzip \
+    > "${1/.txt.gz/.tmp.txt.gz}" & \
+    display_spinning_icon $! \
+    "Sorting ${1}... "
+    
+    mv -f "${1/.txt.gz/.tmp.txt.gz}" "${2}"
+    
+    end="$(date +%s)"
+    calculate_run_time "${start}" "${end}" \
+    "Run samtools view on $(basename "${1}")."
+}
+
+
+sort_file_AS_overwrite_infile() {
+    #TODO Write a description
+    #
+    # :param 1: txt.gz infile, including path
+    start="$(date +%s)"
+
+    sort -k1,1 -k2n <(gunzip -c "${1}") \
+    | gzip \
+    > "${1/.txt.gz/.tmp.txt.gz}" & \
+    display_spinning_icon $! \
+    "Sorting ${1}... "
+
+    mv -f "${1/.txt.gz/.tmp.txt.gz}" "${1}"
+
+    end="$(date +%s)"
+    calculate_run_time "${start}" "${end}" \
+    "Run samtools view on $(basename "${1}")."
 }

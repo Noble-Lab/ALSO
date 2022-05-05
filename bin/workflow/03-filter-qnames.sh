@@ -31,6 +31,17 @@ printUsage() {
     echo ""
     echo "${0}:"
     echo "Run pipeline to filter problematic QNAMEs from bam file."
+    echo "  - Step 1: Remove low quality reads."
+    echo "  - Step 2: Sort resulting bam."
+    echo "  - Step 3: Index bam."
+    echo "  - Step 4: Identify, write lists of problematic QNAMEs."
+    echo "  - Step 5: Collect lists in an array."
+    echo "  - Step 6: Use array to create a master list of unique QNAMEs."
+    echo "  - Step 7: Using master list, filter problematic QNAMEs from bam."
+    echo "  - Step 8: Run samtools flagstat on bams (optional)."
+    echo "  - Step 9: Sort corrected bam."
+    echo "  - Step 10: Index corrected bam."
+    echo "  - Step 11: Remove intermediate files from outdirectory (optional)."
     echo ""
     echo ""
     echo "Dependencies:"
@@ -50,20 +61,21 @@ printUsage() {
     echo "-c run on GS HPC: \"TRUE\" or \"FALSE\" (logical)"
     echo "-i bam infile, including path (chr)"
     echo "-o path for outfile(s; chr); path will be made if it does not exist"
-    # echo "-r remove intermediate files: \"TRUE\" or \"FALSE\" (logical)"
+    echo "-f run samtools flagstat bams: \"TRUE\" or \"FALSE\" (logical)"
+    echo "-r remove intermediate files: \"TRUE\" or \"FALSE\" (logical)"
     echo "-p number of cores for parallelization (int >= 1); default: 1"
     exit
 }
 
-# while getopts "h:u:c:i:o:r:p:" opt; do
-while getopts "h:u:c:i:o:p:" opt; do
+while getopts "h:u:c:i:o:f:r:p:" opt; do
     case "${opt}" in
         h) printUsage ;;
         u) safe_mode="${OPTARG}" ;;
         c) cluster="${OPTARG}" ;;
         i) infile="${OPTARG}" ;;
         o) outpath="${OPTARG}" ;;
-        # r) remove="${OPTARG}" ;;
+        f) flagstat="${OPTARG}" ;;
+        r) remove="${OPTARG}" ;;
         p) parallelize="${OPTARG}" ;;
         *) printUsage ;;
     esac
@@ -73,7 +85,8 @@ done
 [[ -z "${infile}" ]] && printUsage
 [[ -z "${cluster}" ]] && printUsage
 [[ -z "${outpath}" ]] && printUsage
-# [[ -z "${remove}" ]] && printUsage  #TODO Build out code for this...
+[[ -z "${flagstat}" ]] && printUsage
+[[ -z "${remove}" ]] && printUsage  #TODO Build out code for this...
 [[ -z "${parallelize}" ]] && parallelize=1
 
 
@@ -87,6 +100,8 @@ step_6="$(echo_completion_file "${outpath}" 6 "${infile}")"
 step_7="$(echo_completion_file "${outpath}" 7 "${infile}")"
 step_8="$(echo_completion_file "${outpath}" 8 "${infile}")"
 step_9="$(echo_completion_file "${outpath}" 9 "${infile}")"
+step_10="$(echo_completion_file "${outpath}" 10 "${infile}")"
+step_11="$(echo_completion_file "${outpath}" 11 "${infile}")"
 
 
 #  Check variable assignments -------------------------------------------------
@@ -97,35 +112,23 @@ echo -e "Running ${0}... "
 check_dependency R
 check_dependency samtools
 
-#  Evaluate "${cluster}"
-case "$(echo "${cluster}" | tr '[:upper:]' '[:lower:]')" in
-    true | t) \
-        echo -e "-c: TRUE"
-        :
-        ;;
-    false | f) \
-        echo -e "-c: FALSE"
-        check_dependency picard
-        ;;
+#  Evaluate "${safe_mode}"
+case "$(echo "${safe_mode}" | tr '[:upper:]' '[:lower:]')" in
+    true | t) echo -e "-u: Safe mode is on." && set -Eeuxo pipefail ;;
+    false | f) echo -e "-u: Safe mode is off." ;;
     *) \
-        echo -e "Exiting: -c argument must be \"TRUE\" or \"FALSE\".\n"
-        return 1
+        echo -e "Exiting: -u safe mode argument must be \"TRUE\" or \"FALSE\".\n"
+        exit 1
         ;;
 esac
 
-#  Evaluate "${safe_mode}"
-case "$(echo "${safe_mode}" | tr '[:upper:]' '[:lower:]')" in
-    true | t) \
-        echo -e "-u: Safe mode is on."
-        set -Eeuxo pipefail
-        ;;
-    false | f) \
-        echo -e "-u: Safe mode is off."
-        :
-        ;;
+#  Evaluate "${cluster}"
+case "$(echo "${cluster}" | tr '[:upper:]' '[:lower:]')" in
+    true | t) echo -e "-c: TRUE" ;;
+    false | f)  echo -e "-c: FALSE" && check_dependency picard ;;
     *) \
-        echo -e "Exiting: -u safe-mode argument must be \"TRUE\" or \"FALSE\".\n"
-        exit 1
+        echo -e "Exiting: -c argument must be \"TRUE\" or \"FALSE\".\n"
+        return 1
         ;;
 esac
 
@@ -142,6 +145,26 @@ esac
         echo "-o: Directory ${outpath} does not exist; making the directory."
         mkdir -p "${outpath}"
     }
+
+#  Evaluate "${flagstat}"
+case "$(echo "${flagstat}" | tr '[:upper:]' '[:lower:]')" in
+    true | t) flagstat=1 ;;
+    false | f) flagstat=0 ;;
+    *) \
+        echo -e "Exiting: -f flagstat argument must be \"TRUE\" or \"FALSE\".\n"
+        exit 1
+        ;;
+esac
+
+#  Evaluate "${remove}"
+case "$(echo "${remove}" | tr '[:upper:]' '[:lower:]')" in
+    true | t) remove=1 ;;
+    false | f) remove=0 ;;
+    *) \
+        echo -e "Exiting: -f flagstat argument must be \"TRUE\" or \"FALSE\".\n"
+        exit 1
+        ;;
+esac
 
 #  Check "${parallelize}"
 [[ ! "${parallelize}" =~ ^[0-9]+$ ]] &&
@@ -211,8 +234,10 @@ if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
     --duplicated TRUE \
     --singleton TRUE \
     --unique TRUE \
-    --tally TRUE \
-    --remove TRUE && \
+    --tally FALSE \
+    --remove TRUE & \
+    display_spinning_icon $! \
+    "Running generate-qname-lists.R... "
     touch "${step_4}"
 elif [[ -f "${step_4}" && -f "${step_3}" ]]; then
     echo_completion_message 4
@@ -223,55 +248,54 @@ else
 fi
 
 
-# #  5: Tally number of records in outfiles -------------------------------------
-unset outfiles
-typeset -a outfiles
-while IFS=" " read -r -d $'\0'; do
-    outfiles+=( "${REPLY}" )
-done < <(
-    find "${outpath}" \
-    -maxdepth 1 \
-    -type f \
-    \( -name "$(basename "${infile/.bam/.rm}").ambiguous.txt.gz" -o \
-    -name "$(basename "${infile/.bam/.rm}").duplicated.txt.gz" -o \
-    -name "$(basename "${infile/.bam/.rm}").singleton.txt.gz" -o \
-    -name "$(basename "${infile/.bam/.rm}").trans.txt.gz" -o \
-    -name "$(basename "${infile/.bam/.rm}").unmated.txt.gz" \) \
-    -print0
-)
-echo "Number of elements in \${outfiles[@]}: ${#outfiles[@]}"
-echo "Elements in \${outfiles[@]}:"
-echo_loop "${outfiles[@]}"; echo ""
+#  5: Collect outfiles in an array ------------------------------------------
+if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
+    unset outfiles
+    typeset -a outfiles
+    while IFS=" " read -r -d $'\0'; do
+        outfiles+=( "${REPLY}" )
+    done < <(
+        find "${outpath}" \
+        -maxdepth 1 \
+        -type f \
+        \( -name "$(basename "${infile/.bam/.rm}").ambiguous.txt.gz" -o \
+        -name "$(basename "${infile/.bam/.rm}").duplicated.txt.gz" -o \
+        -name "$(basename "${infile/.bam/.rm}").singleton.txt.gz" -o \
+        -name "$(basename "${infile/.bam/.rm}").trans.txt.gz" -o \
+        -name "$(basename "${infile/.bam/.rm}").unmated.txt.gz" \) \
+        -print0
+    )
+    echo "Number of elements in \${outfiles[@]}: ${#outfiles[@]}"
+    echo "Elements in \${outfiles[@]}:"
+    echo_loop "${outfiles[@]}"; echo ""
+    touch "${step_5}"
+elif [[ -f "${step_5}" && -f "${step_4}" ]]; then
+    unset outfiles
+    typeset -a outfiles
+    while IFS=" " read -r -d $'\0'; do
+        outfiles+=( "${REPLY}" )
+    done < <(
+        find "${outpath}" \
+        -maxdepth 1 \
+        -type f \
+        \( -name "$(basename "${infile/.bam/.rm}").ambiguous.txt.gz" -o \
+        -name "$(basename "${infile/.bam/.rm}").duplicated.txt.gz" -o \
+        -name "$(basename "${infile/.bam/.rm}").singleton.txt.gz" -o \
+        -name "$(basename "${infile/.bam/.rm}").trans.txt.gz" -o \
+        -name "$(basename "${infile/.bam/.rm}").unmated.txt.gz" \) \
+        -print0
+    )
+    echo_completion_message 5
+    :
+else
+    echo_exit_message 5
+    exit 1
+fi
 
-# if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
-#     for i in "${outfiles[@]}"; do
-#         echo "$(basename "${i}"): $(zcat < "${i}" | wc -l)"  #FIXME
-#     done && \
-#     touch "${step_5}"
-# elif [[ -f "${step_5}" && -f "${step_4}" ]]; then
-#     echo_completion_message 5
-#     :
-# else
-#     echo_exit_message 5
-#     exit 1
-# fi
 
-touch "${step_5}"
-
-
-#  6: Combine outfiles into file used for exclusion ---------------------------
+#  6: Combine outfiles into single file used for exclusion --------------------
 if [[ ! -f "${step_6}" && -f "${step_5}" ]]; then
-    # if [[ "${#outfiles[@]}" -eq 4 ]]; then
-    #     combine_gz_qname_lists_return_unique_gzip \
-    #     "${cluster}" "${outfiles[@]}" \
-    #     > "${outpath}/$(basename "${infile/.bam/.rm}").to-exclude.txt.gz" && \
-    #     touch "${step_6}"
-    # else
-    #     echo "Exiting: Step 6: Number of outfiles does not equal 4."
-    #     exit 1
-    # fi
-    combine_gz_qname_lists_return_unique_gzip \
-    "${cluster}" "${outfiles[@]}" \
+    combine_gz_qname_lists_return_unique_gzip "${outfiles[@]}" \
     > "${outpath}/$(basename "${infile/.bam/.rm}").to-exclude.txt.gz" && \
     touch "${step_6}"
 elif [[ -f "${step_6}" && -f "${step_5}" ]]; then
@@ -283,56 +307,92 @@ else
 fi
 
 
-# #  7: Tally number of records in "to-exclude" file ----------------------------
-# if [[ ! -f "${step_7}" && -f "${step_6}" ]]; then
-#     gzcat "${outpath}/$(basename "${infile/.bam/.rm}").to-exclude.txt.gz" | wc -l && \
-#     touch "${step_7}"  #FIXME
-# elif [[ -f "${step_7}" && -f "${step_6}" ]]; then
-#     echo_completion_message 7
-#     :
-# else
-#     echo_exit_message 7
-#     exit 1
-# fi
-
-touch "${step_7}"
-
-
-#  8: Exclude problematic QNAME reads from bam infile -------------------------
-if [[ ! -f "${step_8}" && -f "${step_7}" ]]; then
+#  7: Exclude problematic QNAME reads from bam infile -------------------------
+if [[ ! -f "${step_7}" && -f "${step_6}" ]]; then
     exclude_qname_reads_picard \
     "${infile/.bam/.rm.bam}" \
     "${outpath}/$(basename "${infile/.bam/.rm}").to-exclude.txt.gz" \
     "${outpath}/$(basename "${infile/.bam/.corrected.bam}")" \
     "${cluster}" && \
+    touch "${step_7}"
+elif [[ -f "${step_7}" && -f "${step_6}" ]]; then
+    echo_completion_message 7
+    :
+else
+    echo_exit_message 7
+    exit 1
+fi
+
+
+#  8: Run flagstat on bam in and outfiles (optional) --------------------------
+if [[ ! -f "${step_8}" && -f "${step_7}" ]]; then
+    if [[ "${flagstat}" == 1 ]]; then
+        run_flagstat "${parallelize}" "${infile}"
+        run_flagstat "${parallelize}" "${infile/.bam/.rm.bam}"
+        run_flagstat "${parallelize}" "${outpath}/$(basename "${infile/.bam/.corrected.bam}")"
+
+        echo_flagstat "${infile/.bam/.flagstat.txt}"
+        echo_flagstat "${infile/.bam/.rm.flagstat.txt}"
+        echo_flagstat "${outpath}/$(basename "${infile/.bam/.corrected.flagstat.txt}")"
+        echo ""
+    fi
     touch "${step_8}"
 elif [[ -f "${step_8}" && -f "${step_7}" ]]; then
-    echo_completion_message 8
-    :
+    if [[ "${flagstat}" == 1 ]]; then
+        echo_completion_message 8
+        echo_flagstat "${infile/.bam/.flagstat.txt}"
+        echo_flagstat "${infile/.bam/.rm.flagstat.txt}"
+        echo_flagstat "${outpath}/$(basename "${infile/.bam/.corrected.flagstat.txt}")"
+        echo ""
+    fi
 else
     echo_exit_message 8
     exit 1
 fi
 
 
-#  9: Run flagstat on bam in and outfiles -------------------------------------
+#  9: Sort corrected bam ------------------------------------------------------
 if [[ ! -f "${step_9}" && -f "${step_8}" ]]; then
-    run_flagstat 2 "${infile}"
-    run_flagstat 2 "${infile/.bam/.rm.bam}"
-    run_flagstat 2 "${outpath}/$(basename "${infile/.bam/.corrected.bam}")"
-
-    echo_flagstat "${infile/.bam/.flagstat.txt}"
-    echo_flagstat "${infile/.bam/.rm.flagstat.txt}"
-    echo_flagstat "${outpath}/$(basename "${infile/.bam/.corrected.flagstat.txt}")"
-
+    sort_bam_coordinate_samtools_overwrite_infile \
+    "${parallelize}" \
+    "${outpath}/$(basename "${infile/.bam/.corrected.bam}")" && \
     touch "${step_9}"
 elif [[ -f "${step_9}" && -f "${step_8}" ]]; then
     echo_completion_message 9
-    echo_flagstat "${infile/.bam/.flagstat.txt}"
-    echo_flagstat "${infile/.bam/.rm.flagstat.txt}"
-    echo_flagstat "${outpath}/$(basename "${infile/.bam/.corrected.flagstat.txt}")"
+    :
 else
     echo_exit_message 9
+    exit 1
+fi
+
+
+#  10: Remove unneeded intermediate files (optional) ---------------------------
+if [[ ! -f "${step_10}" && -f "${step_9}" ]]; then
+    index_bam "${parallelize}" "${outpath}/$(basename "${infile/.bam/.corrected.bam}")" && \
+    touch "${step_10}"
+elif [[ -f "${step_10}" && -f "${step_9}" ]]; then
+    echo_completion_message 10
+    :
+else
+    echo_exit_message 10
+    exit 1
+fi
+
+
+#  11: Remove unneeded intermediate files (optional) ---------------------------
+if [[ ! -f "${step_11}" && -f "${step_10}" ]]; then
+    if [[ "${remove}" == 1 ]]; then
+        rm -f \
+        "${outfiles[@]}" \
+        "${infile/.bam/.rm.bam}" \
+        "${infile/.bam/.rm.bam.bai}"
+    fi
+    touch "${step_11}"
+elif [[ -f "${step_11}" && -f "${step_10}" ]]; then
+    echo_completion_message 11
+    :
+else
+    echo_exit_message 11
     exit 1
 fi
 
