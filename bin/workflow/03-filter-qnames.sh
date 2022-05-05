@@ -366,7 +366,7 @@ else
 fi
 
 
-#  10: Remove unneeded intermediate files (optional) ---------------------------
+#  10: Index corrected bam ----------------------------------------------------
 if [[ ! -f "${step_10}" && -f "${step_9}" ]]; then
     index_bam "${parallelize}" "${outpath}/$(basename "${infile/.bam/.corrected.bam}")" && \
     touch "${step_10}"
