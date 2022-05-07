@@ -84,7 +84,7 @@ count_lines_bam() {
 
 
 count_lines_gzip() {
-    # Count number of records in a file
+    # Count number of records in a gzipped file
     #
     # :param 1: gzipped file, including path (chr)
     # shellcheck disable=SC2002
@@ -93,7 +93,7 @@ count_lines_gzip() {
 
 
 decompress_gzip() {
-    # Decompress a gzipped infile without removing said infile
+    # Decompress a gzipped infile without removing the infile
     #
     # :param 1: gzipped infile, including path (chr)
     gzip -dk "${1}"
@@ -195,6 +195,16 @@ exclude_qname_reads_picard() {
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
     "Exclude reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
+}
+
+
+extract_n_lines_gzip_auto() {
+    # Extract n number of records from a gzipped file
+    #
+    # :param 1: gzipped file, including path (chr)
+    # :param 2: number of records to extract (int)
+    # shellcheck disable=SC2002
+    zcat "${1}" | head -n "${2}" | gzip > "${1/.txt.gz/.${2}.txt.gz}"
 }
 
 
