@@ -704,7 +704,7 @@ if(isTRUE(arguments$remove)) {
 }
 
 
-#  Load in, "open" bam file in user-defined chunks; evaluate via while loop ---
+#  Load in, "open" bam file in user-defined chunks; evaluate via for loop -----
 bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = TRUE)
 Rsamtools::yieldSize(bam) <- arguments$chunk
 open(bam)
