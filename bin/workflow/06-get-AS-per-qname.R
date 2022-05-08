@@ -10,7 +10,7 @@ cat(paste0(script, " started: ", time_start, "\n"))
 
 
 #  Functions ------------------------------------------------------------------
-checkLibraryAvailability <- function(x) {
+check_library_availability <- function(x) {
     # Check that library is available in environment; stop and return a message
     # if not
     # 
@@ -28,7 +28,7 @@ checkLibraryAvailability <- function(x) {
 }
 
 
-convertTimeToHMS <- function(x, y) {
+convert_time_HMS <- function(x, y) {
     # #TODO Description of function
     #
     # :param x: start time (POSIXct)
@@ -48,7 +48,7 @@ convertTimeToHMS <- function(x, y) {
 }
 
 
-countRecords <- function(x) {
+count_records <- function(x) {
     # Count number of records in bam file
     # 
     # :param x: bam file, including path (chr)
@@ -59,7 +59,7 @@ countRecords <- function(x) {
 }
 
 
-importLibrary <- function(x) {
+import_library <- function(x) {
     # Suppress messages when loading libraries into the R session
     # 
     # :param x: a vector of libraries <chr>
@@ -73,7 +73,7 @@ importLibrary <- function(x) {
 }
 
 
-loadFields <- function(x, y) {
+load_fields <- function(x, y) {
     # #TODO Description of function
     # 
     # :param x: object of class BamFile
@@ -92,7 +92,7 @@ loadFields <- function(x, y) {
 }
 
 
-collapseMatesIntoOneRow <- function(x, y) {
+collapse_mates_into_one_row <- function(x, y) {
     # Input a dataframe or tibble in which mate pairs ('mate 1' and 'mate 2')
     # are in immediately subsequent rows ('row n' and 'row n + 1'); output a
     # tibble in which the mate pairs ('mate n' and 'mate n + 1') are in a
@@ -134,8 +134,8 @@ collapseMatesIntoOneRow <- function(x, y) {
 
 #  Source libraries, adjust settings ------------------------------------------
 libraries <- c("argparser", "Rsamtools", "scales", "tidyverse")
-for(i in 1:length(libraries)) checkLibraryAvailability(libraries[i])
-importLibrary(libraries)
+for(i in 1:length(libraries)) check_library_availability(libraries[i])
+import_library(libraries)
 rm(i, libraries)
 
 options(pillar.sigfig = 8, scipen = 10000)
@@ -145,7 +145,7 @@ set.seed(24)
 #  Parse arguments ------------------------------------------------------------
 #  Create a parser
 ap <- arg_parser(
-    name = "convert-bam-to-df_write-rds.R",
+    name = script,
     description = "",
     hide.opts = TRUE
 )
@@ -256,7 +256,6 @@ dir.create(file.path(arguments$outdir), showWarnings = FALSE)
 #TODO Print message if new directory is created
 
 
-#  Load in bam information, including mate information ------------------------
 #  Set up variables, environment prior to loading in .bam information... ------
 #+ ...including mate information
 cat(paste0(
@@ -272,7 +271,7 @@ cat(paste0(
     "Counting the number of records in ", basename(arguments$bam), "...\n"
 ))
 rec_n <- as.integer(arguments$chunk)
-rec_total <- countRecords(arguments$bam)
+rec_total <- count_records(arguments$bam)
 cat(paste0("Number of records: ", scales::comma(rec_total), "\n"))
 cat("\n")
 
@@ -290,7 +289,7 @@ bar <- utils::txtProgressBar(min = 0, max = n, initial = 0, style = 3)
 
 for(i in 1:n) {
     #  Using Rsamtools, load in qname, mate_status, and AS fields
-    pertinent <- loadFields(bam)
+    pertinent <- load_fields(bam)
     
     #  Determine which mate_status levels are present in the data, then create
     #+ objects for them
@@ -334,7 +333,7 @@ for(i in 1:n) {
         )
         
         #  Organize mated reads into one row per mate pair
-        pertinent <- collapseMatesIntoOneRow("pertinent", "pos") %>%
+        pertinent <- collapse_mates_into_one_row("pertinent", "pos") %>%
             dplyr::select(-c(qname.even, groupid.odd, groupid.even)) %>%
             dplyr::rename(qname = qname.odd) %>%
             dplyr::select(-c(colnames(.)[3], colnames(.)[5]))
@@ -373,6 +372,6 @@ for(i in 1:n) {
 time_end <- Sys.time()
 cat("\n")
 cat(paste0(script, " completed: ", time_end, "\n"))
-print(convertTimeToHMS(time_start, time_end))
+print(convert_time_HMS(time_start, time_end))
 cat("\n\n")
 rm(time_start, time_end)

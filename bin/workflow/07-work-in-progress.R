@@ -1,9 +1,34 @@
+#!/usr/bin/env Rscript
 
-library("tidyverse")
+#  work-in-progress.R
+#  KA
+
+
+script <- "work-in-progress.R"
+time_start <- Sys.time()
+cat(paste0(script, " started: ", time_start, "\n"))
 
 
 #  Functions ------------------------------------------------------------------
-countRecords <- function(x) {
+check_library_availability <- function(x) {
+    # Check that library is available in environment; stop and return a message
+    # if not
+    # 
+    # :param x: name of library to check (chr)
+    ifelse(
+        nzchar(system.file(package = as.character(x))),
+        "",
+        stop(paste0(
+            "Library '", x, "' was not found. Check on this: ",
+            "Did you load a module for ", x,"? ",
+            "Are you in the correct environment? ",
+            "Do you need to install '", x, "' in the current environment?"
+        ))
+    )
+}
+
+
+count_records <- function(x) {
     # Count number of records in txt.gz file
     # 
     # :param x: txt.gz file, including path (chr)
@@ -14,7 +39,21 @@ countRecords <- function(x) {
 }
 
 
-initializeTibble2 <- function(x) {
+import_library <- function(x) {
+    # Suppress messages when loading libraries into the R session
+    # 
+    # :param x: a vector of libraries <chr>
+    invisible(
+        suppressWarnings(
+            suppressMessages(
+                lapply(x, library, character.only = TRUE, quietly = TRUE)
+            )
+        )
+    )
+}
+
+
+initialize_tibble_2 <- function(x) {
     #TODO Description of function
     #
     # :param x: identifier for sample (chr)
@@ -27,7 +66,7 @@ initializeTibble2 <- function(x) {
 }
 
 
-initializeTibble5 <- function(x, y) {
+initialize_tibble_5 <- function(x, y) {
     #TODO Description of function
     #
     # :param x: identifier for sample #1 (chr)
@@ -44,7 +83,7 @@ initializeTibble5 <- function(x, y) {
 }
 
 
-makeAssignment <- function(x, y) {
+make_assignment <- function(x, y) {
     #TODO Description of function
     #
     # :param x: tibble comprised of the following variables: qname (chr), AS
@@ -62,7 +101,7 @@ makeAssignment <- function(x, y) {
 }
 
 
-readLine <- function(x, y, z) {
+read_line <- function(x, y, z) {
     #TODO Description of function
     #
     # :param x: txt/txt.gz file, including path (chr)
@@ -82,7 +121,7 @@ readLine <- function(x, y, z) {
 }
 
 
-writeList <- function(x, y, z, a) {
+write_list <- function(x, y, z, a) {
     #TODO Description of function
     #
     # :param x: tibble
@@ -97,40 +136,151 @@ writeList <- function(x, y, z, a) {
 }
 
 
-#  Location, variables --------------------------------------------------------
-# dir <- "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross"
-dir <- "/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_bam"
-setwd(dir)
+#  Source libraries, adjust settings ------------------------------------------
+libraries <- c("argparser", "tidyverse")
+for(i in 1:length(libraries)) check_library_availability(libraries[i])
+import_library(libraries)
+rm(i, libraries)
 
-arguments <- list()
-arguments$sample_1 <- paste0(dir, "/Disteche_sample_1.dedup.mm10.corrected.AS.2600.txt.gz")
-arguments$sample_2 <- paste0(dir, "/Disteche_sample_1.dedup.CAST.corrected.AS.2500.txt.gz")
-arguments$string_1 <- "mm10"
-arguments$string_2 <- "CAST"
-arguments$threshold <- 0
-arguments$outdir <- dir
-arguments$outprefix <- unlist(stringr::str_split(basename(arguments$sample_1), "\\."))[1]
-
-count.sample_1 <- countRecords(arguments$sample_1)
-count.sample_2 <- countRecords(arguments$sample_2)
-
-int <- arguments$threshold
+options(pillar.sigfig = 8, scipen = 10000)
+set.seed(24)
 
 
-#  Initialize tibbles for storing values
-sample_1 <- sample_2 <- ambiguous <- AS <- salvage_AS <- initializeTibble5(
-    arguments$string_1,
-    arguments$string_2
+#  Parse arguments ------------------------------------------------------------
+#  Create a parser
+ap <- arg_parser(
+    name = script,
+    description = "",
+    hide.opts = TRUE
 )
 
-mm10 <- alone_1 <- salvage_1 <- initializeTibble2(arguments$string_1)
-CAST <- alone_2 <- salvage_2 <- initializeTibble2(arguments$string_2)
+#  Add command line arguments
+ap <- add_argument(
+    ap,
+    short = "-a",
+    arg = "--sample_1",
+    type = "character",
+    default = NULL,
+    help = "*.AS.txt.gz file for sample 1, including path <chr>"
+)
+ap <- add_argument(
+    ap,
+    short = "-c",
+    arg = "--sample_2",
+    type = "character",
+    default = NULL,
+    help = "*.AS.txt.gz file for sample 2, including path <chr>"
+)
+ap <- add_argument(
+    ap,
+    short = "-b",
+    arg = "--strain_1",
+    type = "character",
+    default = NULL,
+    help = "strain name for sample 1 <chr>"
+)
+ap <- add_argument(
+    ap,
+    short = "-d",
+    arg = "--strain_2",
+    type = "character",
+    default = NULL,
+    help = "strain name for sample 2 <chr>"
+)
+ap <- add_argument(
+    ap,
+    short = "-o",
+    arg = "--outdir",
+    type = "character",
+    default = NULL,
+    help = "directory for saving txt.gz outfiles, including path <chr>"
+)
+ap <- add_argument(
+    ap,
+    short = "-p",
+    arg = "--outprefix",
+    type = "character",
+    default = NULL,
+    help = "prefix for outfiles <chr>"
+)
+ap <- add_argument(
+    ap,
+    short = "-t",
+    arg = "--threshold",
+    type = "integer",
+    default = 0,
+    help = "
+    threshold alignment score; the absolute value of the difference in
+    alignment scores between samples 1 and 2 must be greater than this value in
+    order for a strain-specific assignment to be made; if not, the assignment
+    will be \"ambiguous\" <positive int>
+"
+)
+
+
+#  Parse the arguments --------------------------------------------------------
+test_in_RStudio <- TRUE  # Hardcode T for testing in RStudio; F for CLI
+if(isTRUE(test_in_RStudio)) {
+    #  RStudio-interactive work
+    dir_base <- "."
+    dir_data <- "data"
+    dir_in <- paste0(dir_base, "/", dir_data, "/", "files_bam")
+    dir_out <- paste0(dir_base, "/", dir_data, "/", "files_bam")
+    sample_1 <- paste0(
+        dir_in, "/", "Disteche_sample_1.dedup.mm10.corrected.AS.2600.txt.gz"
+    )
+    sample_2 <- paste0(
+        dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.AS.2500.txt.gz"
+    )
+    strain_1 <- "mm10"
+    strain_2 <- "CAST"
+    threshold <- 0
+    outprefix <- unlist(stringr::str_split(basename(sample_1), "\\."))[1]
+    cl <- c(
+        "--sample_1", sample_1,
+        "--sample_2", sample_2,
+        "--strain_1", strain_1,
+        "--strain_2", strain_2,
+        "--outdir", dir_out,
+        "--outprefix", outprefix,
+        "--threshold", threshold
+    )
+    arguments <- parse_args(ap, cl)
+    rm(
+        sample_1, sample_2, strain_1, strain_2,
+        dir_base, dir_data, dir_in, dir_out,
+        outprefix, threshold
+    )
+} else if(isFALSE(test_in_RStudio)) {
+    #  Command-line calls
+    arguments <- parse_args(ap)
+    rm(ap)
+} else {
+    stop(paste0(
+        "Stopping: Variable 'test_in_RStudio' is not properly set. ",
+        "'test_in_RStudio' should be hardcoded as either TRUE or FALSE."
+    ))
+}
+rm(test_in_RStudio)
+
+
+#  Count lines in samples, initialize tibbles for storing values --------------
+count.sample_1 <- count_records(arguments$sample_1)
+count.sample_2 <- count_records(arguments$sample_2)
+
+sample_1F <- sample_2F <- ambiguous <- AS <- salvage_AS <- initialize_tibble_5(
+    arguments$strain_1,
+    arguments$strain_2
+)
+
+sample_1T <- alone_1 <- salvage_1 <- initialize_tibble_2(arguments$strain_1)
+sample_2T <- alone_2 <- salvage_2 <- initialize_tibble_2(arguments$strain_2)
 
 
 #  Process lines of interest --------------------------------------------------
 n <- pmax(count.sample_1, count.sample_2)
 
-# test.mm10 <- readLine(arguments$sample_1, n - 1, arguments$string_1)
+# test.sample_1T <- read_line(arguments$sample_1, n - 1, arguments$strain_1)
 # n <- 1000L
 bar <- utils::txtProgressBar(min = 0, max = n, initial = 0, style = 3)
 for(i in 1:n) {
@@ -138,37 +288,38 @@ for(i in 1:n) {
     #+ txt.gz file; i.e., don't read in a line number greater than the total
     #+ number of lines in the file
     if(i < count.sample_1) {
-        mm10 <- readLine(arguments$sample_1, i, arguments$string_1)
+        sample_1T <- read_line(arguments$sample_1, i, arguments$strain_1)
     }
     if(i < count.sample_2) {
-        CAST <- readLine(arguments$sample_2, i, arguments$string_2)
+        sample_2T <- read_line(arguments$sample_2, i, arguments$strain_2)
     }
     
     #  Test: Do QNAMEs match on a per-line basis? If they match, then perform
-    #+ logic for AS comparisons (see function makeAssignment()); if not, then
+    #+ logic for AS comparisons (see function make_assignment()); if not, then
     #+ store values in "alone_" variables (further description below)
-    if(mm10[1] == CAST[1]) {
-        AS <- dplyr::bind_cols(mm10, CAST[2]) %>% makeAssignment(., int)
+    if(sample_1T[1] == sample_2T[1]) {
+        AS <- dplyr::bind_cols(sample_1T, sample_2T[2]) %>%
+            make_assignment(., arguments$threshold)
         
-        if(AS[5] == arguments$string_1) {
-            sample_1 <- dplyr::bind_rows(sample_1, AS)
-            writeList(
+        if(AS[5] == arguments$strain_1) {
+            sample_1F <- dplyr::bind_rows(sample_1F, AS)
+            write_list(
                 AS,
                 arguments$outdir,
                 arguments$outprefix,
-                arguments$string_1
+                arguments$strain_1
             )
-        } else if(AS[5] == arguments$string_2) {
-            sample_2 <- dplyr::bind_rows(sample_2, AS)
-            writeList(
+        } else if(AS[5] == arguments$strain_2) {
+            sample_2F <- dplyr::bind_rows(sample_2F, AS)
+            write_list(
                 AS,
                 arguments$outdir,
                 arguments$outprefix,
-                arguments$string_2
+                arguments$strain_2
             )
         } else if(AS[5] == "ambiguous") {
             ambiguous <- dplyr::bind_rows(ambiguous, AS)
-            writeList(
+            write_list(
                 AS,
                 arguments$outdir,
                 arguments$outprefix,
@@ -176,35 +327,35 @@ for(i in 1:n) {
             )
         }
     } else {
-        if(i < count.sample_1) alone_1 <- dplyr::bind_rows(alone_1, mm10)
-        if(i < count.sample_2) alone_2 <- dplyr::bind_rows(alone_2, CAST)
+        if(i < count.sample_1) alone_1 <- dplyr::bind_rows(alone_1, sample_1T)
+        if(i < count.sample_2) alone_2 <- dplyr::bind_rows(alone_2, sample_2T)
         
         #  Attempt to "salvage" unmatched entries
         if(sum(alone_1$qname %in% alone_2$qname) == 1) {
             salvage_1 <- alone_1[alone_1$qname %in% alone_2$qname, ]
             salvage_2 <- alone_2[alone_2$qname %in% alone_1$qname, ]
             salvage_AS <- dplyr::bind_cols(salvage_1, salvage_2[2]) %>%
-                makeAssignment(., int)
+                make_assignment(., arguments$threshold)
             
-            if(salvage_AS[5] == arguments$string_1) {
-                sample_1 <- dplyr::bind_rows(sample_1, salvage_AS)
-                writeList(
+            if(salvage_AS[5] == arguments$strain_1) {
+                sample_1F <- dplyr::bind_rows(sample_1F, salvage_AS)
+                write_list(
                     salvage_AS,
                     arguments$outdir,
                     arguments$outprefix,
-                    arguments$string_1
+                    arguments$strain_1
                 )
-            } else if(salvage_AS[5] == arguments$string_2) {
-                sample_2 <- dplyr::bind_rows(sample_2, salvage_AS)
-                writeList(
+            } else if(salvage_AS[5] == arguments$strain_2) {
+                sample_2F <- dplyr::bind_rows(sample_2F, salvage_AS)
+                write_list(
                     salvage_AS,
                     arguments$outdir,
                     arguments$outprefix,
-                    arguments$string_2
+                    arguments$strain_2
                 )
             } else if(salvage_AS[5] == "ambiguous") {
                 ambiguous <- dplyr::bind_rows(ambiguous, salvage_AS)
-                writeList(
+                write_list(
                     salvage_AS,
                     arguments$outdir,
                     arguments$outprefix,
@@ -236,26 +387,26 @@ for(i in 1:n) {
         #+ with earlier entries of other sample and very unlikely to be with
         #+ later entries in that sample)
         if(i == n) {
-            writeList(
+            write_list(
                 alone_1,
                 arguments$outdir,
                 arguments$outprefix,
-                arguments$string_1
+                arguments$strain_1
             )
-            writeList(
+            write_list(
                 alone_2,
                 arguments$outdir,
                 arguments$outprefix,
-                arguments$string_2
+                arguments$strain_2
             )
         }
     }
     utils::setTxtProgressBar(bar, i)
 }
-mm10
-pryr::object_size(mm10)
-CAST
-pryr::object_size(CAST)
+sample_1T
+pryr::object_size(sample_1T)
+sample_2T
+pryr::object_size(sample_2T)
 AS
 pryr::object_size(AS)
 
@@ -266,10 +417,10 @@ pryr::object_size(alone_2)
 
 ambiguous
 pryr::object_size(ambiguous)
-sample_1
-pryr::object_size(sample_1)
-sample_2
-pryr::object_size(sample_2)
+sample_1F
+pryr::object_size(sample_1F)
+sample_2F
+pryr::object_size(sample_2F)
 
 i
 pryr::object_size(i)
@@ -277,7 +428,7 @@ pryr::object_size(i)
 
 # ###########################################################################
 # #  Just for testing: Add an extra value
-# test <- CAST %>% dplyr::rename(AS.mm10 = AS.CAST)
+# test <- sample_2T %>% dplyr::rename(AS.sample_1T = AS.sample_2T)
 # test[, 2] <- -2
 # alone_1 <- dplyr::bind_rows(alone_1, test)
 # ###########################################################################
@@ -304,9 +455,6 @@ pryr::object_size(i)
 # line 6: match, ∴ do comparison and store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
 # line 7:	mismatch, ∴ store 9 in tmp.♀, store 10 in tmp.♂; compare tmp.♀ with tmp.♂, find no matches; move on to next line
 # line 8: mismatch, ∴ store 10 in tmp.♀, store 11 in tmp.♂; compare tmp.♀ with tmp.♂, find that 10♀ and 10♂ match, store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
-# 
-# 
-
 
 
 #  pseudocode takes in two files as input

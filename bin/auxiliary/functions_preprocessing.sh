@@ -652,6 +652,24 @@ run_flagstat() {
     # :param 2: name of bam infile, including path (chr)
     start="$(date +%s)"
 
+    samtools flagstat -@ "${1}" "${2}" > "${3}" &
+    display_spinning_icon $! \
+    "Running samtools flagstat for $(basename "${2}")... "
+
+    end="$(date +%s)"
+    calculate_run_time "${start}" "${end}" \
+    "Generate flag statistics for $(basename "${2}")."
+}
+
+
+run_flagstat_auto() {
+    # Run samtools flagstat on a bam infile; txt outfile name is derived from
+    # the name of the bam infile
+    # 
+    # :param 1: number of cores for parallelization (int >= 1)
+    # :param 2: name of bam infile, including path (chr)
+    start="$(date +%s)"
+
     samtools flagstat -@ "${1}" "${2}" > "${2/.bam/.flagstat.txt}" &
     display_spinning_icon $! \
     "Running samtools flagstat for $(basename "${2}")... "
