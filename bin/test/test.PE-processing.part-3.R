@@ -599,11 +599,8 @@ operation <- makeOperation(
 evaluateOperation(operation)
 
 
-<<<<<<< HEAD:bin/scraps/test.PE-processing.part-3.R
+
 #  Perform dplyr::bind_rows of the unlifted and lifted .bed files -------------
-=======
-#  Perform a bind-rows of the unlifted and lifted .bed files ------------------
->>>>>>> main:bin/test.PE-processing.part-3.R
 variable_bed <- c(
     "tbl.129.mpos.chrX.bed",
     "tbl.129.pos.chrX.bed",

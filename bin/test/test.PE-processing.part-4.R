@@ -107,10 +107,7 @@ operation <- makeOperation(mm10only(variable), command)
 evaluateOperation(operation)
 
 
-<<<<<<< HEAD:bin/scraps/test.PE-processing.part-4.R
-=======
 #TODO Comment out the following section (see #TODO above)
->>>>>>> main:bin/test.PE-processing.part-4.R
 #  Create $criteria columns from pertinent liftOver values ------------------
 command <- paste0(
     mm10omit(variable), " %>% ",

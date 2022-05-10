@@ -463,11 +463,7 @@ evaluateOperation(command)
 rm(vector_string_tibbles)
 
 
-<<<<<<< HEAD:bin/scraps/test.PE-processing.part-2.R
-#  Create tbl columns denoting lack of alternating, i.e., "discrepancies" -----
-=======
 #  Create tbl columns denoting lack of alternation, i.e., "discrepancies" -----
->>>>>>> main:bin/test.PE-processing.part-2.R
 command <- paste0("VA.", variable)
 operation <- makeOperation(paste0(variable, "$discrepancy"), command)
 evaluateOperation(operation)
@@ -534,12 +530,8 @@ filter.a.ambiguous.dedup.CAST$row_n[c(58419:58429)]
 # [1] 58419 58420 58421 58422 58423 58424 58425 58426 58427 58428 58429
 
 
-<<<<<<< HEAD:bin/scraps/test.PE-processing.part-2.R
-#  Correct filter.a.mated.dedup.129 -------------------------------------------
-=======
 #TODO Some automated way to do the following
 #  Manually correct filter.a.mated.dedup.129 ----------------------------------
->>>>>>> main:bin/test.PE-processing.part-2.R
 desired_order <- paste0("343", c(79, 80, 81, 83, 82, 84))
 discrepancy.filter.a.mated.dedup.129.adjust <-
     discrepancy.filter.a.mated.dedup.129 %>%
