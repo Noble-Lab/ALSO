@@ -292,7 +292,7 @@ if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     Rscript ./generate-qname-lists.R \
     --bam "${out_rm}" \
     --bai "${out_rm_bai}" \
-    --outdir "${outpath}" \
+    --outdir "${TMPDIR}" \
     --chunk 100000 \
     --mated FALSE \
     --unmated TRUE \
