@@ -599,7 +599,11 @@ operation <- makeOperation(
 evaluateOperation(operation)
 
 
+<<<<<<< HEAD:bin/scraps/test.PE-processing.part-3.R
 #  Perform dplyr::bind_rows of the unlifted and lifted .bed files -------------
+=======
+#  Perform a bind-rows of the unlifted and lifted .bed files ------------------
+>>>>>>> main:bin/test.PE-processing.part-3.R
 variable_bed <- c(
     "tbl.129.mpos.chrX.bed",
     "tbl.129.pos.chrX.bed",
@@ -752,6 +756,7 @@ rm(operation)
 #  Sort the tibbles while maintaining mate pairs ------------------------------
 variable_tbl <- paste0("tbl.", c("129", "CAST"))
 
+#TODO Have made the header description into a function; use that function here
 for (i in 1:length(variable_tbl)) {
     #  Sort the tibble of interest by pos while maintaining proper mate pairs
     df <- eval(parse(text = variable_tbl[i]))
