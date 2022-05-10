@@ -507,5 +507,8 @@ pryr::object_size(i)
 #     			if not, do
 #     				nothing
 
+#  Use final lists of QNAMEs with picard filterSamReads to filter bam files
+#+ such that they contain only maternal, paternal, or ambiguous reads
+
 # How to handle if lines remain in one file but all lines have been read in the other file?  #DONE, see code
 # How to handle if, after comparisons between tmp.♀ and tmp.♂, there are no more matches?  #DONE, see code

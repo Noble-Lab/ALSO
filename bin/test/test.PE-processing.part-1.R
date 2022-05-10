@@ -327,12 +327,7 @@ operation <- makeOperation(variable, command)
 evaluateOperation(operation)
 
 
-<<<<<<< HEAD:bin/scraps/test.PE-processing.part-1.R
-#  Prepare for tibble-sorting, deduplicate and mate-label the tibbles ---------
-=======
 #  Prepare for tibble-sorting; deduplicate and mate-label the tibbles ---------
->>>>>>> main:bin/test.PE-processing.part-1.R
-
 #  Set up $criteria, a variable needed for sorting: qname, flag, pos, mpos
 command <- paste0(
     "paste0(",

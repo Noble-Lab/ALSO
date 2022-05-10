@@ -288,7 +288,6 @@ fi
 #  05: Generate lists of QNAMEs to exclude ------------------------------------
 if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     echo -e "Started step 5/13: Generating lists of QNAMEs to exclude from ${out_rm}."
-    echo -e "Running generate-qname-lists.R... "
     Rscript ./generate-qname-lists.R \
     --bam "${out_rm}" \
     --bai "${out_rm_bai}" \
@@ -302,8 +301,16 @@ if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     --singleton TRUE \
     --unique TRUE \
     --tally FALSE \
-    --remove TRUE && \
-    touch "${step_5}" && \
+    --remove TRUE
+    
+    if [[ -f "${TMPDIR}/${out_unmated}" ]]; then
+        touch "${step_5}"
+    else
+        echo -e "There was a problem: ${TMPDIR}/${out_unmated} was not generated."
+        echo -e "Check on this."
+        echo_exit_message 6
+        exit 1
+    fi
     echo -e "Completed step 5/13: Generating lists of QNAMEs to exclude from ${out_rm}.\n"
 elif [[ -f "${step_5}" && -f "${step_4}" ]]; then
     echo_completion_message 5
@@ -372,8 +379,6 @@ elif [[ -f "${step_6}" && -f "${step_5}" ]]; then
         echo -e "Number of elements in \${outfiles[@]}: ${#outfiles[@]}"
         echo -e "Elements in \${outfiles[@]}:"
         echo_loop "${outfiles[@]}"; echo -e ""
-        touch "${step_6}" && \
-        echo -e "Completed step 6/13: Collecting outfiles into an array.\n"
     fi
 
     echo_completion_message 6
@@ -385,27 +390,36 @@ fi
 
 
 #  07: Combine outfiles into one file for excluding problematic QNAME reads ---
-records=$(count_lines_gzip "${out_exclude}" 2> /dev/null)
 if [[ ! -f "${step_7}" && -f "${step_6}" ]]; then
     echo -e "Started step 7/13: Combining outfiles into one file, $(basename "${out_exclude}")."
+    combine_gz_qname_lists_return_unique_gzip "${outfiles[@]}" \
+    > "${out_exclude}" && \
+    touch "${step_7}"
+
+    records=$(count_lines_gzip "${out_exclude}" 2> /dev/null)
     if [[ $(( records )) -eq 0 ]]; then
         echo -e "There was a problem generating $(basename "${out_exclude}"), which"
         echo -e "currently contains $(( records )) lines. Check on this."
         echo_exit_message 7
     else
-        combine_gz_qname_lists_return_unique_gzip "${outfiles[@]}" \
-        > "${out_exclude}" && \
-        touch "${step_7}" && \
+        echo -e "$(basename "${out_exclude}"): $(( records )) lines"
         echo -e "Completed step 7/13: Combining outfiles into one file, $(basename "${out_exclude}").\n"
     fi
 elif [[ -f "${step_7}" && -f "${step_6}" ]]; then
-    if [[ $(( records )) -eq 0 ]]; then
-        echo -e "There was a problem generating $(basename "${out_exclude}"), which"
-        echo -e "currently contains $(( records )) lines. Check on this."
-        echo_exit_message 7
+    if [[ -f "${out_exclude}" ]]; then
+        records=$(count_lines_gzip "${out_exclude}" 2> /dev/null)
+        if [[ $(( records )) -eq 0 ]]; then
+            echo -e "There was a problem generating $(basename "${out_exclude}"), which"
+            echo -e "currently contains $(( records )) lines. Check on this."
+            echo_exit_message 7
+        else
+            echo -e "$(basename "${out_exclude}"): $(( records )) lines"
+            echo_completion_message 7
+            :
+        fi
     else
-        echo_completion_message 7
-        :
+        echo "${out_exclude} is missing. Check on this."
+        echo_exit_message 7
     fi
 else
     echo_exit_message 7
