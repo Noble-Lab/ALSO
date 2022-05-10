@@ -5,7 +5,6 @@
 
 
 time_start="$(date +%s)"
-conda activate pipeline-test_env
 
 
 #  Set working directory and source functions --------------------------------- 
