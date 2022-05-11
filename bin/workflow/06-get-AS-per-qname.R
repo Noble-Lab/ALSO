@@ -28,6 +28,46 @@ check_library_availability <- function(x) {
 }
 
 
+collapse_mates_into_one_row <- function(x, y) {
+    # Input a dataframe or tibble in which mate pairs ('mate 1' and 'mate 2')
+    # are in immediately subsequent rows ('row n' and 'row n + 1'); output a
+    # tibble in which the mate pairs ('mate n' and 'mate n + 1') are in a
+    # single row
+    # 
+    # :param x: tibble/dataframe input (as class character) <chr>
+    # :param y: column in input used to sort tibble output <chr>
+    # :return z: tibble output in which mate pairs comprise one row each
+    if (class(x) != "character") {
+        stop("Exiting: Argument 'x' is not class 'character'.")
+    } else {
+        z <- eval(parse(text = x))
+    }
+    
+    if (class(y) != "character") {
+        stop("Exiting: Argument 'y' should be class 'character'.")
+    }
+
+    odd.seq <- seq(1, nrow(z), 2)
+    even.seq <- (seq(1, nrow(z), 2)) + 1
+    
+    odd <- z[odd.seq, ]
+    even <- z[even.seq, ]
+    
+    odd <- odd %>% dplyr::mutate(groupid = row_number())
+    even <- even %>% dplyr::mutate(groupid = row_number())
+    
+    z <- dplyr::full_join(odd, even, by = "groupid") %>%
+        dplyr::arrange(y) %>%
+        dplyr::rename(groupid.x = groupid)
+    z$groupid.y <- z$groupid.x
+    
+    colnames(z) <- stringr::str_replace_all(colnames(z), "\\.x", "\\.odd")
+    colnames(z) <- stringr::str_replace_all(colnames(z), "\\.y", "\\.even")
+    
+    return(z)
+}
+
+
 convert_time_HMS <- function(x, y) {
     # #TODO Description of function
     #
@@ -92,46 +132,6 @@ load_fields <- function(x, y) {
 }
 
 
-collapse_mates_into_one_row <- function(x, y) {
-    # Input a dataframe or tibble in which mate pairs ('mate 1' and 'mate 2')
-    # are in immediately subsequent rows ('row n' and 'row n + 1'); output a
-    # tibble in which the mate pairs ('mate n' and 'mate n + 1') are in a
-    # single row
-    # 
-    # :param x: tibble/dataframe input (as class character) <chr>
-    # :param y: column in input used to sort tibble output <chr>
-    # :return z: tibble output in which mate pairs comprise one row each
-    if (class(x) != "character") {
-        stop("Exiting: Argument 'x' is not class 'character'.")
-    } else {
-        z <- eval(parse(text = x))
-    }
-    
-    if (class(y) != "character") {
-        stop("Exiting: Argument 'y' should be class 'character'.")
-    }
-
-    odd.seq <- seq(1, nrow(z), 2)
-    even.seq <- (seq(1, nrow(z), 2)) + 1
-    
-    odd <- z[odd.seq, ]
-    even <- z[even.seq, ]
-    
-    odd <- odd %>% dplyr::mutate(groupid = row_number())
-    even <- even %>% dplyr::mutate(groupid = row_number())
-    
-    z <- dplyr::full_join(odd, even, by = "groupid") %>%
-        dplyr::arrange(y) %>%
-        dplyr::rename(groupid.x = groupid)
-    z$groupid.y <- z$groupid.x
-    
-    colnames(z) <- stringr::str_replace_all(colnames(z), "\\.x", "\\.odd")
-    colnames(z) <- stringr::str_replace_all(colnames(z), "\\.y", "\\.even")
-    
-    return(z)
-}
-
-
 #  Source libraries, adjust settings ------------------------------------------
 libraries <- c("argparser", "Rsamtools", "scales", "tidyverse")
 for(i in 1:length(libraries)) check_library_availability(libraries[i])
@@ -146,14 +146,16 @@ set.seed(24)
 #  Create a parser
 ap <- arg_parser(
     name = script,
-    description = "",
+    description = "
+        
+    ",
     hide.opts = TRUE
 )
 
 #  Add command line arguments
 ap <- add_argument(
     ap,
-    short = "-i",
+    short = "-b",
     arg = "--bam",
     type = "character",
     default = NULL,
@@ -161,22 +163,11 @@ ap <- add_argument(
 )
 ap <- add_argument(
     ap,
-    short = "-b",
+    short = "-i",
     arg = "--bai",
     type = "character",
     default = NULL,
     help = "bam index, including path <chr>"
-)
-ap <- add_argument(
-    ap,
-    short = "-s",
-    arg = "--strain",
-    type = "character",
-    default = NULL,
-    help = "
-    strain name to be appended to rds outfile columns; current options are
-    'mm10', 'CAST', 'SPRET', and 'CAROLI' <chr>
-    "  #TODO Make it user-selected
 )
 ap <- add_argument(
     ap,
@@ -185,6 +176,14 @@ ap <- add_argument(
     type = "character",
     default = NULL,
     help = "directory for saving rds outfile, including path <chr>"
+)
+ap <- add_argument(
+    ap,
+    short = "-s",
+    arg = "--strain",
+    type = "character",
+    default = NULL,
+    help = "strain name to be appended to rds outfile columns <chr>"
 )
 ap <- add_argument(
     ap,
@@ -208,18 +207,9 @@ if(isTRUE(test_in_RStudio)) {
     dir_out <- paste0(
         dir_base, "/", dir_data, "/", "files_bam"
     )
-    # bam <- paste0(dir_in, "/", "Disteche_sample_13.dedup.CAST.corrected.sort-c.bam")
-    # bai <- paste0(dir_in, "/", "Disteche_sample_13.dedup.CAST.corrected.sort-c.bam.bai")
-    # strain <- "CAST"
-    # bam <- paste0(dir_in, "/", "Disteche_sample_13.dedup.mm10.corrected.sort-c.bam")
-    # bai <- paste0(dir_in, "/", "Disteche_sample_13.dedup.mm10.corrected.sort-c.bam.bai")
-    # strain <- "mm10"
-    bam <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam")
-    bai <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam.bai")
+    bam <- paste0(dir_in, "/", "Disteche_sample_13.dedup.CAST.corrected.bam")
+    bai <- paste0(dir_in, "/", "Disteche_sample_13.dedup.CAST.corrected.bam.bai")
     strain <- "CAST"
-    # bam <- paste0(dir_in, "/", "Disteche_sample_1.dedup.mm10.corrected.bam")
-    # bai <- paste0(dir_in, "/", "Disteche_sample_1.dedup.mm10.corrected.bam.bai")
-    # strain <- "mm10"
     chunk <- 100000
     cl <- c(
         "--bam", bam,
@@ -246,10 +236,11 @@ rm(test_in_RStudio)
 #  Check that files exist -----------------------------------------------------
 stopifnot(file.exists(arguments$bam))
 stopifnot(file.exists(arguments$bai))
-stopifnot(any(arguments$strain %in% c("CAST", "mm10", "SPRET", "CAROLI")))
-stopifnot(arguments$mated == TRUE | arguments$mated == FALSE)
-stopifnot(arguments$unmated == TRUE | arguments$unmated == FALSE)
-stopifnot(arguments$ambiguous == TRUE | arguments$ambiguous == FALSE)
+if(arguments$strain == "") stop("--strain is an empty string.")
+if(is.na(arguments$strain)) stop("--strain is NA.")
+stopifnot(arguments$chunk != 0)
+stopifnot(arguments$chunk %% 1 == 0)
+stopifnot(arguments$chunk %% 2 == 0)
 
 #  If it does not exist, then create outfile directory 
 dir.create(file.path(arguments$outdir), showWarnings = FALSE)
@@ -275,14 +266,13 @@ rec_total <- count_records(arguments$bam)
 cat(paste0("Number of records: ", scales::comma(rec_total), "\n"))
 cat("\n")
 
-
-#TODO Use a for loop here as in 'generate-qname-lists.R'
-bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = TRUE)
-Rsamtools::yieldSize(bam) <- arguments$chunk
-open(bam)
 # isOpen(bam)
 
 #  Iterate through bam file in chunks
+bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = TRUE)
+Rsamtools::yieldSize(bam) <- arguments$chunk
+open(bam)
+
 cat(paste0("Started: Processing ", basename(arguments$bam), "\n"))
 n <- ceiling((rec_total / 2) / rec_n) %>% as.integer()
 bar <- utils::txtProgressBar(min = 0, max = n, initial = 0, style = 3)
@@ -358,7 +348,7 @@ for(i in 1:n) {
                 arguments$outdir, "/",
                 gsub(
                     ".bam",
-                    paste0(".AS.txt.gz"),
+                    paste0(".", arguments$strain, ".AS.txt.gz"),
                     basename(arguments$bam)
                 )
             ),
@@ -368,7 +358,55 @@ for(i in 1:n) {
     utils::setTxtProgressBar(bar, i)
 }
 
+#  Sort the AS.txt.gz file ----------------------------------------------------
+# system(paste0(
+#     "echo \"",
+#     "source ./bin/auxiliary/functions-preprocessing.sh && ",
+#     "sort_file_AS_overwrite_infile ", arguments$outdir, "/",
+#     gsub(
+#         ".bam",
+#         paste0(".", arguments$strain, ".AS.txt.gz"),
+#         basename(arguments$bam)
+#     ),
+#     "\" | bash"
+# ))
 
+command_sort <- paste0(
+    "echo \"",
+    "sort -k1,1 -k2n <(gunzip -c ",
+    arguments$outdir, "/",
+    gsub(
+        ".bam",
+        paste0(".", arguments$strain, ".AS.txt.gz"),
+        basename(arguments$bam)
+    ),
+    ") | gzip > ",
+    arguments$outdir, "/",
+    gsub(
+        ".bam",
+        paste0(".", arguments$strain, ".AS.tmp.txt.gz"),
+        basename(arguments$bam)
+    ),
+    " && mv -f ",
+    arguments$outdir, "/",
+    gsub(
+        ".bam",
+        paste0(".", arguments$strain, ".AS.tmp.txt.gz"),
+        basename(arguments$bam)
+    ),
+    " ",
+    arguments$outdir, "/",
+    gsub(
+        ".bam",
+        paste0(".", arguments$strain, ".AS.txt.gz"),
+        basename(arguments$bam)
+    ),
+    "\" | bash"
+)
+system(command_sort)
+
+
+#  End the script -------------------------------------------------------------
 time_end <- Sys.time()
 cat("\n")
 cat(paste0(script, " completed: ", time_end, "\n"))
