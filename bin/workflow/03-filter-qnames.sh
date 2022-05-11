@@ -289,7 +289,7 @@ if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
     else
         echo -e "There was a problem: ${outpath}/${out_unmated} was not generated."
         echo -e "Check on this."
-        echo_exit_message 6
+        echo_exit_message 4
         exit 1
     fi
 elif [[ -f "${step_4}" && -f "${step_3}" ]]; then

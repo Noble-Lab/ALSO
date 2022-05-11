@@ -318,7 +318,7 @@ if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     else
         echo -e "There was a problem: ${TMPDIR}/${out_unmated} was not generated."
         echo -e "Check on this."
-        echo_exit_message 6
+        echo_exit_message 5
         exit 1
     fi
     echo -e "Completed step 5/13: Generating lists of QNAMEs to exclude from ${out_rm}.\n"
