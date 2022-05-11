@@ -404,6 +404,8 @@ command_sort <- paste0(
     "\" | bash"
 )
 system(command_sort)
+#FIXME mv: cannot stat './data/files_bam/Disteche_sample_13.dedup.CAST.corrected.CAST.AS.tmp.txt.gz': No such file or directory
+#NOTE Basically works, but throws a strange error message
 
 
 #  End the script -------------------------------------------------------------
