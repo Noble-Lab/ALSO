@@ -1,0 +1,191 @@
+## KA new preprocess module
+# 05.04.2022
+
+qlogin -l mfree=12G -pe serial 4 #,cuda=1,gpgpu=TRUE
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-05-03-preprocess
+module add samtools/1.14
+
+
+######################
+## set up to vol6 ####
+######################
+
+cd /net/noble/vol6
+# mkdir /net/noble/vol6/user/gangliuw/mouse-cross/results
+# mkdir /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-05-04
+# mkdir /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-05-04/CAST-EiJ-preprocessed
+# mkdir /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-05-04/mm10-preprocessed
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-05-03-preprocess
+ln -s /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-23/ CAST-EiJ
+ln -s /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-21/ mm10
+ln -s /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-05-04 results
+
+##############################
+## download the script #######
+##############################
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-05-03-preprocess
+
+chmod 751 *.sh
+
+filter-qnames.sh  functions_preprocessing.sh
+
+## install 4 R pakcage required for R 4.0
+module add pcre2/10.39
+module add R/4.1.2
+# argparser tidyverse Rsamtools scales
+# all pre-installed
+
+module add samtools/1.14
+
+# #  Call from 2021_kga0_4dn-mouse-cross
+# file="Disteche_sample_1.dedup.bam"
+# bash ./filter-qnames.sh \
+# -u FALSE \
+# -c TRUE \
+# -i ./data/"${file}" \
+# -o ./data \
+# -p 4
+
+# #  -u is for "safe mode" (set -Eeuxo)
+# #+ -c is for whether using on the GS HPC or not (T or F)
+# #+ -i is for infile
+# #+ -o is for outpath
+# #+ -p is for number of cores for parallelization (for calls to samtools)
+
+
+##############################
+## Test on one sample ########
+##############################
+i=6
+strain="CAST-EiJ"
+Job_name="CAST_pre"_$i
+chmod 751 *.sh
+qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-05-04-${strain}-pre-${i}.submit
+echo "Submitted."
+
+i=6
+strain="mm10"
+Job_name="mm10"_$i
+chmod 751 *.sh
+qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-05-06-${strain}-pre-${i}.submit
+echo "Submitted."
+
+df -kh /net/noble/vol6
+# (base) [gangliuw@grid-head1 2022-05-03-preprocess]$ df -kh /net/noble/vol6
+# Filesystem      Size  Used Avail Use% Mounted on
+# gs2             5.0T  2.1T  3.0T  41% /net/noble/vol6
+
+
+#failed the test
+
+# 05.07 Kris fixed the bug
+# new test
+
+
+i=6
+strain="CAST-EiJ"
+Job_name="CAST_pre"_$i
+chmod 751 *.sh
+qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-05-07-${strain}-pre-${i}.submit
+echo "Submitted."
+
+i=6
+strain="mm10"
+Job_name="mm10"_$i
+chmod 751 *.sh
+qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-05-07-${strain}-pre-${i}.submit
+echo "Submitted."
+
+## 05.09
+# falgstat6 bug
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-23/get_unique_fragments
+ls -lah Disteche_sample_6.dedup.*
+rm -f Disteche_sample_6.dedup.flagstat.txt Disteche_sample_6.dedup.rm.bam  Disteche_sample_6.dedup.rm.bam.bai  Disteche_sample_6.dedup.rm.flagstat.txt
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/results/2022-02-21/get_unique_fragments
+ls -lah Disteche_sample_6.dedup.*
+rm -f Disteche_sample_6.dedup.flagstat.txt Disteche_sample_6.dedup.rm.bam  Disteche_sample_6.dedup.rm.bam.bai  Disteche_sample_6.dedup.rm.flagstat.txt
+
+## delete and test again
+
+i=6
+strain="CAST-EiJ"
+Job_name="CAST_pre"_$i
+chmod 751 *.sh
+qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-05-09-${strain}-pre-${i}.submit
+echo "Submitted."
+
+i=6
+strain="mm10"
+Job_name="mm10"_$i
+chmod 751 *.sh
+qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-05-09-${strain}-pre-${i}.submit
+echo "Submitted."
+
+## passed the test.
+# now test on the largest sample 11
+#-rw-r--r-- 1 gangliuw noblelab  42G Mar 19 05:21 Disteche_sample_11.dedup.bam
+
+i=11
+strain="CAST-EiJ"
+Job_name="CAST_pre"_$i
+chmod 751 *.sh
+qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-05-09-${strain}-pre-${i}.submit
+echo "Submitted."
+
+i=11
+strain="mm10"
+Job_name="mm10"_$i
+chmod 751 *.sh
+qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-05-09-${strain}-pre-${i}.submit
+echo "Submitted."
+
+# read 1 = read2 
+# 44GB
+# Wallclock Time  = 15:50:24
+# CPU             = 22:39:31 
+
+# Kris: switch to 05.10 version.
+# utilizes tmpdir, and fixes some minor bugs.
+## 05.10
+
+Date="05-10"
+# sample 13 is relative small.
+
+i=13
+strain="CAST-EiJ"
+Job_name="CAST_pre"$i
+chmod 751 *.sh
+qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-${Date}-${strain}-pre-${i}.submit
+echo "Submitted."
+
+i=13
+strain="mm10"
+Job_name="mm10_pre"$i
+chmod 751 *.sh
+qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-${Date}-${strain}-pre-${i}.submit
+echo "Submitted."
+
+## 05.11
+# run for all 22 samples
+chmod 751 *.sh
+Date="05-11"
+for i in {1..22} ## run 22 samples in parallel
+do
+    echo "Running: "
+    echo $i
+    strain="mm10"
+    Job_name="mm10_pre"$i
+    qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-${Date}-${strain}-pre-${i}.submit
+    echo "Submitted."
+
+    strain="CAST-EiJ"
+    Job_name="CAST_pre"$i
+    qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-${Date}-${strain}-pre-${i}.submit
+    echo "Submitted."
+done
+
+######## END ############
