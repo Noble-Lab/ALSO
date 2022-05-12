@@ -5,19 +5,27 @@
 This ALSO pipeline is used to segregate sci-ATAC-seq alignments to parental alleles of origin based on alignment scores.
 
 ## News and Updates
+* 2022-05-11
+ + Cleaned up the old example code.
+ + Will create a pull request for Shendure lab after allel score comparison..
+ + Kris will work on the allele score comparison module.
+
+* 2022-05-10
+ + Kris' new version preprocess module passed tests from both Kris and Gang.
+ + Gang would run the preprocess module on all samples. 
 
 * 2022-05-04
- + `#TODO` Gang will test on the one sample from mm10, one sample from CAST.
- + `#TODO` Kris will test on the largest bam we have.
- + Bill will figure out the space of vol6, and we will store all the future results in vol6.
+ + Gang tested on the one sample from mm10, one sample from CAST.
+ + Kris tesed test on the largest bam that we have.
+ + Bill cleaned the space of vol6, and we would store all the future results in vol6.
  + update the workflow according to Kris's newest preprocess module (4 steps).
 
 * 2022-05-02
   + upload/update test code for debugging the preprocess module
   + add worflow script `03-filter-qname.sh`, an in-progress shell pipeline to handle the preprocessing
   + update `README` for using the script
-  + `#TODO` write code for handling intermediate files, e.g., deleting, keeping, etc.
-  + `#TODO` further updates, cleanup of the `README`
+  + write code for handling intermediate files, e.g., deleting, keeping, etc.
+  + further updates, cleanup of the `README`
 
 * 2022-04-13
   + upload/update test code for debugging the preprocess module
@@ -67,7 +75,7 @@ This ALSO pipeline is used to segregate sci-ATAC-seq alignments to parental alle
 
   + [argparser](https://bitbucket.org/djhshih/argparser) = 0.7.1
   + [bedtools](https://bedtools.readthedocs.io/en/latest/) >= 2.29.0
-  + [liftOver](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads) >= 366
+  <!-- + [liftOver](http://hgdownload.soe.ucsc.edu/downloads.html#source_downloads) >= 366 -->
   + [parallel](https://www.gnu.org/software/parallel/) >= 20200101
   + [Picard](https://broadinstitute.github.io/picard/) >= 2.26.4
   + [R](https://www.r-project.org/) >= 4.0
@@ -85,38 +93,45 @@ The user needs to run the following steps to prepare the input for KA's pipeline
 1. Demux. ([Example Code 1](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/01-demux.sh))
 2. sci-ATAC-seq analysis pipeline from the Shendure Lab. ([Example Code 2](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/02-sci-ATAC-seq-analysis.sh))
 3. Preprocess the bam. ([Example Code 3](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/03-preprocess-mm10.sh))
-   + filter reads with MAPQ < 30 and remove singletons,
-   + perform subread repair to pair mates.
+
 
 ```{bash preprocess-bam}
-## use mm10 as an example
-
-## create output directory
-# mkdir mm10-output/MAPQ30_RmSingleton
-# mkdir mm10-output/Repair
-
+## 05.11
+# run for all 22 samples
+chmod 751 *.sh
+Date="05-11"
 for i in {1..22} ## run 22 samples in parallel
 do
     echo "Running: "
     echo $i
-    Job_name="mm10"_$i
-    ./preprocess.sh $i
-    # qsub -l mfree=10G -N $Job_name 03-preprocess-mm10.sh $i
-    echo "Done!"
+    strain="mm10"
+    Job_name="mm10_pre"$i
+    qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-${Date}-${strain}-pre-${i}.submit
+    echo "Submitted."
+
+    strain="CAST-EiJ"
+    Job_name="CAST_pre"$i
+    qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-${Date}-${strain}-pre-${i}.submit
+    echo "Submitted."
 done
+
 
 ```
 
-test code for proprocessing (`workflow/03-filter-qname.sh`)
+Test code for proprocessing (`workflow/03-filter-qname.sh`)
 ```{bash preprocess-bam-updated}
 #  Call from 2021_kga0_4dn-mouse-cross
 file="Disteche_sample_1.dedup.bam"
-bash ./bin/workflow/03-filter-qnames.sh \
+bash ./filter-qnames.sh \
 -u FALSE \
--c TRUE \
--i ./data/"${file}" \
--o ./data \
--p 4
+-c FALSE \
+-l TRUE \
+-i ./"${strain}"/get_unique_fragments/"${bam_input}" \
+-o "${outpath}" \
+-f TRUE \
+-r FALSE \
+-p 4 > "${outpath}"preprocess_${strain}_${sample_id}.o 2>"${outpath}"preprocess_${strain}_${sample_id}.e
+
 
 #  -u is for "safe mode" (set -Eeuxo)
 #+ -c is for whether using on the GS HPC or not (T or F)
@@ -125,18 +140,18 @@ bash ./bin/workflow/03-filter-qnames.sh \
 #+ -p is for number of cores for parallelization (for calls to samtools)
 ```
 
-This pipeline takes as input two paired parental bam files (strain 1 assembly and strain 2 assembly) that have been sorted, subject to duplicate removal, and outputs ~~a 3D tensor: (Cell, Allele, Category), where Category can be one of the ["paternal","maternal","ambiguous"].~~
+This ALSO pipeline takes as input two paired parental bam files (strain 1 assembly and strain 2 assembly) that have been sorted, subject to duplicate removal, and outputs 3 bam files for each sample, namely, "paternal","maternal","ambiguous" bams.
 
-1. Split the bam file by chromosome and liftOver to mm10 (if not mm10).
+<!-- 1. Split the bam file by chromosome and liftOver to mm10 (if not mm10).
    +  Split the bam file by chromosome.
    +  Index and "repair" the split bam files.
    +  Generate bed files from the split bam files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/04-split-index-repair-bam.sh))
-   +  Perform liftOvers of the bed files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/05-lift-strain-to-mm10.sh))
+   +  Perform liftOvers of the bed files. ([Example Code](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/05-lift-strain-to-mm10.sh)) -->
 
-2. Allele score comparison.
+Allele score comparison.
 `#TODO` Need to add example code.
 
-Here, we use the downsampled mm10/CAST data as an example:
+<!-- Here, we use the downsampled mm10/CAST data as an example:
 
 ### 1. Split bam infile by chromosome; index and "repair" split bam files; and if not mm10, then generate bed files for needed for liftOver.
 
@@ -284,11 +299,11 @@ Rscript bin/workflow/06-convert-bam-to-df_join-bed_write-rds.R \
 # -m, --mpos    liftOver bed file for "MPOS", including path <chr>
 # -o, --outdir  directory for saving rds outfile, including path <chr>
 # -r, --rds     name of rds outfile to be saved in outdir <chr>
-```
+``` -->
 
-### 4. Allele-assignment based on alignment scores
+### Allele-assignment based on alignment scores
 `#TODO #INPROGRESS`
-`#TODO` Update to handle memory issues in progress
+`#TODO` Update to handle memory issues in progress (solved by read in chunk with RSamtools)
 
 ```{R liftover}
 #INPROGRESS
