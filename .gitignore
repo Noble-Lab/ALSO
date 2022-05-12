@@ -39,6 +39,8 @@ src/*
 
 tmp/*
 
+tmp.2/*
+
 
 # History files
 .Rhistory

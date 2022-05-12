@@ -19,7 +19,7 @@ cd "${dir_base}" ||
         exit 1
     }
 
-. ./bin/auxiliary/functions_preprocessing.sh
+. ./bin/auxiliary/functions-preprocessing.sh
 
 
 #  Make test bam files --------------------------------------------------------
@@ -213,7 +213,7 @@ cp Disteche_sample_20.dedup.bam /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/r
 cd /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0501_test-preprocessing-module || ! echo "cd failed"
 mv Disteche_sample_20.dedup.bam Disteche_sample_20.dedup.CAST.bam
 
-. ./bin/auxiliary/functions_preprocessing.sh
+. ./bin/auxiliary/functions-preprocessing.sh
 
 dir_data="/net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0501_test-preprocessing-module"
 f_CAST="${dir_data}/Disteche_sample_20.dedup.CAST.bam"
@@ -261,7 +261,7 @@ cp Disteche_sample_20.dedup.bam /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/r
 cd /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0501_test-preprocessing-module || ! echo "cd failed"
 mv Disteche_sample_20.dedup.bam Disteche_sample_20.dedup.mm10.bam
 
-. ./bin/auxiliary/functions_preprocessing.sh
+. ./bin/auxiliary/functions-preprocessing.sh
 
 dir_data="/net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0501_test-preprocessing-module"
 f_mm10="${dir_data}/Disteche_sample_20.dedup.mm10.bam"
@@ -323,7 +323,7 @@ cd "${dir_base}" ||
         # exit 1
     }
 
-. ./bin/auxiliary/functions_preprocessing.sh
+. ./bin/auxiliary/functions-preprocessing.sh
 
 #  Remove low-quality reads, sort, then index
 remove_reads_low_quality_auto 4 "${f_CAST}"

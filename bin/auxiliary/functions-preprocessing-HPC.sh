@@ -73,9 +73,7 @@ count_lines_bam() {
     # :param 1: bam infile, including path (chr)
     start="$(date +%s)"
 
-    samtools view "${1}" | wc -l &
-    display_spinning_icon $! \
-    "Running samtools view to wc -l on $(basename "${1}")... "
+    samtools view "${1}" | wc -l
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -173,18 +171,14 @@ exclude_qname_reads_picard() {
             I="${1}" \
             O="${3}" \
             READ_LIST_FILE="${2}" \
-            FILTER="excludeReadList" &
-            display_spinning_icon $! \
-            "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")... "
+            FILTER="excludeReadList"
             ;;
         false | f) \
             picard FilterSamReads \
             I="${1}" \
             O="${3}" \
             READ_LIST_FILE="${2}" \
-            FILTER="excludeReadList" &
-            display_spinning_icon $! \
-            "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")... "
+            FILTER="excludeReadList"
             ;;
         *) \
             echo "Exiting: Parameter 4 is not \"TRUE\" or \"FALSE\"."
@@ -315,9 +309,7 @@ identify_qnames() {
     "${dir_str}" \
     "${comp}" \
     "${4}" \
-    "${4/.txt/.${str}.tally.txt}" &
-    display_spinning_icon $! \
-    "Listing QNAME entries in which \"QNAME ${str} 2\" for $(basename "${4}")... "
+    "${4/.txt/.${str}.tally.txt}"
 
     #  Step 2
     cut -c 4- "${4/.txt/.${str}.tally.txt}" > "${4/.txt/.${str}.txt}"
@@ -355,9 +347,7 @@ index_bam() {
     # :param 2: name of bam infile, including path (chr)
     start="$(date +%s)"
     
-    samtools index -@ "${1}" "${2}" &
-    display_spinning_icon $! \
-    "Running samtools index on $(basename "${2}")... "
+    samtools index -@ "${1}" "${2}"
 
     end="$(date +%s)"
     echo ""
@@ -380,15 +370,11 @@ list_tally_qnames() {
     | sort \
     | uniq -c \
     | sort -nr \
-    > "${1/.bam/.QNAME.tmp.txt}" &
-    display_spinning_icon $! \
-    "Running piped commands (samtools view, cut, sort, uniq -c, sort -nr) on $(basename "${1}")... "
+    > "${1/.bam/.QNAME.tmp.txt}"
 
     #  Trim leading whitespaces
     if [[ -f "${1/.bam/.QNAME.tmp.txt}" ]]; then
-        cut -c 6- "${1/.bam/.QNAME.tmp.txt}" > "${1/.bam/.QNAME.txt}" &
-        display_spinning_icon $! \
-        "Trimming away leading whitespaces in $(basename "${1/.bam/.QNAME.tmp.txt}")... "
+        cut -c 6- "${1/.bam/.QNAME.tmp.txt}" > "${1/.bam/.QNAME.txt}"
     else
         echo "$(basename "${1/.bam/.QNAME.tmp.txt}") not found."
         return 1
@@ -423,15 +409,11 @@ list_tally_qnames_trans() {
     | cut -f 1 \
     | sort \
     | uniq -c \
-    > "${1/.bam/.trans-QNAME.txt}" &
-    display_spinning_icon $! \
-    "Running piped commands (samtools view, awk, cut, sort, uniq -c) on $(basename "${1}")... "
+    > "${1/.bam/.trans-QNAME.txt}"
 
     # #  Trim leading whitespaces
     # if [[ -f "${1/.bam/.trans-QNAME.tmp.txt}" ]]; then
-    #     cut -c 6- "${1/.bam/.trans-QNAME.tmp.txt}" > "${1/.bam/.trans-QNAME.txt}" &
-    #     display_spinning_icon $! \
-    #     "Trimming away leading whitespaces in $(basename "${1/.bam/.trans-QNAME.tmp.txt}")... "
+    #     cut -c 6- "${1/.bam/.trans-QNAME.tmp.txt}" > "${1/.bam/.trans-QNAME.txt}"
     # else
     #     echo "$(basename "${1/.bam/.trans-QNAME.tmp.txt}") not found."
     #     return 1
@@ -459,9 +441,7 @@ list_tally_qnames_trans_simple() {
 
     samtools view "${1}" \
     | awk '($3 != $7 && $7 != "=")' \
-    > "${1/.bam/.trans-QNAME.txt}" &
-    display_spinning_icon $! \
-    "Isolating interchromosomal QNAMEs reads from $(basename "${1}")... "
+    > "${1/.bam/.trans-QNAME.txt}"
 }
 
 
@@ -506,9 +486,7 @@ remove_reads_low_quality() {
     # :param 3: name of bam outfile, including path (chr)
     start="$(date +%s)"
     
-    samtools view -@ "${1}" -h -b -f 3 -F 12 -q 30 "${2}" -o "${3}" &
-    display_spinning_icon $! \
-    "Running samtools view (-f 3 -F 12 -q 30) on $(basename "${2}")... "
+    samtools view -@ "${1}" -h -b -f 3 -F 12 -q 30 "${2}" -o "${3}"
 
     end="$(date +%s)"
     echo ""
@@ -527,9 +505,7 @@ remove_reads_low_quality_auto() {
     # :param 2: name of bam infile, including path (chr)
     start="$(date +%s)"
     
-    samtools view -@ "${1}" -h -b -f 3 -F 12 -q 30 "${2}" -o "${2/.bam/.rm.bam}" &
-    display_spinning_icon $! \
-    "Running samtools view -f 3 -F 12 -q 30 on $(basename "${2}")... "
+    samtools view -@ "${1}" -h -b -f 3 -F 12 -q 30 "${2}" -o "${2/.bam/.rm.bam}"
 
     end="$(date +%s)"
     echo ""
@@ -547,9 +523,7 @@ repair_bam() {
     # :param 3: name of bam outfile, including path (chr)
     start="$(date +%s)"
 
-    repair -d -T "${1}" -c -i "${2}" -o "${3}" &
-    display_spinning_icon $! \
-    "Running repair -d -c on $(basename "${2}")... "
+    repair -d -T "${1}" -c -i "${2}" -o "${3}"
 
     end="$(date +%s)"
     echo ""
@@ -566,9 +540,7 @@ repair_bam_auto() {
     # :param 2: name of bam infile, including path (chr)
     start="$(date +%s)"
 
-    repair -d -T "${1}" -c -i "${2}" -o "${2/.bam/.repair.bam}" &
-    display_spinning_icon $! \
-    "Running repair -d -c on $(basename "${2}")... "
+    repair -d -T "${1}" -c -i "${2}" -o "${2/.bam/.repair.bam}"
 
     end="$(date +%s)"
     echo ""
@@ -595,18 +567,14 @@ retain_qname_reads_picard() {
             I="${1}" \
             O="${3}" \
             READ_LIST_FILE="${2}" \
-            FILTER="includeReadList" &
-            display_spinning_icon $! \
-            "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")"
+            FILTER="includeReadList"
             ;;
         false | f) \
             picard FilterSamReads \
             I="${1}" \
             O="${3}" \
             READ_LIST_FILE="${2}" \
-            FILTER="includeReadList" &
-            display_spinning_icon $! \
-            "Running picard FilterSamReads with $(basename "${1}") filtered by $(basename "${2}")"                        
+            FILTER="includeReadList"                       
             ;;
         *) \
             echo "Exiting: Parameter 4 is not \"TRUE\" or \"FALSE\"."
@@ -633,9 +601,7 @@ retain_qname_reads_samtools() {
     
     samtools view -hN "${2}" "${1}" \
     | samtools view -b - \
-    > "${3}" &
-    display_spinning_icon $! \
-    "Running samtools view -hN with $(basename "${1}") filtered by $(basename "${2}")"
+    > "${3}"
 
     end="$(date +%s)"
     echo ""
@@ -652,9 +618,7 @@ run_flagstat() {
     # :param 2: name of bam infile, including path (chr)
     start="$(date +%s)"
 
-    samtools flagstat -@ "${1}" "${2}" > "${3}" &
-    display_spinning_icon $! \
-    "Running samtools flagstat for $(basename "${2}")... "
+    samtools flagstat -@ "${1}" "${2}" > "${3}"
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -670,9 +634,7 @@ run_flagstat_auto() {
     # :param 2: name of bam infile, including path (chr)
     start="$(date +%s)"
 
-    samtools flagstat -@ "${1}" "${2}" > "${2/.bam/.flagstat.txt}" &
-    display_spinning_icon $! \
-    "Running samtools flagstat for $(basename "${2}")... "
+    samtools flagstat -@ "${1}" "${2}" > "${2/.bam/.flagstat.txt}"
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -688,9 +650,7 @@ sort_bam_coordinate_samtools() {
     # :param 3: Name of bam outfile, including path (chr)
     start="$(date +%s)"
 
-    samtools sort -@ "${1}" "${2}" > "${3}" &
-    display_spinning_icon $! \
-    "Running samtools sort (by coordinate) on $(basename "${2}")... "
+    samtools sort -@ "${1}" "${2}" > "${3}"
     
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -706,8 +666,7 @@ sort_bam_coordinate_samtools_auto() {
     # :param 2: Name of bam infile, including path (chr)
     start="$(date +%s)"
 
-    samtools sort -@ "${1}" "${2}" > "${2/.bam/.sort-c.bam}" &
-    display_spinning_icon $! "Running samtools sort (by coordinate) on $(basename "${2}")... "
+    samtools sort -@ "${1}" "${2}" > "${2/.bam/.sort-c.bam}"
     
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -723,13 +682,9 @@ sort_bam_coordinate_samtools_overwrite_infile() {
     # :param 2: Name of bam infile, including path (chr)
     start="$(date +%s)"
 
-    samtools sort -@ "${1}" "${2}" -o "${2/.bam/.tmp.bam}" &
-    display_spinning_icon $! \
-    "Running samtools sort... "
+    samtools sort -@ "${1}" "${2}" -o "${2/.bam/.tmp.bam}"
 
-    mv -f "${2/.bam/.tmp.bam}" "${2}" &
-    display_spinning_icon $! \
-    "${2} is being overwritten by ${2/.bam/.tmp.bam}... "
+    mv -f "${2/.bam/.tmp.bam}" "${2}"
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -748,8 +703,7 @@ sort_bam_coordinate_picard() {
     picard SortSam \
     I="${1}" \
     O="${2}" \
-    SORT_ORDER="coordinate" &
-    display_spinning_icon $! "Running picard SortSam SORT_ORDER=\"coordinate\" on $(basename "${1}")... "
+    SORT_ORDER="coordinate"
     
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -765,8 +719,7 @@ sort_bam_qname_samtools() {
     # :param 3: name of bam outfile, including path (chr)
     start="$(date +%s)"
 
-    samtools sort -n -@ "${1}" "${2}" > "${3}" &
-    display_spinning_icon $! "Running samtools sort -n on $(basename "${2}")... "
+    samtools sort -n -@ "${1}" "${2}" > "${3}"
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -782,8 +735,7 @@ sort_bam_qname_samtools_auto() {
     # :param 2: name of bam infile, including path (chr)
     start="$(date +%s)"
 
-    samtools sort -n -@ "${1}" "${2}" > "${2/.bam/.sort-n.bam}" &
-    display_spinning_icon $! "Running samtools sort -n on $(basename "${2}")... "
+    samtools sort -n -@ "${1}" "${2}" > "${2/.bam/.sort-n.bam}"
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -799,11 +751,9 @@ sort_bam_qname_fixmate_auto() {
     # :param 2: name of bam infile, including path (chr)
     start="$(date +%s)"
 
-    samtools sort -n -@ "${1}" "${2}" > "${2/.bam/.sort-n.bam}" &
-    display_spinning_icon $! "Running samtools sort -n on $(basename "${2}")... "
+    samtools sort -n -@ "${1}" "${2}" > "${2/.bam/.sort-n.bam}"
 
-    samtools fixmate -@ "${1}" "${2/.bam/.sort-n.bam}" "${2/.bam/.fixmate.bam}" &
-    display_spinning_icon $! "Running samtools fixmate on $(basename "${2/.bam/.sort-n.bam}")... "
+    samtools fixmate -@ "${1}" "${2/.bam/.sort-n.bam}" "${2/.bam/.fixmate.bam}"
 
     rm "${2/.bam/.sort-n.bam}"
 
@@ -823,9 +773,7 @@ split_bam_chromosome() {
     #TODO Add check
     start="$(date +%s)"
 
-    samtools view -@ "${1}" -bh "${2}" "${3}" \
-    > "${2/.bam/.${3}.bam}" &
-    display_spinning_icon $! "Running samtools view to create $(basename "${2/.bam/.${3}.bam}")... "
+    samtools view -@ "${1}" -bh "${2}" "${3}" > "${2/.bam/.${3}.bam}"
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -842,9 +790,7 @@ sort_file_AS() {
     
     sort -k1,1 -k2n <(gunzip -c "${1}") \
     | gzip \
-    > "${1/.txt.gz/.tmp.txt.gz}" & \
-    display_spinning_icon $! \
-    "Sorting ${1}... "
+    > "${1/.txt.gz/.tmp.txt.gz}"
     
     mv -f "${1/.txt.gz/.tmp.txt.gz}" "${2}"
     
@@ -862,9 +808,7 @@ sort_file_AS_overwrite_infile() {
 
     sort -k1,1 -k2n <(gunzip -c "${1}") \
     | gzip \
-    > "${1/.txt.gz/.tmp.txt.gz}" & \
-    display_spinning_icon $! \
-    "Sorting ${1}... "
+    > "${1/.txt.gz/.tmp.txt.gz}"
 
     mv -f "${1/.txt.gz/.tmp.txt.gz}" "${1}"
 

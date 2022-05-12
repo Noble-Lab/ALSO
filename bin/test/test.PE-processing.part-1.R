@@ -120,7 +120,7 @@ testPosInMpos <- function(pos, mpos) {
 }
 
 
-#  Load in .bam information ---------------------------------------------------
+#  Load in .bam information, including mate information -----------------------
 # chromosome <- "chr1"
 chromosome <- "chrX"
 
@@ -148,7 +148,7 @@ mapply(
     assign, index, file, MoreArgs = list(envir = parent.frame())
 )
 
-#  Load in standard .bam fields
+#  Using Rsamtools, load in standard .bam fields
 command <- paste0(
     variable, " %>% ",
         "Rsamtools::BamFile(., index = ", index, ", asMates = TRUE)", " %>% ",
@@ -159,7 +159,7 @@ command <- paste0(
 operation <- makeOperation(paste0(variable, ".full"), command)
 evaluateOperation(operation)
 
-#  Load in .bam AS and MD fields
+#  Using Rsamtools, load in .bam AS and MD fields
 map_params <- Rsamtools::ScanBamParam(tag = c("AS", "MD"))
 command <- paste0(
     variable, " %>% ",
@@ -173,7 +173,7 @@ evaluateOperation(operation)
 
 rm(map_params)
 
-#  Join the standard, AS, and MD fields
+#  Column-bind the standard, AS, and MD fields
 command <- paste0(
     "dplyr::bind_cols(", variable, ".full, ", variable, ")"
 )
@@ -327,8 +327,7 @@ operation <- makeOperation(variable, command)
 evaluateOperation(operation)
 
 
-#  Prepare for tibble-sorting, deduplicate and mate-label the tibbles ---------
-
+#  Prepare for tibble-sorting; deduplicate and mate-label the tibbles ---------
 #  Set up $criteria, a variable needed for sorting: qname, flag, pos, mpos
 command <- paste0(
     "paste0(",
@@ -341,7 +340,7 @@ command <- paste0(
 operation <- makeOperation(paste0(variable, "$criteria"), command)
 evaluateOperation(operation)
 
-#  Set up $qpos, a variable needed for sorting
+#  Set up $qpos, a variable needed for sorting: qname, pos
 command <- paste0(
     "paste0(",
         variable, "$qname, ", "'_', ",
@@ -351,7 +350,7 @@ command <- paste0(
 operation <- makeOperation(paste0(variable, "$qpos"), command)
 evaluateOperation(operation)
 
-#  Set up $qmpos, a variable needed for sorting
+#  Set up $qmpos, a variable needed for sorting: qname, mpos
 command <- paste0(
     "paste0(",
         variable, "$qname, ", "'_', ",
@@ -569,7 +568,7 @@ z.check.1.MIP$rownames <- stringr::str_remove(vector_string_tibbles, "tbl.")
 z.check.1.MIP <- z.check.1.MIP %>% dplyr::arrange(rownames)
 
 
-#  Is PIM.*$`FALSE` == MIP.*$`FALSE`? -----------------------------------------
+#  Does PIM.*$`FALSE` == MIP.*$`FALSE`? ---------------------------------------
 command <- paste0(
     "PIM.", variable, "$`FALSE` == MIP.", variable, "$`FALSE`"
 )
@@ -592,7 +591,7 @@ z.check.2.PeqM$rownames <- stringr::str_remove(vector_string_tibbles, "tbl.")
 z.check.2.PeqM <- z.check.2.PeqM %>% dplyr::arrange(rownames)
 
 
-#  Is PIM.*$`FALSE` > MIP.*$`FALSE`? ------------------------------------------
+#  Does PIM.*$`FALSE` > MIP.*$`FALSE`? ----------------------------------------
 command <- paste0(
     "PIM.", variable, "$`FALSE` > MIP.", variable, "$`FALSE`"
 )
