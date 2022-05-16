@@ -1,10 +1,10 @@
 #!/usr/bin/env Rscript
 
-#  work-in-progress.R
+#  generate-assignment-lists.R
 #  KA
 
 
-script <- "work-in-progress.R"
+script <- "generate-assignment-lists.R"
 time_start <- Sys.time()
 cat(paste0(script, " started: ", time_start, "\n"))
 
@@ -24,6 +24,26 @@ check_library_availability <- function(x) {
             "Are you in the correct environment? ",
             "Do you need to install '", x, "' in the current environment?"
         ))
+    )
+}
+
+
+convert_time_HMS <- function(x, y) {
+    # #TODO Description of function
+    #
+    # :param x: start time (POSIXct)
+    # :param y: end time  (POSIXct)
+    # :return: #TODO
+    dsec <- as.numeric(difftime(y, x, unit = "secs"))
+    hours <- floor(dsec / 3600)
+    minutes <- floor((dsec - 3600 * hours) / 60)
+    seconds <- dsec - (3600 * hours) - (60 * minutes)
+    paste0(
+        sapply(
+            c(hours, minutes, seconds),
+            function(x) formatC(x, width = 2, format = "d", flag = "0")
+        ),
+        collapse = ":"
     )
 }
 
@@ -121,6 +141,37 @@ read_line <- function(x, y, z) {
 }
 
 
+remove_outfiles <- function(x, y, z, a) {
+    # Remove any outfiles present in directory
+    # 
+    # :param x: directory from which to remove outfiles
+    # :param y: prefix for outfiles
+    # :param z: string for sample #1
+    # :param a: string for sample #2
+    system(paste0(
+        "rm -f -- ",
+        x, "/", y, ".assign-ambiguous.txt ",
+        x, "/", y, ".assign-ambiguous.txt.gz ",
+        x, "/", y, ".assign-", z,".txt ",
+        x, "/", y, ".assign-", z,".txt.gz ",
+        x, "/", y, ".assign-", z,"-only.txt ",
+        x, "/", y, ".assign-", z,"-only.txt.gz ",
+        x, "/", y, ".assign-", a,".txt ",
+        x, "/", y, ".assign-", a,".txt.gz ",
+        x, "/", y, ".assign-", a,"-only.txt ",
+        x, "/", y, ".assign-", a,"-only.txt.gz"
+    ))
+}
+
+
+stop_if_not_logical <- function(x) {
+    # #TODO Description of function
+    # 
+    # :param x: single-value logical vector to evaluate (logical)
+    stopifnot(x == TRUE | x == FALSE)
+}
+
+
 write_list <- function(x, y, z, a) {
     #TODO Description of function
     #
@@ -157,23 +208,23 @@ ap <- arg_parser(
 #  Add command line arguments
 ap <- add_argument(
     ap,
-    short = "-a",
+    short = "-1",
     arg = "--sample_1",
     type = "character",
     default = NULL,
-    help = "*.AS.txt.gz file for sample 1, including path <chr>"
+    help = "AS.txt.gz file for sample 1, including path <chr>"
 )
 ap <- add_argument(
     ap,
-    short = "-c",
+    short = "-2",
     arg = "--sample_2",
     type = "character",
     default = NULL,
-    help = "*.AS.txt.gz file for sample 2, including path <chr>"
+    help = "AS.txt.gz file for sample 2, including path <chr>"
 )
 ap <- add_argument(
     ap,
-    short = "-b",
+    short = "-3",
     arg = "--strain_1",
     type = "character",
     default = NULL,
@@ -181,7 +232,7 @@ ap <- add_argument(
 )
 ap <- add_argument(
     ap,
-    short = "-d",
+    short = "-4",
     arg = "--strain_2",
     type = "character",
     default = NULL,
@@ -216,6 +267,64 @@ ap <- add_argument(
         assignment will be \"ambiguous\" <positive int>
     "
 )
+ap <- add_argument(
+    ap,
+    short = "-b",
+    arg = "--objects",
+    type = "logical",
+    default = FALSE,
+    help = "
+        store assignments in objects; WARNING: when using large infiles,
+        setting this option to TRUE will result in large objects being stored
+        in memory, which is likely to cause memory issues <logical>
+    "
+)
+ap <- add_argument(
+    ap,
+    short = "-l",
+    arg = "--lists",
+    type = "logical",
+    default = FALSE,
+    help = "write out assignments as lists <logical>"
+)
+ap <- add_argument(
+    ap,
+    short = "-m",
+    arg = "--max_alone",
+    type = "integer",
+    default = 10000,
+    help = "
+        if --lists is TRUE, then this parameter sets the maximum number of rows
+        in the 'alone_1' and 'alone_2' objects; once 'alone_#' increases beyond
+        this size, then the first n rows of 'alone_#' (--rows_alone) will be
+        written to a txt.gz file and then removed from the 'alone_#' object
+        <int>
+    "
+)
+ap <- add_argument(
+    ap,
+    short = "-n",
+    arg = "--rows_alone",
+    type = "integer",
+    default = 100,
+    help = "
+        if --lists is TRUE, then this parameter sets the first n rows of
+        'alone_#' to be written to a txt.gz file upon surpassing the maximum
+        number of rows allowed in 'alone_#' (--max_alone); those rows are then
+        removed from the 'alone_#' object <int>
+    "
+)
+ap <- add_argument(
+    ap,
+    short = "-r",
+    arg = "--remove",
+    type = "logical",
+    default = TRUE,
+    help = "
+        if present, remove outfiles in the outdirectory prior to generating
+        outfiles <logical>
+    "
+)
 
 
 #  Parse the arguments --------------------------------------------------------
@@ -227,15 +336,20 @@ if(isTRUE(test_in_RStudio)) {
     dir_in <- paste0(dir_base, "/", dir_data, "/", "files_bam")
     dir_out <- paste0(dir_base, "/", dir_data, "/", "files_bam")
     sample_1 <- paste0(
-        dir_in, "/", "Disteche_sample_1.dedup.mm10.corrected.AS.2600.txt.gz"
+        dir_in, "/", "Disteche_sample_1.dedup.mm10.corrected.mm10.AS.txt.gz"
     )
     sample_2 <- paste0(
-        dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.AS.2500.txt.gz"
+        dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.CAST.AS.txt.gz"
     )
     strain_1 <- "mm10"
     strain_2 <- "CAST"
-    threshold <- 0
     outprefix <- unlist(stringr::str_split(basename(sample_1), "\\."))[1]
+    threshold <- 0
+    objects <- FALSE
+    lists <- TRUE
+    max_alone <- 1000
+    max_rows <- 100
+    remove <- TRUE
     cl <- c(
         "--sample_1", sample_1,
         "--sample_2", sample_2,
@@ -243,13 +357,19 @@ if(isTRUE(test_in_RStudio)) {
         "--strain_2", strain_2,
         "--outdir", dir_out,
         "--outprefix", outprefix,
-        "--threshold", threshold
+        "--threshold", threshold,
+        "--objects", objects,
+        "--lists", lists,
+        "--max_alone", max_alone,
+        "--rows_alone", max_rows,
+        "--remove", remove
     )
     arguments <- parse_args(ap, cl)
     rm(
+        ap, cl,
         sample_1, sample_2, strain_1, strain_2,
         dir_base, dir_data, dir_in, dir_out,
-        outprefix, threshold
+        outprefix, threshold, objects, lists, max_alone, max_rows, remove
     )
 } else if(isFALSE(test_in_RStudio)) {
     #  Command-line calls
@@ -264,24 +384,73 @@ if(isTRUE(test_in_RStudio)) {
 rm(test_in_RStudio)
 
 
-#  Count lines in samples, initialize tibbles for storing values --------------
-count.sample_1 <- count_records(arguments$sample_1)
-count.sample_2 <- count_records(arguments$sample_2)
+#  Check on the arguments that were supplied ----------------------------------
+stopifnot(file.exists(arguments$sample_1))
+stopifnot(file.exists(arguments$sample_2))
+if(arguments$strain_1 == "") stop("--strain_1 is an empty string.")
+if(is.na(arguments$strain_1)) stop("--strain_1 is NA.")
+if(arguments$strain_2 == "") stop("--strain_2 is an empty string.")
+if(is.na(arguments$strain_2)) stop("--strain_2 is NA.")
+if(arguments$outprefix == "") stop("--outprefix is an empty string.")
+if(is.na(arguments$outprefix)) stop("--outprefix is NA.")
+stopifnot(arguments$threshold %% 1 == 0)
+stop_if_not_logical(arguments$objects)
+stop_if_not_logical(arguments$lists)
+stopifnot(arguments$max_alone %% 1 == 0)
+stopifnot(arguments$max_rows %% 1 == 0)
+stop_if_not_logical(arguments$remove)
 
+#  If it does not exist, then create outfile directory 
+dir.create(file.path(arguments$outdir), showWarnings = FALSE)
+#TODO Print message if new directory is created
+
+
+#  Initialize tibbles for storing values --------------------------------------
 sample_1 <- sample_2 <- ambiguous <- AS <- salvage_AS <- initialize_tibble_5(
     arguments$strain_1,
     arguments$strain_2
 )
-
 line_1 <- alone_1 <- salvage_1 <- initialize_tibble_2(arguments$strain_1)
 line_2 <- alone_2 <- salvage_2 <- initialize_tibble_2(arguments$strain_2)
 
 
+#  Count the numbers of lines in samples --------------------------------------
+#  Tally, record the total number of records in the files for samples #1 and #2
+cat(paste0(
+    "Counting the numbers of records in ", basename(arguments$sample_1),
+    " and ", basename(arguments$sample_2), "...\n"
+))
+
+count.sample_1 <- count_records(arguments$sample_1)
+count.sample_2 <- count_records(arguments$sample_2)
+
+cat(paste0(
+    "- ", basename(arguments$sample_1), ": ",
+    scales::comma(count.sample_1), " lines\n"
+))
+cat(paste0(
+    "- ", basename(arguments$sample_2), ": ",
+    scales::comma(count.sample_2), " lines\n"
+))
+cat("\n")
+
+#  Remove already-created outfiles in outdirectory (optional)
+if(isTRUE(arguments$remove)) {
+    cat(paste0("If present, removing outfiles in the outdirectory...\n"))
+    remove_outfiles(
+        arguments$outdir,
+        arguments$outprefix,
+        arguments$strain_1,
+        arguments$strain_2
+    )
+    cat("\n")
+}
+
+
 #  Process lines of interest --------------------------------------------------
 n <- pmax(count.sample_1, count.sample_2)
+# n <- 10000L  # For tests only
 
-# test.line_1 <- read_line(arguments$sample_1, n - 1, arguments$strain_1)
-# n <- 1000L
 bar <- utils::txtProgressBar(min = 0, max = n, initial = 0, style = 3)
 for(i in 1:n) {
     # #####  For tests only  #####
@@ -305,29 +474,41 @@ for(i in 1:n) {
             make_assignment(., arguments$threshold)
         
         if(AS[5] == arguments$strain_1) {
-            sample_1 <- dplyr::bind_rows(sample_1, AS)
-            write_list(
-                AS[1],
-                arguments$outdir,
-                arguments$outprefix,
-                arguments$strain_1
-            )
+            if(arguments$objects == TRUE) {
+                sample_1 <- dplyr::bind_rows(sample_1, AS)
+            }
+            if(arguments$lists == TRUE) {
+                write_list(
+                    AS[1],
+                    arguments$outdir,
+                    arguments$outprefix,
+                    arguments$strain_1
+                )
+            }
         } else if(AS[5] == arguments$strain_2) {
-            sample_2 <- dplyr::bind_rows(sample_2, AS)
-            write_list(
-                AS[1],
-                arguments$outdir,
-                arguments$outprefix,
-                arguments$strain_2
-            )
+            if(arguments$objects == TRUE) {
+                sample_2 <- dplyr::bind_rows(sample_2, AS)
+            }
+            if(arguments$lists == TRUE) {
+                write_list(
+                    AS[1],
+                    arguments$outdir,
+                    arguments$outprefix,
+                    arguments$strain_2
+                )
+            }
         } else if(AS[5] == "ambiguous") {
-            ambiguous <- dplyr::bind_rows(ambiguous, AS)
-            write_list(
-                AS[1],
-                arguments$outdir,
-                arguments$outprefix,
-                "ambiguous"
-            )
+            if(arguments$objects == TRUE) {
+                ambiguous <- dplyr::bind_rows(ambiguous, AS)
+            }
+            if(arguments$lists == TRUE) {
+                write_list(
+                    AS[1],
+                    arguments$outdir,
+                    arguments$outprefix,
+                    "ambiguous"
+                )
+            }
         }
     } else {
         if(i < count.sample_1) alone_1 <- dplyr::bind_rows(alone_1, line_1)
@@ -349,41 +530,74 @@ for(i in 1:n) {
                 make_assignment(., arguments$threshold)
             
             if(salvage_AS[5] == arguments$strain_1) {
-                sample_1 <- dplyr::bind_rows(sample_1, salvage_AS)
-                write_list(
-                    salvage_AS[1],
-                    arguments$outdir,
-                    arguments$outprefix,
-                    arguments$strain_1
-                )
+                if(arguments$objects == TRUE) {
+                    sample_1 <- dplyr::bind_rows(sample_1, salvage_AS)
+                }
+                if(arguments$lists == TRUE) {
+                    write_list(
+                        salvage_AS[1],
+                        arguments$outdir,
+                        arguments$outprefix,
+                        arguments$strain_1
+                    )
+                }
             } else if(salvage_AS[5] == arguments$strain_2) {
-                sample_2 <- dplyr::bind_rows(sample_2, salvage_AS)
-                write_list(
-                    salvage_AS[1],
-                    arguments$outdir,
-                    arguments$outprefix,
-                    arguments$strain_2
-                )
+                if(arguments$objects == TRUE) {
+                    sample_2 <- dplyr::bind_rows(sample_2, salvage_AS)
+                }
+                if(arguments$lists == TRUE) {
+                    write_list(
+                        salvage_AS[1],
+                        arguments$outdir,
+                        arguments$outprefix,
+                        arguments$strain_2
+                    )
+                }
             } else if(salvage_AS[5] == "ambiguous") {
-                ambiguous <- dplyr::bind_rows(ambiguous, salvage_AS)
-                write_list(
-                    salvage_AS[1],
-                    arguments$outdir,
-                    arguments$outprefix,
-                    "ambiguous"
-                )
+                if(arguments$objects == TRUE) {
+                    ambiguous <- dplyr::bind_rows(ambiguous, salvage_AS)
+                }
+                if(arguments$lists == TRUE) {
+                    write_list(
+                        salvage_AS[1],
+                        arguments$outdir,
+                        arguments$outprefix,
+                        "ambiguous"
+                    )
+                }
             }
             
             #  To prevent duplicate searches, and since they're no longer
-            #+ "alone", remove QNAME from alone_1 and alone_2: The
-            #+ dplyr::filter approach is finding all rows not equal to the one
-            #+ to exclude, then rewriting those to the tibble; I think this
+            #+ "alone", remove the salvaged QNAME from alone_1 and alone_2
+            alone_1 <- alone_1[!(alone_1$qname %in% salvage_1$qname), ]
+            alone_2 <- alone_2[!(alone_2$qname %in% salvage_2$qname), ]
+            #QUESTION Does this address the below (potential) issue?
+            
+            #  An alternative to the above subsetting approach (this is the 
+            #+ initial approach I used):
+            #+ 
+            #+ The dplyr::filter approach is finding all rows not equal to the
+            #+ one to exclude, then rewriting those to the tibble; I think this
             #+ will slow down the script as alone_1 and alone_2 increase in
             #+ size
-            alone_1 <- alone_1 %>%
-                dplyr::filter(qname != as.character(salvage_1[1]))
-            alone_2 <- alone_2 %>%
-                dplyr::filter(qname != as.character(salvage_2[1]))
+            # alone_1 <- alone_1 %>%
+            #     dplyr::filter(qname != as.character(salvage_1[1]))
+            # alone_2 <- alone_2 %>%
+            #     dplyr::filter(qname != as.character(salvage_2[1]))
+            
+            # n <- 1000L
+            # subset approach
+            # [1] "00:00:26"
+            # 
+            # dplyr::filter approach
+            # [1] "00:00:27"
+            # 
+            # n <- 10000L
+            # subset approach
+            # [1] "00:02:28"
+            # 
+            # dplyr::filter approach
+            # [1] "00:02:44"
         }
         
         #  Only write out the lists of "alone" QNAMEs (i.e., in one sample but
@@ -397,44 +611,48 @@ for(i in 1:n) {
         #+ of the input: earlier entries in one sample are very likely to be
         #+ with earlier entries of other sample and very unlikely to be with
         #+ later entries in that sample)
+        if(nrow(alone_1) > arguments$max_alone) {  #NOTE Strategy to deal with growing object size
+            write_list(  #TODO Turn this code unit into a function
+                alone_1[1:arguments$rows_alone, ][1],
+                arguments$outdir,
+                arguments$outprefix,
+                paste0(arguments$strain_1, "-only")  #TODO Make an argument to write QNAME entries unique to a given sample to a separate list
+                # arguments$strain_1
+            )
+            alone_1 <- tail(alone_1, -arguments$rows_alone)
+        }
+        if(nrow(alone_2) > arguments$max_alone) {  #NOTE Strategy to deal with growing object size
+            write_list(  #TODO Turn this code unit into a function
+                alone_2[1:arguments$rows_alone, ][1],
+                arguments$outdir,
+                arguments$outprefix,
+                paste0(arguments$strain_2, "-only")  #TODO Make an argument to write QNAME entries unique to a given sample to a separate list
+                # arguments$strain_2
+            )
+            alone_2 <- tail(alone_2, -arguments$rows_alone)
+        }
         if(i == n) {
-            write_list(
-                alone_1,
-                arguments$outdir,
-                arguments$outprefix,
-                arguments$strain_1
-            )
-            write_list(
-                alone_2,
-                arguments$outdir,
-                arguments$outprefix,
-                arguments$strain_2
-            )
+            if(arguments$lists == TRUE) {
+                write_list(
+                    alone_1[1],
+                    arguments$outdir,
+                    arguments$outprefix,
+                    paste0(arguments$strain_1, "-only")  #TODO Make an argument to write QNAME entries unique to a given sample to a separate list
+                    # arguments$strain_1
+                )
+                write_list(
+                    alone_2[1],
+                    arguments$outdir,
+                    arguments$outprefix,
+                    paste0(arguments$strain_2, "-only")  #TODO Make an argument to write QNAME entries unique to a given sample to a separate list
+                    # arguments$strain_2
+                )
+            }
         }
     }
     utils::setTxtProgressBar(bar, i)
 }
-line_1
-pryr::object_size(line_1)
-line_2
-pryr::object_size(line_2)
-AS
-pryr::object_size(AS)
-
-alone_1
-pryr::object_size(alone_1)
-alone_2
-pryr::object_size(alone_2)
-
-ambiguous
-pryr::object_size(ambiguous)
-sample_1
-pryr::object_size(sample_1)
-sample_2
-pryr::object_size(sample_2)
-
-i
-pryr::object_size(i)
+# for i in *.assign-*.txt.gz; do decompress_gzip "${i}"; done
 
 
 #  End the script -------------------------------------------------------------
@@ -444,84 +662,3 @@ cat(paste0(script, " completed: ", time_end, "\n"))
 print(convert_time_HMS(time_start, time_end))
 cat("\n\n")
 rm(time_start, time_end)
-
-
-#  Notes on the logic
-# do lexicographic sort of ♂.AS.txt.gz, ♀.AS.txt.gz
-# 
-# 	♀	♂
-# 1	1	1
-# 2	2	2
-# 3	3	4
-# 4	4	5
-# 5	5	6
-# 6	7	7
-# 7	9	10
-# 8	10	11
-# ...
-# 
-# line 1: match, ∴ do comparison and store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
-# line 2: match, ∴ do comparison and store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
-# line 3: mismatch, ∴ store 3 in tmp.♀, store 4 in tmp.♂; compare tmp.♀ with tmp.♂, find no matches; move on to next line
-# line 4: mismatch, ∴ store 4 in tmp.♀, store 5 in tmp.♂; compare tmp.♀ with tmp.♂, find that 4♀ and 4♂ match, store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
-# line 5: mismatch, ∴ store 5 in tmp.♀, store 6 in tmp.♂; compare tmp.♀ with tmp.♂, find that 5♀ and 5♂ match, store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
-# line 6: match, ∴ do comparison and store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
-# line 7:	mismatch, ∴ store 9 in tmp.♀, store 10 in tmp.♂; compare tmp.♀ with tmp.♂, find no matches; move on to next line
-# line 8: mismatch, ∴ store 10 in tmp.♀, store 11 in tmp.♂; compare tmp.♀ with tmp.♂, find that 10♀ and 10♂ match, store results (final.♀.txt.gz, final.♂.txt.gz, or final.⚥.txt.gz); move on to next line
-
-
-#  pseudocode takes in two files as input
-
-#  file 1 is, e.g., ♂.AS.txt.gz
-#+ (header and first line of ♂.AS.txt.gz)
-#+ qname   AS
-#+ AACCAATAACAAGTCAACGGAATATAGCGGCAAGTCAGCA:1417636611   -5
-
-#  file 2 is, e.g., ♀.AS.txt.gz
-#+ (header and first line of ♀.AS.txt.gz)
-#+ qname   AS
-#+ AACCAATAACAAGTCAACGGAATATAGCGGCAAGTCAGCA:1417636611   0
-
-#  find the max number of records between ♂.AS.txt.gz and ♀.AS.txt.gz
-# n = maximum of ♂.AS.txt.gz and ♀.AS.txt.gz
-
-#  loop over n
-# for i in n, do
-#     read in line i of ♂.AS.txt.gz
-#     read in line i of ♀.AS.txt.gz
-#
-#     test if ♀.AS QNAME matches ♂.AS QNAME
-#     	if so, do
-#     		AS comparison
-#     			if ♀.AS > ♂.AS, append QNAME to final.♀.txt.gz (write to disc)
-#     			if ♀.AS < ♂.AS, append QNAME to final.♂.txt.gz (write to disc)
-#     			if ♀.AS = ♂.AS, append QNAME to final.⚥.txt.gz (write to disc)
-#
-#     	if not, do
-#     		append QNAME.♀ to object tmp.♀ (store in memory)
-#     		append QNAME.♂ to object tmp.♂ (store in memory)
-#
-#     		test if QNAME in tmp.♀ matches QNAME in tmp.♂
-#     			if so, do
-#     				AS comparison
-#     					if ♀.AS > ♂.AS,
-#                            append QNAME to final.♀.txt.gz (write to disc),
-#                            then
-#                                remove QNAME from both tmp.♀ and tmp.♂ (remove from memory)
-#     					if ♀.AS < ♂.AS,
-#                            append QNAME to final.♂.txt.gz (write to disc),
-#                            then
-#                                remove QNAME from both tmp.♀ and tmp.♂  (remove from memory)
-#     					if ♀.AS = ♂.AS,
-#                            append QNAME to final.⚥.txt.gz (write to disc),
-#                            then
-#                                remove QNAME from both tmp.♀ and tmp.♂  (remove from memory)
-#
-#     			if not, do
-#     				nothing
-
-#  Use final lists of QNAMEs with picard filterSamReads to filter bam files
-#+ such that they contain only maternal, paternal, or ambiguous reads
-
-# How to handle if lines remain in one file but all lines have been read in the other file?  #DONE, see code
-# How to handle if, after comparisons between tmp.♀ and tmp.♂, there are no more matches?  #DONE, see code

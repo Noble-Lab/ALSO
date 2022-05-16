@@ -147,7 +147,8 @@ set.seed(24)
 ap <- arg_parser(
     name = script,
     description = "
-        
+        Output a sorted, tab-separated, gzipped table of qnames and AS's for a
+        given bam infile.
     ",
     hide.opts = TRUE
 )
@@ -196,7 +197,7 @@ ap <- add_argument(
 
 
 #  Parse the arguments --------------------------------------------------------
-test_in_RStudio <- TRUE  # Hardcode T for testing in RStudio; F for CLI
+test_in_RStudio <- FALSE  # Hardcode T for testing in RStudio; F for CLI
 if(isTRUE(test_in_RStudio)) {
     #  RStudio-interactive work
     dir_base <- "."
@@ -233,7 +234,7 @@ if(isTRUE(test_in_RStudio)) {
 rm(test_in_RStudio)
 
 
-#  Check that files exist -----------------------------------------------------
+#  Check on the arguments that were supplied ----------------------------------
 stopifnot(file.exists(arguments$bam))
 stopifnot(file.exists(arguments$bai))
 if(arguments$strain == "") stop("--strain is an empty string.")
@@ -256,8 +257,7 @@ cat(paste0(
 ))
 cat("\n")
 
-#  Record the number of records in a chunk; tally and record the total number
-#+ of records in the bam file
+#  Tally and record the total number of records in the bam file
 cat(paste0(
     "Counting the number of records in ", basename(arguments$bam), "...\n"
 ))
@@ -265,8 +265,6 @@ rec_n <- as.integer(arguments$chunk)
 rec_total <- count_records(arguments$bam)
 cat(paste0("Number of records: ", scales::comma(rec_total), "\n"))
 cat("\n")
-
-# isOpen(bam)
 
 #  Iterate through bam file in chunks
 bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = TRUE)
@@ -358,6 +356,19 @@ for(i in 1:n) {
     utils::setTxtProgressBar(bar, i)
 }
 
+
+cat(paste0("Completed: Processing ", basename(arguments$bam), "\n"))
+cat(paste0(
+    "Have written out ",
+    gsub(
+        ".bam",
+        paste0(".", arguments$strain, ".AS.txt.gz"),
+        basename(arguments$bam)
+    ),
+    "\n"
+))
+
+
 #  Sort the AS.txt.gz file ----------------------------------------------------
 # system(paste0(
 #     "echo \"",
@@ -371,9 +382,19 @@ for(i in 1:n) {
 #     "\" | bash"
 # ))
 
+cat(paste0(
+    "Started: Sorting ",
+    gsub(
+        ".bam",
+        paste0(".", arguments$strain, ".AS.txt.gz"),
+        basename(arguments$bam)
+    ),
+    "\n"
+))
+
 command_sort <- paste0(
     "echo \"",
-    "sort -k1,1 -k2n <(gunzip -c ",
+    "sort -k1,2 <(gunzip -cf ",
     arguments$outdir, "/",
     gsub(
         ".bam",
@@ -404,8 +425,22 @@ command_sort <- paste0(
     "\" | bash"
 )
 system(command_sort)
-#FIXME mv: cannot stat './data/files_bam/Disteche_sample_13.dedup.CAST.corrected.CAST.AS.tmp.txt.gz': No such file or directory
-#NOTE Basically works, but throws a strange error message
+
+# #FIXME mv: cannot stat './data/files_bam/Disteche_sample_13.dedup.CAST.corrected.CAST.AS.tmp.txt.gz': No such file or directory
+# #NOTE Basically works, but throws a strange error message
+# #NOTE Observed this error when running from the CL:
+#       Error: unexpected ',' in ","
+#       Execution halted
+
+cat(paste0(
+    "Completed: Sorting ",
+    gsub(
+        ".bam",
+        paste0(".", arguments$strain, ".AS.txt.gz"),
+        basename(arguments$bam)
+    ),
+    "\n"
+))
 
 
 #  End the script -------------------------------------------------------------
