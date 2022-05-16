@@ -7,21 +7,11 @@
 time_start="$(date +%s)"
 
 
-#  Set working directory and source functions --------------------------------- 
-#  Check for proper "$(pwd)"
-if [[ "$(basename "$(pwd)")" != "2021_kga0_4dn-mouse-cross" ]]; then
-    echo "Exiting: You must run this script from" \
-    "\"2021_kga0_4dn-mouse-cross\", the project's top directory."
-    exit 1
-fi
-
-#  Source functions into environment
+#  Source functions into environment ------------------------------------------
 # shellcheck disable=1091
-. ./bin/auxiliary/functions-preprocessing-HPC.sh ||
+. ./functions-preprocessing-HPC.sh ||
     {
         echo "Exiting: Unable to source auxiliary information."
-        echo "Are you in the correct working directory," \
-        "\"2021_kga0_4dn-mouse-cross\"?"
         exit 1
     }
 
@@ -47,14 +37,14 @@ print_usage() {
     echo ""
     echo ""
     echo "Dependencies:"
-    echo "  - argparser >= 0.7.1"
-    echo "  - picard >= 2.27.1"
-    echo "  - R >= 4.0.5"
-    echo "  - Rsamtools >= 2.6.0"
-    echo "  - Rscript >= 4.0.5"
-    echo "  - samtools >= 1.13"
-    echo "  - scales >= 1.1.1"
-    echo "  - tidyverse >= 1.3.1"
+    echo " - argparser >= 0.7.1"
+    echo " - picard >= 2.27.1"
+    echo " - R >= 4.0.5"
+    echo " - Rsamtools >= 2.6.0"
+    echo " - Rscript >= 4.0.5"
+    echo " - samtools >= 1.13"
+    echo " - scales >= 1.1.1"
+    echo " - tidyverse >= 1.3.1"
     echo ""
     echo ""
     echo "Arguments:"
@@ -181,7 +171,7 @@ case "$(echo "${remove}" | tr '[:upper:]' '[:lower:]')" in
         echo -e "-r: Remove intermediate files is FALSE."
         ;;
     *) \
-        echo -e "Exiting: -r remove intermediate files must be \"TRUE\" or \"FALSE\".\n"
+        echo -e "Exiting: -f flagstat argument must be \"TRUE\" or \"FALSE\".\n"
         exit 1
         ;;
 esac
@@ -298,7 +288,7 @@ fi
 #  05: Generate lists of QNAMEs to exclude ------------------------------------
 if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     echo -e "Started step 5/13: Generating lists of QNAMEs to exclude from ${out_rm}."
-    Rscript ./bin/generate-qname-lists.R \
+    Rscript ./generate-qname-lists.R \
     --bam "${out_rm}" \
     --bai "${out_rm_bai}" \
     --outdir "${TMPDIR}" \
@@ -312,13 +302,13 @@ if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     --unique TRUE \
     --tally FALSE \
     --remove TRUE
-
+    
     if [[ -f "${TMPDIR}/${out_unmated}" ]]; then
         touch "${step_5}"
     else
         echo -e "There was a problem: ${TMPDIR}/${out_unmated} was not generated."
         echo -e "Check on this."
-        echo_exit_message 5
+        echo_exit_message 6
         exit 1
     fi
     echo -e "Completed step 5/13: Generating lists of QNAMEs to exclude from ${out_rm}.\n"

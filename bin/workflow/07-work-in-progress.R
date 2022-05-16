@@ -261,11 +261,11 @@ ap <- add_argument(
     type = "integer",
     default = 0,
     help = "
-    threshold alignment score; the absolute value of the difference in
-    alignment scores between samples 1 and 2 must be greater than this value in
-    order for a strain-specific assignment to be made; if not, the assignment
-    will be \"ambiguous\" <positive int>
-"
+        threshold alignment score; the absolute value of the difference in
+        alignment scores between samples 1 and 2 must be greater than this
+        value in order for a strain-specific assignment to be made; if not, the
+        assignment will be \"ambiguous\" <positive int>
+    "
 )
 ap <- add_argument(
     ap,
@@ -453,21 +453,24 @@ n <- pmax(count.sample_1, count.sample_2)
 
 bar <- utils::txtProgressBar(min = 0, max = n, initial = 0, style = 3)
 for(i in 1:n) {
+    # #####  For tests only  #####
+    # i <- 2
+    
     #  Read in line of txt.gz file only if that line number is present in the
     #+ txt.gz file; i.e., don't read in a line number greater than the total
     #+ number of lines in the file
     if(i < count.sample_1) {
-        sample_1T <- read_line(arguments$sample_1, i, arguments$strain_1)
+        line_1 <- read_line(arguments$sample_1, i, arguments$strain_1)
     }
     if(i < count.sample_2) {
-        sample_2T <- read_line(arguments$sample_2, i, arguments$strain_2)
+        line_2 <- read_line(arguments$sample_2, i, arguments$strain_2)
     }
     
     #  Test: Do QNAMEs match on a per-line basis? If they match, then perform
     #+ logic for AS comparisons (see function make_assignment()); if not, then
     #+ store values in "alone_" variables (further description below)
-    if(sample_1T[1] == sample_2T[1]) {
-        AS <- dplyr::bind_cols(sample_1T, sample_2T[2]) %>%
+    if(line_1[1] == line_2[1]) {
+        AS <- dplyr::bind_cols(line_1, line_2[2]) %>%
             make_assignment(., arguments$threshold)
         
         if(AS[5] == arguments$strain_1) {
@@ -508,9 +511,17 @@ for(i in 1:n) {
             }
         }
     } else {
-        if(i < count.sample_1) alone_1 <- dplyr::bind_rows(alone_1, sample_1T)
-        if(i < count.sample_2) alone_2 <- dplyr::bind_rows(alone_2, sample_2T)
+        if(i < count.sample_1) alone_1 <- dplyr::bind_rows(alone_1, line_1)
+        if(i < count.sample_2) alone_2 <- dplyr::bind_rows(alone_2, line_2)
         
+            # #####  For tests only  #####
+            # alone_1 <- alone_1 %>%
+            #     dplyr::bind_rows(tibble::tibble(
+            #         qname = "AACCAATAACAAGTCAACGGACGCTTCGTCCGAGATAAGA:2423713332",
+            #         AS.mm10 = -10
+            #     ))
+            # alone_2
+
         #  Attempt to "salvage" unmatched entries
         if(sum(alone_1$qname %in% alone_2$qname) == 1) {
             salvage_1 <- alone_1[alone_1$qname %in% alone_2$qname, ]
@@ -596,7 +607,7 @@ for(i in 1:n) {
         #+ of lines in the object or after reaching a certain size in RAM;
         #+ e.g., if the "alone" object reaches 1GB in size, then write the
         #+ first x number of lines to disc and remove them from memory (I think
-        #+ this approach should be find because of the lexical-sorted nature
+        #+ this approach should be fine because of the lexical-sorted nature
         #+ of the input: earlier entries in one sample are very likely to be
         #+ with earlier entries of other sample and very unlikely to be with
         #+ later entries in that sample)
@@ -644,31 +655,10 @@ for(i in 1:n) {
 # for i in *.assign-*.txt.gz; do decompress_gzip "${i}"; done
 
 
-# ###########################################################################
-# #  Just for testing: Add an extra value
-# test <- sample_2T %>% dplyr::rename(AS.sample_1T = AS.sample_2T)
-# test[, 2] <- -2
-# alone_1 <- dplyr::bind_rows(alone_1, test)
-# ###########################################################################
-
-# line_1
-# pryr::object_size(line_1)
-# line_2
-# pryr::object_size(line_2)
-# AS
-# pryr::object_size(AS)
-# 
-# alone_1
-# pryr::object_size(alone_1)
-# alone_2
-# pryr::object_size(alone_2)
-# 
-# ambiguous
-# pryr::object_size(ambiguous)
-# sample_1
-# pryr::object_size(sample_1)
-# sample_2
-# pryr::object_size(sample_2)
-# 
-# i
-# pryr::object_size(i)
+#  End the script -------------------------------------------------------------
+time_end <- Sys.time()
+cat("\n")
+cat(paste0(script, " completed: ", time_end, "\n"))
+print(convert_time_HMS(time_start, time_end))
+cat("\n\n")
+rm(time_start, time_end)

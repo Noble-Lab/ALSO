@@ -10,7 +10,7 @@ cat(paste0(script, " started: ", time_start, "\n"))
 
 
 #  Functions ------------------------------------------------------------------
-check_library_availability <- function(x) {
+checkLibraryAvailability <- function(x) {
     # Check that library is available in environment; stop and return a message
     # if not
     # 
@@ -28,7 +28,7 @@ check_library_availability <- function(x) {
 }
 
 
-convert_time_HMS <- function(x, y) {
+convertTimeToHMS <- function(x, y) {
     # #TODO Description of function
     #
     # :param x: start time (POSIXct)
@@ -48,7 +48,7 @@ convert_time_HMS <- function(x, y) {
 }
 
 
-count_lines_outfile <- function(x, y, z) {
+countLinesOutfile <- function(x, y, z) {
     # #TODO Description of function
     # 
     # :param x: set one of five options to count lines in outfile: m (mated),
@@ -81,7 +81,7 @@ count_lines_outfile <- function(x, y, z) {
 }
 
 
-count_records <- function(x) {
+countRecords <- function(x) {
     # Count number of records in bam file
     # 
     # :param x: bam file, including path (chr)
@@ -92,7 +92,7 @@ count_records <- function(x) {
 }
 
 
-import_library <- function(x) {
+importLibrary <- function(x) {
     # Suppress messages when loading libraries into the R session
     # 
     # :param x: a vector of libraries <chr>
@@ -106,7 +106,7 @@ import_library <- function(x) {
 }
 
 
-load_fields <- function(x, y) {
+loadFields <- function(x, y) {
     # #TODO Description of function
     # 
     # :param x: 'g', load fields needed for general analysis; 't', load fields
@@ -128,7 +128,7 @@ load_fields <- function(x, y) {
 }
 
 
-remove_outfiles <- function(x, y) {
+removeOutfiles <- function(x, y) {
     # Remove any outfiles present in directory
     # 
     # :param x: directory from which to remove outfiles
@@ -163,7 +163,7 @@ remove_outfiles <- function(x, y) {
 }
 
 
-stop_if_not_logical <- function(x) {
+stopIfNotLogical <- function(x) {
     # #TODO Description of function
     # 
     # :param x: single-value logical vector to evaluate (logical)
@@ -171,7 +171,7 @@ stop_if_not_logical <- function(x) {
 }
 
 
-write_duplicated_qnames <- function(x, y, z) {
+writeDuplicatedQnames <- function(x, y, z) {
     # Write out txt.gz outfile(s) for duplicate QNAMEs (>2) in bam file
     #
     # :param x: tibble containing the variable 'qname' (tbl_df)
@@ -244,7 +244,7 @@ write_duplicated_qnames <- function(x, y, z) {
 }
 
 
-write_mated_qnames <- function(x, y, z, a) {
+writeMatedQnames <- function(x, y, z, a) {
     # Evaluate mate status for reads in a bam file, reporting if reads with
     # status "mated", "unmated", or "ambiguous" are present; optionally, write
     # out txt.gz tables comprised of 'qname', 'groupid', and 'mate_status' for
@@ -311,7 +311,7 @@ write_mated_qnames <- function(x, y, z, a) {
 }
 
 
-write_singleton_qnames <- function(x, y, z) {
+writeSingletonQnames <- function(x, y, z) {
     # Write out txt.gz outfile(s) for singleton QNAMEs (1) in bam file
     #
     # :param x: tibble containing the variable 'qname' (tbl_df)
@@ -380,7 +380,7 @@ write_singleton_qnames <- function(x, y, z) {
 }
 
 
-write_trans_mates <- function(x, y, z) {
+writeTransMates <- function(x, y, z) {
     # Write out txt.gz outfile(s) for interchromosomal QNAMEs in bam file
     # 
     # :param x: tibble containing variables 'qname', 'rname', and 'mrnm'
@@ -454,8 +454,8 @@ write_trans_mates <- function(x, y, z) {
 
 #  Source libraries, adjust settings ------------------------------------------
 libraries <- c("argparser", "Rsamtools", "scales", "tidyverse")
-for(i in 1:length(libraries)) check_library_availability(libraries[i])
-import_library(libraries)
+for(i in 1:length(libraries)) checkLibraryAvailability(libraries[i])
+importLibrary(libraries)
 rm(i, libraries)
 
 options(pillar.sigfig = 8, scipen = 10000)
@@ -657,21 +657,20 @@ if(isTRUE(test_in_RStudio)) {
 rm(test_in_RStudio)
 
 
-#  Check on the arguments that were supplied ----------------------------------
+#  Check that files exist -----------------------------------------------------
 stopifnot(file.exists(arguments$bam))
 stopifnot(file.exists(arguments$bai))
 stopifnot(arguments$chunk != 0)
-stopifnot(arguments$chunk %% 1 == 0)
-stopifnot(arguments$chunk %% 2 == 0)
-stop_if_not_logical(arguments$mated)
-stop_if_not_logical(arguments$unmated)
-stop_if_not_logical(arguments$ambiguous)
-stop_if_not_logical(arguments$trans)
-stop_if_not_logical(arguments$duplicated)
-stop_if_not_logical(arguments$singleton)
-stop_if_not_logical(arguments$unique)
-stop_if_not_logical(arguments$tally)
-stop_if_not_logical(arguments$remove)
+stopifnot((arguments$chunk %% 2) == 0)
+stopIfNotLogical(arguments$mated)
+stopIfNotLogical(arguments$unmated)
+stopIfNotLogical(arguments$ambiguous)
+stopIfNotLogical(arguments$trans)
+stopIfNotLogical(arguments$duplicated)
+stopIfNotLogical(arguments$singleton)
+stopIfNotLogical(arguments$unique)
+stopIfNotLogical(arguments$tally)
+stopIfNotLogical(arguments$remove)
 
 #  If outfile directory does not exist, then create it
 dir.create(file.path(arguments$outdir), showWarnings = FALSE)
@@ -693,14 +692,14 @@ cat(paste0(
     "Counting the number of records in ", basename(arguments$bam), "...\n"
 ))
 rec_n <- as.integer(arguments$chunk)
-rec_total <- count_records(arguments$bam)
+rec_total <- countRecords(arguments$bam)
 cat(paste0("Number of records: ", scales::comma(rec_total), "\n"))
 cat("\n")
 
 #  Remove already-created outfiles in outdirectory (optional)
 if(isTRUE(arguments$remove)) {
     cat(paste0("If present, removing outfiles in the outdirectory...\n"))
-    remove_outfiles(arguments$outdir, basename(arguments$bam))
+    removeOutfiles(arguments$outdir, basename(arguments$bam))
     cat("\n")
 }
 
@@ -723,9 +722,9 @@ for(i in 1:n) {
 # while(rec_n < (rec_total / 2) + arguments$chunk) {
     #  Load in pertinent bam fields
     if(isTRUE(arguments$trans)) {
-        pertinent <- load_fields("t", bam)
+        pertinent <- loadFields("t", bam)
     } else {
-        pertinent <- load_fields("g", bam)
+        pertinent <- loadFields("g", bam)
     }
     
     #  Determine and evaluate mate status levels present in the data; write out
@@ -736,34 +735,29 @@ for(i in 1:n) {
         dplyr::rename("mate_status" = ".")
 
     if(isTRUE(arguments$mated)) {
-        write_mated_qnames(status, "mated", uniq, tally)
+        writeMatedQnames(status, "mated", uniq, tally)
     }
     if(isTRUE(arguments$unmated)) {
-        write_mated_qnames(status, "unmated", uniq, tally)
+        writeMatedQnames(status, "unmated", uniq, tally)
     }
     if(isTRUE(arguments$ambiguous)) {
-        write_mated_qnames(status, "ambiguous", uniq, tally)
+        writeMatedQnames(status, "ambiguous", uniq, tally)
     }
 
     #  Determine and evaluate duplicate QNAME (>2) entries, writing out tables
     if(isTRUE(arguments$duplicated)) {
-        write_duplicated_qnames(pertinent, uniq, tally)
+        writeDuplicatedQnames(pertinent, uniq, tally)
     }
-    #FIXME A failure occurs here, I think, because of the way that the data is
-    #      read in and analyzed in chunks; the coordinate-sorted nature keeps
-    #      duplicates away from each other in different chunks (see line 192);
-    #      thus, true duplicates are not recognized as duplicates if they are
-    #      in different chunks
 
     #  Determine and evaluate singleton QNAME entries, writing out tables
     if(isTRUE(arguments$singleton)) {
-        write_singleton_qnames(pertinent, uniq, tally)
+        writeSingletonQnames(pertinent, uniq, tally)
     }
     
     #  Determine and evaluate QNAMEs associated with trans reads, writing out
     #+ tables
     if(isTRUE(arguments$trans)) {
-        write_trans_mates(pertinent, uniq, tally)
+        writeTransMates(pertinent, uniq, tally)
     }
 
     utils::setTxtProgressBar(bar, i)
@@ -778,27 +772,27 @@ cat(paste0("Completed: Processing ", basename(arguments$bam), "\n\n"))
 
 #  Count lines in outfiles, report the counts, end the script -----------------
 if(isTRUE(arguments$mated)) {  #FIXME These calls sometimes throw errors
-    count_lines_outfile("m", arguments$outdir, basename(arguments$bam))
+    countLinesOutfile("m", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$unmated)) {
-    count_lines_outfile("u", arguments$outdir, basename(arguments$bam))
+    countLinesOutfile("u", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$ambiguous)) {
-    count_lines_outfile("a", arguments$outdir, basename(arguments$bam))
+    countLinesOutfile("a", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$duplicated)) {
-    count_lines_outfile("d", arguments$outdir, basename(arguments$bam))
+    countLinesOutfile("d", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$singleton)) {
-    count_lines_outfile("s", arguments$outdir, basename(arguments$bam))
+    countLinesOutfile("s", arguments$outdir, basename(arguments$bam))
 }
 if(isTRUE(arguments$trans)) {
-    count_lines_outfile("t", arguments$outdir, basename(arguments$bam))
+    countLinesOutfile("t", arguments$outdir, basename(arguments$bam))
 }
 
 time_end <- Sys.time()
 cat("\n")
 cat(paste0(script, " completed: ", time_end, "\n"))
-print(convert_time_HMS(time_start, time_end))
+print(convertTimeToHMS(time_start, time_end))
 cat("\n\n")
 rm(time_start, time_end)

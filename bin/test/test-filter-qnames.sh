@@ -17,7 +17,7 @@ cd "${dir_base}" ||
         exit 1
     }
 
-. ./bin/auxiliary/functions_preprocessing.sh
+. ./bin/auxiliary/functions-preprocessing.sh
 
 
 #  Perform preprocessing ------------------------------------------------------

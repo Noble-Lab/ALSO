@@ -17,7 +17,7 @@ fi
 
 #  Source functions into environment
 # shellcheck disable=1091
-. ./bin/auxiliary/functions_preprocessing.sh ||
+. ./bin/auxiliary/functions-preprocessing.sh ||
     {
         echo "Exiting: Unable to source auxiliary information."
         echo "Are you in the correct working directory," \
@@ -58,10 +58,11 @@ printUsage() {
     echo "Arguments:"
     echo "-h print this help message and exit"
     echo "-u use safe mode: \"TRUE\" or \"FALSE\" (logical)"
-    echo "-c run on GS HPC: \"TRUE\" or \"FALSE\" (logical)"
+    echo "-c use KA conda environment: \"TRUE\" or \"FALSE\" (logical)"
+    echo "-l run on GS HPC: \"TRUE\" or \"FALSE\" (logical)"
     echo "-i bam infile, including path (chr)"
     echo "-o path for outfiles (chr); path will be made if it does not exist"
-    echo "-f run samtools flagstat bams: \"TRUE\" or \"FALSE\" (logical)"
+    echo "-f run samtools flagstat on bams: \"TRUE\" or \"FALSE\" (logical)"
     echo "-r remove intermediate files: \"TRUE\" or \"FALSE\" (logical)"
     echo "-p number of cores for parallelization (int >= 1); default: 1"
     exit
@@ -288,7 +289,7 @@ if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
     else
         echo -e "There was a problem: ${outpath}/${out_unmated} was not generated."
         echo -e "Check on this."
-        echo_exit_message 6
+        echo_exit_message 4
         exit 1
     fi
 elif [[ -f "${step_4}" && -f "${step_3}" ]]; then
