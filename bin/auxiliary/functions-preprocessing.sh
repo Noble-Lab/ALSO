@@ -386,7 +386,7 @@ list_tally_qnames() {
 
     #  Trim leading whitespaces
     if [[ -f "${1/.bam/.QNAME.tmp.txt}" ]]; then
-        cut -c 6- "${1/.bam/.QNAME.tmp.txt}" > "${1/.bam/.QNAME.txt}" &
+        cut -c 7- "${1/.bam/.QNAME.tmp.txt}" > "${1/.bam/.QNAME.txt}" &
         display_spinning_icon $! \
         "Trimming away leading whitespaces in $(basename "${1/.bam/.QNAME.tmp.txt}")... "
     else

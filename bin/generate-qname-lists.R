@@ -657,7 +657,7 @@ if(isTRUE(test_in_RStudio)) {
 rm(test_in_RStudio)
 
 
-#  Check that files exist -----------------------------------------------------
+#  Check on the arguments that were supplied ----------------------------------
 stopifnot(file.exists(arguments$bam))
 stopifnot(file.exists(arguments$bai))
 stopifnot(arguments$chunk != 0)
@@ -748,6 +748,11 @@ for(i in 1:n) {
     if(isTRUE(arguments$duplicated)) {
         writeDuplicatedQnames(pertinent, uniq, tally)
     }
+    #FIXME A failure occurs here, I think, because of the way that the data is
+    #      read in and analyzed in chunks; the coordinate-sorted nature keeps
+    #      duplicates away from each other in different chunks (see line 192);
+    #      thus, true duplicates are not recognized as duplicates if they are
+    #      in different chunks
 
     #  Determine and evaluate singleton QNAME entries, writing out tables
     if(isTRUE(arguments$singleton)) {

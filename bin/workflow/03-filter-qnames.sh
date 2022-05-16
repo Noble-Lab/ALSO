@@ -45,14 +45,14 @@ printUsage() {
     echo ""
     echo ""
     echo "Dependencies:"
-    echo " - argparser >= 0.7.1"
-    echo " - picard >= 2.27.1"
-    echo " - R >= 4.0.5"
-    echo " - Rsamtools >= 2.6.0"
-    echo " - Rscript >= 4.0.5"
-    echo " - samtools >= 1.13"
-    echo " - scales >= 1.1.1"
-    echo " - tidyverse >= 1.3.1"
+    echo "  - argparser >= 0.7.1"
+    echo "  - picard >= 2.27.1"
+    echo "  - R >= 4.0.5"
+    echo "  - Rsamtools >= 2.6.0"
+    echo "  - Rscript >= 4.0.5"
+    echo "  - samtools >= 1.13"
+    echo "  - scales >= 1.1.1"
+    echo "  - tidyverse >= 1.3.1"
     echo ""
     echo ""
     echo "Arguments:"
@@ -177,7 +177,7 @@ case "$(echo "${remove}" | tr '[:upper:]' '[:lower:]')" in
         echo -e "-r: Remove intermediate files is FALSE."
         ;;
     *) \
-        echo -e "Exiting: -f flagstat argument must be \"TRUE\" or \"FALSE\".\n"
+        echo -e "Exiting: -r remove intermediate files must be \"TRUE\" or \"FALSE\".\n"
         exit 1
         ;;
 esac
