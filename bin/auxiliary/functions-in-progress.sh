@@ -121,6 +121,87 @@ find_set_intersection() {
 head_10() { zcat -d "${1}" | head -10; }
 
 
+identify_qnames_updated() {
+    # Using txt.gz infile from list_tally_qnames, create txt.gz outfiles for
+    # QNAME == 2, QNAME > 2, or QNAME < 2; outfile names are derived from
+    # infile name; function runs the following commands in succession:
+    #    1. filter txt infile for 'QNAME == 2', 'QNAME > 2', or 'QNAME < 2'
+    #       based on user specification; write results to new txt file
+    #    2. create a txt-file list of QNAMEs without tallies from the txt file
+    #       output by step 1
+    #    3. if 'keep', keep the txt file output by step 1; if 'gzip', gzip the
+    #       txt file output by step 1; if 'delete', rm the txt file output by
+    #       step 1
+    #
+    # :param 1: number of cores for parallelization (int >= 1)
+    # :param 2: identify QNAMES as follows: 'eq', QNAME = 2; 'gt', QNAME > 2;
+    #           'lt', QNAME < 2; for (chr; default: 'gt')
+    # :param 3: txt infile, including path (chr)
+    # :param 4: 'keep', 'gzip', or 'delete' txt output from step 1 (chr;
+    #           default: 'delete')
+    start="$(date +%s)"
+
+    case "$(echo "${2:-"gt"}" | tr '[:upper:]' '[:lower:]')" in
+        eq | e) \
+            comp="\$1 == 2"
+            str="eq"
+            ;;
+        gt | g) \
+            comp="\$1 > 2"
+            str="gt"
+            ;;
+        lt | l) \
+            comp="\$1 < 2"
+            str="lt"
+            ;;
+        *) \
+            echo "Parameter 1 is not \"eq\", \"gt\", or \"lt\""
+            echo "Setting parameter 1 to \"eq\""
+            comp="'\$1 == 2'"
+            str="eq"
+            ;;
+    esac
+
+    #  Step 1
+    # shellcheck disable=SC2016
+    split -n l/"${1}" "${3}" "${TMPDIR}/_pawk"$$
+
+    for i in "${TMPDIR}/_pawk"$$*; do
+        awk "${comp}" "${i}" > "${i}.out" &
+    done
+    wait
+    cat "${TMPDIR}/_pawk"$$*.out > "${3/.txt/.${str}.tally.txt}"
+    rm "${TMPDIR}/_pawk"$$*
+
+    #  Step 2
+    cut -c 4- "${3/.txt/.${str}.tally.txt}" > "${3/.txt/.${str}.txt}"
+    gzip "${3/.txt/.${str}.txt}"
+
+    #  Step 3
+    case "$(echo "${4:-"delete"}" | tr '[:upper:]' '[:lower:]')" in
+        keep | k) \
+            :
+            ;;
+        gzip | g) \
+            gzip "${3/.txt/.${str}.tally.txt}"
+            ;;
+        delete | d) \
+            rm "${3/.txt/.${str}.tally.txt}"
+            ;;
+        *) \
+            echo "Parameter 4 is not \"keep\", \"gzip\", or \"delete\""
+            echo "Will delete (rm) $(basename "${3/.txt/.${str}.tally.txt}")"
+            rm "${3/.txt/.${str}.tally.txt}"
+            ;;
+    esac
+
+    end="$(date +%s)"
+    echo ""
+    calculate_run_time "${start}" "${end}" \
+    "List entries with \"QNAME ${str} 2\" for $(basename "${3}")."
+}
+
+
 list_qnames_to_cut() {
     # Find and list QNAMEs with more than one entry
     #
