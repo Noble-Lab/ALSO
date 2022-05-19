@@ -136,7 +136,7 @@ identify_qnames_updated() {
     # :param 1: number of cores for parallelization (int >= 1)
     # :param 2: identify QNAMES as follows: 'eq', QNAME = 2; 'gt', QNAME > 2;
     #           'lt', QNAME < 2; for (chr; default: 'gt')
-    # :param 3: txt infile, including path (chr)
+    # :param 3: gzipped txt infile, including path (chr)
     # :param 4: 'keep', 'gzip', or 'delete' txt output from step 1 (chr;
     #           default: 'delete')
     start="$(date +%s)"
@@ -162,20 +162,24 @@ identify_qnames_updated() {
             ;;
     esac
 
-    #  Step 1
-    # shellcheck disable=SC2016
-    split -n l/"${1}" "${3}" "${TMPDIR}/_pawk"$$
+    # #  Step 1
+    # # shellcheck disable=SC2016
+    # zcat -dfk "${3}" > "${3%.gz}"
+    # split -n l/"${1}" "${3%.gz}" "${TMPDIR}/_pawk"$$
+    # rm "${3%.gz}"
+    #
+    # for i in "${TMPDIR}/_pawk"$$*; do
+    #     awk "${comp}" "${i}" > "${i}.out" &
+    # done
+    # wait
+    # cat "${TMPDIR}/_pawk"$$*.out > "${3/.txt.gz/.${str}.tally.txt}"
+    # rm "${TMPDIR}/_pawk"$$*
 
-    for i in "${TMPDIR}/_pawk"$$*; do
-        awk "${comp}" "${i}" > "${i}.out" &
-    done
-    wait
-    cat "${TMPDIR}/_pawk"$$*.out > "${3/.txt/.${str}.tally.txt}"
-    rm "${TMPDIR}/_pawk"$$*
+    #  Step 1
+    awk "${comp}" <(zcat -dk "${3}") > "${3/.txt.gz/.${str}.tally.txt}"
 
     #  Step 2
-    cut -c 4- "${3/.txt/.${str}.tally.txt}" > "${3/.txt/.${str}.txt}"
-    gzip "${3/.txt/.${str}.txt}"
+    cut -c 3- "${3/.txt.gz/.${str}.tally.txt}" | gzip > "${3/.txt.gz/.${str}.txt.gz}"
 
     #  Step 3
     case "$(echo "${4:-"delete"}" | tr '[:upper:]' '[:lower:]')" in
@@ -183,15 +187,15 @@ identify_qnames_updated() {
             :
             ;;
         gzip | g) \
-            gzip "${3/.txt/.${str}.tally.txt}"
+            gzip "${3/.txt.gz/.${str}.tally.txt}"
             ;;
         delete | d) \
-            rm "${3/.txt/.${str}.tally.txt}"
+            rm "${3/.txt.gz/.${str}.tally.txt}"
             ;;
         *) \
             echo "Parameter 4 is not \"keep\", \"gzip\", or \"delete\""
-            echo "Will delete (rm) $(basename "${3/.txt/.${str}.tally.txt}")"
-            rm "${3/.txt/.${str}.tally.txt}"
+            echo "Will delete (rm) $(basename "${3/.txt.gz/.${str}.tally.txt}")"
+            rm "${3/.txt.gz/.${str}.tally.txt}"
             ;;
     esac
 
@@ -226,6 +230,54 @@ list_qnames_to_cut() {
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
     "Completed: Find and list QNAMEs with more than one entry for $(basename "${1}")."
+}
+
+
+list_tally_qnames_gzip_updated() {
+    # List and tally QNAMEs in a QNAME-sorted bam infile; function acts on a
+    # bam infile to perform commands (samtools view, cut, uniq -c, sort -nr)
+    # that list and tally QNAMEs; function writes the results to a txt
+    # outfile, the name of which is derived from the txt infile
+    #
+    # :param 1: name of bam infile, including path (chr)
+    start="$(date +%s)"
+    
+    samtools view "${1}" \
+    | cut -f 1 \
+    | uniq -c \
+    > "${1/.bam/.QNAME.tmp.uniq.txt}"
+    
+    #  Do a parallel sort by number of records
+    if [[ -f "${1/.bam/.QNAME.tmp.uniq.txt}" ]]; then
+        # sort -nr "${1/.bam/.QNAME.tmp.uniq.txt}" \
+        parsort -nr "${1/.bam/.QNAME.tmp.uniq.txt}" \
+        > "${1/.bam/.QNAME.tmp.sort-nr.txt}"
+    else
+        echo "$(basename "${1/.bam/.QNAME.tmp.uniq.txt}") not found."
+        return 1
+    fi
+    
+    #  Trim leading whitespaces
+    if [[ -f "${1/.bam/.QNAME.tmp.sort-nr.txt}" ]]; then
+        cut -c 7- "${1/.bam/.QNAME.tmp.sort-nr.txt}" > "${1/.bam/.QNAME.txt}"
+    else
+        echo "$(basename "${1/.bam/.QNAME.tmp.sort-nr.txt}") not found."
+        return 1
+    fi
+
+    #  Remove temporary intermediate file, then gzip the outfile
+    if [[ -f "${1/.bam/.QNAME.txt}" ]]; then
+        rm -f "${1/.bam/.QNAME.tmp.txt}" "${1/.bam/.QNAME.tmp.uniq.txt}" "${1/.bam/.QNAME.tmp.sort-nr.txt}"
+        gzip "${1/.bam/.QNAME.txt}"
+    else
+        echo "$(basename "${1/.bam/.QNAME.txt}") not found."
+        return 1
+    fi
+        
+    end="$(date +%s)"
+    echo ""
+    calculate_run_time "${start}" "${end}"  \
+    "List and tally QNAMEs in $(basename "${1}")."
 }
 
 
