@@ -121,6 +121,9 @@ find_set_intersection() {
 head_10() { zcat -d "${1}" | head -10; }
 
 
+head_20() { zcat -d "${1}" | head -20; }
+
+
 identify_qnames_updated() {
     # Using txt.gz infile from list_tally_qnames, create txt.gz outfiles for
     # QNAME == 2, QNAME > 2, or QNAME < 2; outfile names are derived from
