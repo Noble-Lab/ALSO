@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#  remove-duplicate-qnames-HPC-gangliuw.sh
+#  remove-duplicate-qnames-AS-HPC-gangliuw.sh
 #  KA
 
 
@@ -9,18 +9,31 @@ time_start="$(date +%s)"
 
 #  Source functions into environment ------------------------------------------
 # shellcheck disable=1091
-. ./functions-preprocessing-HPC.sh ||
-    {
-        echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
-        exit 1
-    }
+if [[ -f "./bin/auxiliary/functions-preprocessing-HPC.sh" ]]; then
+    . ./bin/auxiliary/functions-preprocessing-HPC.sh ||
+        {
+            echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
+            exit 1
+        }
 
-# shellcheck disable=1091
-. ./functions-in-progress.sh ||
-    {
-        echo "Exiting: Unable to source 'functions-in-progress.sh'."
-        exit 1
-    }
+    . ./bin/auxiliary/functions-in-progress.sh ||
+        {
+            echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
+            exit 1
+        }
+elif [[ -f "./functions-preprocessing-HPC.sh" ]]; then
+    . ./functions-preprocessing-HPC.sh ||
+        {
+            echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
+            exit 1
+        }
+
+    . ./functions-in-progress.sh ||
+        {
+            echo "Exiting: Unable to source 'functions-in-progress.sh'."
+            exit 1
+        }
+fi
 
 
 #  Handle arguments, assign variables -----------------------------------------

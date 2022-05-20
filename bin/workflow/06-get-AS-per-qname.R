@@ -326,14 +326,16 @@ for(i in 1:n) {
             dplyr::rename(qname = qname.odd) %>%
             dplyr::select(-c(colnames(.)[3], colnames(.)[5]))
             
-        #  Take the AS min for each mate pair...
-        #+ Taking the AS min via pmin() gives us the worst AS score per read
-        #+ pair; our logic is that the read pair should be represented by the
-        #+ worst of its two alignment scores
+        #  Take the AS min for each mate pair: Taking the AS min via pmin()
+        #+ gives us the worst AS score per read pair; our logic is that the
+        #+ read pair should be represented by the worst of its two alignment
+        #+ scores
         pertinent$pmin <- pmin(pertinent[, 2][[1]], pertinent[, 3][[1]])
         
         #  Rename, reorder, remove columns
-        string <- colnames(pertinent)[[2]] %>% stringr::str_split("\\.") %>% unlist()
+        string <- colnames(pertinent)[[2]] %>%
+            stringr::str_split("\\.") %>%
+            unlist()
         colnames(pertinent)[4] <- paste0(string[1], ".", string[2], ".pmin")
         pertinent <- pertinent %>% dplyr::select(-c(
             colnames(pertinent)[2], colnames(pertinent)[3]

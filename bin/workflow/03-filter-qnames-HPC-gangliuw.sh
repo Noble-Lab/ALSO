@@ -9,11 +9,34 @@ time_start="$(date +%s)"
 
 #  Source functions into environment ------------------------------------------
 # shellcheck disable=1091
-. ./functions-preprocessing-HPC.sh ||
-    {
-        echo "Exiting: Unable to source auxiliary information."
-        exit 1
-    }
+if [[ -f "./bin/auxiliary/functions-preprocessing-HPC.sh" ]]; then
+    . ./bin/auxiliary/functions-preprocessing-HPC.sh ||
+        {
+            echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
+            exit 1
+        }
+
+    . ./bin/auxiliary/functions-in-progress.sh ||
+        {
+            echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
+            exit 1
+        }
+elif [[ -f "./functions-preprocessing-HPC.sh" ]]; then
+    . ./functions-preprocessing-HPC.sh ||
+        {
+            echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
+            exit 1
+        }
+
+    . ./functions-in-progress.sh ||
+        {
+            echo "Exiting: Unable to source 'functions-in-progress.sh'."
+            exit 1
+        }
+else
+    echo -e "Exiting: Could not find auxiliary information."
+    exit 1
+fi
 
 
 #  Handle arguments, assign variables -----------------------------------------
@@ -288,7 +311,16 @@ fi
 #  05: Generate lists of QNAMEs to exclude ------------------------------------
 if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     echo -e "Started step 5/13: Generating lists of QNAMEs to exclude from ${out_rm}."
-    Rscript ./generate-qname-lists.R \
+    if [[ -f ./bin/generate-qname-lists.R ]]; then
+        script="./bin/generate-qname-lists.R"
+    elif [[ -f ./generate-qname-lists.R ]]; then
+        script="./generate-qname-lists.R"
+    else
+        echo -e "Exiting: Could not find generate-qname-lists.R."
+        exit 1
+    fi
+
+    Rscript "${script}" \
     --bam "${out_rm}" \
     --bai "${out_rm_bai}" \
     --outdir "${TMPDIR}" \
@@ -297,7 +329,7 @@ if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     --unmated TRUE \
     --ambiguous TRUE \
     --trans TRUE \
-    --duplicated TRUE \
+    --duplicated FALSE \
     --singleton TRUE \
     --unique TRUE \
     --tally FALSE \
