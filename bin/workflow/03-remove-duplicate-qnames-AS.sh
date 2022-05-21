@@ -86,8 +86,8 @@ echo -e "Running ${0}... "
 
 #  Evaluate "${safe_mode}"
 case "$(echo "${safe_mode}" | tr '[:upper:]' '[:lower:]')" in
-    true | t) echo -e "-u: Safe mode is on." && set -Eeuxo pipefail ;;
-    false | f) echo -e "-u: Safe mode is off." ;;
+    true | t) echo -e "-u: Safe mode is TRUE." && set -Eeuxo pipefail ;;
+    false | f) echo -e "-u: Safe mode is FALSE." ;;
     *) \
         echo -e "Exiting: -u safe mode argument must be \"TRUE\" or \"FALSE\".\n"
         exit 1

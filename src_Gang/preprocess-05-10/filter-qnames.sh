@@ -106,7 +106,7 @@ case "$(echo "${conda}" | tr '[:upper:]' '[:lower:]')" in
         echo -e "-c: Use KA conda environment is FALSE."
         ;;
     true | t) \
-        #  Conda anvironment used by KA for writing and testing the pipeline
+        #  Conda environment used by KA for writing and testing the pipeline
         echo -e "-c: Use KA conda environment is TRUE."
         conda activate pipeline-test_env  
         ;;
