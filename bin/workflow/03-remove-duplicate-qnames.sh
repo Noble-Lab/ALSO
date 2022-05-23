@@ -40,7 +40,7 @@ fi
 print_usage() {
     echo ""
     echo "${0}:"
-    echo "Run pipeline to filter duplicate QNAMEs from AS.txt.gz file."
+    echo "Run pipeline to filter duplicate QNAMEs from bam file."
     echo "  - Step 01: Copy files of interest to \${TMPDIR}"
     echo "  - Step 02: Sort bam by QNAME"
     echo "  - Step 03: List and tally QNAMEs in the sorted bam file"
@@ -65,25 +65,27 @@ print_usage() {
     echo "Arguments:"
     echo "-h print this help message and exit"
     echo "-u use safe mode: \"TRUE\" or \"FALSE\" (logical)"
-    echo "-c use KA conda environment: \"TRUE\" or \"FALSE\" (logical)"
-    echo "-l run on GS HPC: \"TRUE\" or \"FALSE\" (logical)"
+    echo "-c run on GS HPC: \"TRUE\" or \"FALSE\" (logical)"
+    echo "-m initial memory allocation pool for JVM (chr; default \"512m\")"
+    echo "-x maximum memory allocation pool for JVM (chr; default \"1g\")"
     echo "-i bam infile, including path (chr)"
     echo "-o path for outfiles (chr); path will be made if it does not exist"
     echo "-n count lines: \"TRUE\" or \"FALSE\" (logical)"
     echo "-t tally entries: \"TRUE\" or \"FALSE\" (logical)"
     echo "-e evaluate corrected bam: \"TRUE\" or \"FALSE\" (logical)"
     echo "-r remove intermediate files: \"TRUE\" or \"FALSE\" (logical)"
-    echo "-p number of cores for parallelization (int >= 1); default: 1"
+    echo "-p number of cores for parallelization (int >= 1; default: 1)"
     exit
 }
 
 
-while getopts "h:u:c:l:i:o:n:t:e:r:p:" opt; do
+while getopts "h:u:c:m:x:i:o:n:t:e:r:p:" opt; do
     case "${opt}" in
         h) print_usage ;;
         u) safe_mode="${OPTARG}" ;;
-        c) conda="${OPTARG}" ;;
-        l) cluster="${OPTARG}" ;;
+        c) cluster="${OPTARG}" ;;
+        m) memory_min="${OPTARG}" ;;
+        x) memory_max="${OPTARG}" ;;
         i) infile="${OPTARG}" ;;
         o) outpath="${OPTARG}" ;;
         n) count="${OPTARG}" ;;
@@ -96,8 +98,9 @@ while getopts "h:u:c:l:i:o:n:t:e:r:p:" opt; do
 done
 
 [[ -z "${safe_mode}" ]] && print_usage
-[[ -z "${conda}" ]] && print_usage
 [[ -z "${cluster}" ]] && print_usage
+[[ -x "${memory_min}" ]] && memory_min="512m"
+[[ -x "${memory_max}" ]] && memory_max="1g"
 [[ -z "${infile}" ]] && print_usage
 [[ -z "${outpath}" ]] && print_usage
 [[ -z "${count}" ]] && print_usage
@@ -121,32 +124,15 @@ case "$(echo "${safe_mode}" | tr '[:upper:]' '[:lower:]')" in
         ;;
 esac
 
-#  Evaluate "${conda}"
-case "$(echo "${conda}" | tr '[:upper:]' '[:lower:]')" in
-    false | f) \
-        echo -e "-c: \"Use KA conda environment\" is FALSE."
-        ;;
-    true | t) \
-        #  Conda environment used by KA for writing and testing the pipeline
-        echo -e "-c: \"Use KA conda environment\" is TRUE."
-        conda activate pipeline-test_env  
-        ;;
-    *) \
-        echo -e "Exiting: -c \"KA conda environment\" argument must be TRUE or"
-        echo -e "FALSE.\n"
-        return 1
-        ;;
-esac
-
 #  Check for necessary dependencies; exit if not found
 check_dependency samtools
 
 #  Evaluate "${cluster}"
 case "$(echo "${cluster}" | tr '[:upper:]' '[:lower:]')" in
-    true | t) echo -e "-l: \"Run on GS HPC\" is TRUE." ;;
-    false | f) echo -e "-l: \"Run on GS HPC\" is FALSE." && check_dependency picard ;;
+    true | t) echo -e "-c: \"Run on GS HPC\" is TRUE." ;;
+    false | f) echo -e "-c: \"Run on GS HPC\" is FALSE." && check_dependency picard ;;
     *) \
-        echo -e "Exiting: -l argument must be \"TRUE\" or \"FALSE\".\n"
+        echo -e "Exiting: -c argument must be \"TRUE\" or \"FALSE\".\n"
         return 1
         ;;
 esac
@@ -326,15 +312,13 @@ fi
 
 #  04: Create txt.gz outfiles for QNAME > 2 -----------------------------------
 if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
-    echo -e "Started step 4/11: Create txt.gz outfiles for QNAME > 2 from"
-    echo -e "${tmp_sorted%.bam}.QNAME.txt.gz."
+    echo -e "Started step 4/11: Create txt.gz outfiles for QNAME > 2 from ${tmp_sorted%.bam}.QNAME.txt.gz."
 
     identify_qnames_updated "${parallelize}" \
     "gt" "${tmp_sorted_QNAME_full}" "gzip" && \
     touch "${step_4}"
 
-    echo -e "Completed step 4/11: Create txt.gz outfiles for QNAME > 2 from"
-    echo -e "${tmp_sorted_QNAME_full}.\n"
+    echo -e "Completed step 4/11: Create txt.gz outfiles for QNAME > 2 from ${tmp_sorted_QNAME_full}.\n"
 elif [[ -f "${step_4}" && -f "${step_3}" ]]; then
     echo_completion_message 4
 else
@@ -350,16 +334,14 @@ if [[ "${count}" == 1 ]]; then
         count_full="$(count_lines_gzip "${tmp_sorted_QNAME_full}")"
         count_remove="$(count_lines_gzip "${tmp_sorted_QNAME_gt}")"
 
-        echo -e "Started step 5/11: Counting entries in files, writing out"
-        echo -e "lists."
+        echo -e "Started step 5/11: Counting entries in files, writing out lists."
 
         echo "$(basename "${tmp_sorted_QNAME_full}"): ${count_full}" && \
         echo "$(basename "${tmp_sorted_QNAME_gt}"): ${count_remove}" && \
         echo "" && \
         touch "${step_5}"
 
-        echo -e "Completed step 5/11: Counting entries in files, writing out"
-        echo -e "lists.\n"
+        echo -e "Completed step 5/11: Counting entries in files, writing out lists.\n"
     elif [[ -f "${step_5}" && -f "${step_4}" ]]; then
         count_full="$(count_lines_gzip "${tmp_sorted_QNAME_full}")"
         count_remove="$(count_lines_gzip "${tmp_sorted_QNAME_gt}")"
@@ -379,8 +361,7 @@ if [[ "${tally}" == 1 ]]; then
     #  06: Tally entries in infile, outfiles (optional) -----------------------
     if [[ ! -f "${step_6}" && -f "${step_4}" ]]; then
         echo -e "Started step 6/11: Tallying entries in"
-        echo -e "${tmp_sorted_QNAME_full} and ${tmp_sorted_QNAME_gt}, writing"
-        echo -e "out lists."
+        echo -e "${tmp_sorted_QNAME_full} and ${tmp_sorted_QNAME_gt}, writing out lists."
 
         tally_qnames_gzip \
         "${tmp_sorted_QNAME_full}" \
@@ -391,8 +372,7 @@ if [[ "${tally}" == 1 ]]; then
         touch "${step_6}"
 
         echo -e "Completed step 6/11: Tallying entries in"
-        echo -e "${tmp_sorted_QNAME_full} and ${tmp_sorted_QNAME_gt}, writing"
-        echo -e "out lists.\n"
+        echo -e "${tmp_sorted_QNAME_full} and ${tmp_sorted_QNAME_gt}, writing out lists.\n"
     elif [[ -f "${step_6}" && -f "${step_4}" ]]; then
         echo_completion_message 6
     else
@@ -404,18 +384,25 @@ fi
 
 #  07: Exclude problematic QNAME reads from bam infile ------------------------
 if [[ ! -f "${step_7}" && -f "${step_4}" ]]; then
-    echo -e "Started step 7/11: Using ${tmp_sorted_QNAME_gt} to exclude"
-    echo -e "reads from ${tmp}."
+    echo -e "Started step 7/11: Using ${tmp_sorted_QNAME_gt} to exclude reads from ${tmp}."
 
     exclude_qname_reads_picard \
     "${tmp}" \
     "${tmp_sorted_QNAME_gt}" \
     "${tmp_corrected}" \
+    "${memory_min}" \
+    "${memory_max}" \
     "${cluster}" && \
     touch "${step_7}"
+    # :param 1: name of bam infile, including path (chr)
+    # :param 2: name of txt QNAME list, including path (chr)
+    # :param 3: name of bam outfile, including path (cannot be same as bam
+    #           infile) (chr)
+    # :param 4: initial memory allocation pool for JVM (chr)
+    # :param 5: maximum memory allocation pool for JVM (chr)
+    # :param 6: use the picard.jar available on the GS grid system (logical)
 
-    echo -e "Completed step 7/11: Using ${tmp_sorted_QNAME_gt} to exclude"
-    echo -e "reads from ${tmp}.\n"
+    echo -e "Completed step 7/11: Using ${tmp_sorted_QNAME_gt} to exclude reads from ${tmp}.\n"
 elif [[ -f "${step_7}" && -f "${step_4}" ]]; then
     echo_completion_message 7
 else
@@ -463,8 +450,7 @@ if [[ "${evaluate}" == 1 ]]; then
 
     #  10: Create txt.gz outfiles for QNAME >, <, = 2 -------------------------
     if [[ ! -f "${step_10}" && -f "${step_9}" ]]; then
-        echo -e "Started step 10/11: Create txt.gz outfiles for QNAME > 2,"
-        echo -e "QNAME < 2, QNAME = 2 from ${tmp_sorted%.bam}.QNAME.txt.gz."
+        echo -e "Started step 10/11: Create txt.gz outfiles for QNAME > 2, QNAME < 2, QNAME = 2 from ${tmp_sorted%.bam}.QNAME.txt.gz."
 
         identify_qnames_updated "${parallelize}" \
         "gt" "${tmp_corrected_sorted%.bam}.QNAME.txt.gz" "gzip" && \
@@ -474,8 +460,7 @@ if [[ "${evaluate}" == 1 ]]; then
         "eq" "${tmp_corrected_sorted%.bam}.QNAME.txt.gz" "gzip" && \
         touch "${step_10}"
 
-        echo -e "Completed step 10/11: Create txt.gz outfiles for QNAME > 2,"
-        echo -e "QNAME < 2, QNAME = 2 from ${tmp_sorted%.bam}.QNAME.txt.gz.\n"
+        echo -e "Completed step 10/11: Create txt.gz outfiles for QNAME > 2, QNAME < 2, QNAME = 2 from ${tmp_sorted%.bam}.QNAME.txt.gz.\n"
     elif [[ -f "${step_10}" && -f "${step_9}" ]]; then
         echo_completion_message 10
     else
@@ -487,15 +472,13 @@ fi
 
 #  11: Remove temporary bams, move "${TMPDIR}" outfiles to "${outpath}" -------
 if [[ -f "${step_7}" && -f "${tmp_corrected}" ]]; then
-    echo -e "Started step 11/11: Removing temporary bams, moving outfiles"
-    echo -e "from ${TMPDIR} to ${outpath}."
+    echo -e "Started step 11/11: Removing temporary bams, moving outfiles from ${TMPDIR} to ${outpath}."
 
     rm "${tmp}" "${tmp_sorted}" "${tmp_corrected_sorted}" && \
     mv -f "${TMPDIR}/"*{.txt,.txt.gz} "${tmp_corrected}" "${outpath}" && \
     touch "${step_11}"
 
-    echo -e "Completed step 11/11: Removing temporary bams, moving outfiles"
-    echo -e "from ${TMPDIR} to ${outpath}.\n"
+    echo -e "Completed step 11/11: Removing temporary bams, moving outfiles from ${TMPDIR} to ${outpath}.\n"
 fi
 
 
