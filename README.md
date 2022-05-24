@@ -6,24 +6,24 @@ This ALSO pipeline is used to segregate sci-ATAC-seq alignments to parental alle
 
 ## News and Updates
 * 2022-05-23
- + Addressing error in preprocessing pipeline in which some duplicate QNAMEs persist in processed bam.
- + Adding instructions for using the correction script, `03-remove-duplicate-qnames.sh`.
- + `#TODO` Add corrections in `03-remove-duplicate-qnames.sh` to the initial preprocessing script: `03-filter-problematic-qnames-HPC.sh`
+  + Addressing error in preprocessing pipeline in which some duplicate QNAMEs persist in processed bam.
+  + Adding instructions for using the correction script, `03-remove-duplicate-qnames.sh`.
+  + `#TODO` Add corrections in `03-remove-duplicate-qnames.sh` to the initial preprocessing script: `03-filter-problematic-qnames-HPC.sh`
 
 * 2022-05-11
- + Cleaned up the old example code.
- + Will create a pull request for Shendure lab after allele score comparison..
- + Kris will work on the allele score comparison module.
+  + Cleaned up the old example code.
+  + Will create a pull request for Shendure lab after allele score comparison..
+  + Kris will work on the allele score comparison module.
 
 * 2022-05-10
- + Kris' new version preprocess module passed tests from both Kris and Gang.
- + Gang would run the preprocess module on all samples. 
+  + Kris' new version preprocess module passed tests from both Kris and Gang.
+  + Gang would run the preprocess module on all samples. 
 
 * 2022-05-04
- + Gang tested on the one sample from mm10, one sample from CAST.
- + Kris tesed test on the largest bam that we have.
- + Bill cleaned the space of vol6, and we would store all the future results in vol6.
- + update the workflow according to Kris's newest preprocess module (4 steps).
+  + Gang tested on the one sample from mm10, one sample from CAST.
+  + Kris tesed test on the largest bam that we have.
+  + Bill cleaned the space of vol6, and we would store all the future results in vol6.
+  + update the workflow according to Kris's newest preprocess module (4 steps).
 
 * 2022-05-02
   + upload/update test code for debugging the preprocess module
