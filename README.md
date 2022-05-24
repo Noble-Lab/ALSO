@@ -5,9 +5,14 @@
 This ALSO pipeline is used to segregate sci-ATAC-seq alignments to parental alleles of origin based on alignment scores.
 
 ## News and Updates
+* 2022-05-23
+ + Addressing error in preprocessing pipeline in which some duplicate QNAMEs persist in processed bam.
+ + Adding instructions for using the correction script, `03-remove-duplicate-qnames.sh`.
+ + `#TODO` Add corrections in `03-remove-duplicate-qnames.sh` to the initial preprocessing script: `03-filter-problematic-qnames-HPC.sh`
+
 * 2022-05-11
  + Cleaned up the old example code.
- + Will create a pull request for Shendure lab after allel score comparison..
+ + Will create a pull request for Shendure lab after allele score comparison..
  + Kris will work on the allele score comparison module.
 
 * 2022-05-10
@@ -115,7 +120,6 @@ do
     echo "Submitted."
 done
 
-
 ```
 
 Test code for proprocessing (`workflow/03-filter-qname.sh`)
@@ -138,6 +142,62 @@ bash ./filter-qnames.sh \
 #+ -i is for infile
 #+ -o is for outpath
 #+ -p is for number of cores for parallelization (for calls to samtools)
+```
+
+Example for calling `03-remove-duplicate-qnames.sh`
+```
+#  Call from 2021_kga0_4dn-mouse-cross or a directory containing
+#+ functions-in-progress.sh and functions-preprocessing-HPC.sh
+bash ./bin/workflow/03-remove-duplicate-qnames.sh \
+-u FALSE \
+-c TRUE \
+-m "512m" \
+-x "4048m" \
+-i "${dir_data}/${infile}" \
+-o "${dir_data}" \
+-n TRUE \
+-t FALSE \
+-e TRUE \
+-r TRUE \
+-p "${parallelize}" \
+> "${dir_log}/rm-dup-qnames_${strain}_${ID}.o.txt" \
+2> "${dir_log}/rm-dup-qnames_${strain}_${ID}.e.txt"
+# ./bin/workflow/03-remove-duplicate-qnames.sh:
+# Run pipeline to filter duplicate QNAMEs from bam file.
+#   - Step 01: Copy files of interest to ${TMPDIR}
+#   - Step 02: Sort bam by QNAME
+#   - Step 03: List and tally QNAMEs in the sorted bam file
+#   - Step 04: Create txt.gz outfiles for QNAME > 2
+#   - Step 05: Count lines in infile, outfiles (optional)
+#   - Step 06: Tally entries in infile, outfiles (optional)
+#   - Step 07: Exclude problematic QNAME reads from bam infile
+#   - Step 08: Sort corrected bam by QNAME (optional)
+#   - Step 09: List and tally QNAMEs in the corrected bam file
+#              (optional)
+#   - Step 10: Create txt.gz outfiles for QNAME >, <, = 2 (optional)
+#   - Step 11: Remove temporary bams, move ${TMPDIR} outfiles to
+#              ${outpath}
+#
+#
+# Dependencies:
+#   - parallel >= 20200101
+#   - picard >= 2.27.1
+#   - samtools >= 1.13
+#
+#
+# Arguments:
+# -h print this help message and exit
+# -u use safe mode: "TRUE" or "FALSE" (logical)
+# -c run on GS HPC: "TRUE" or "FALSE" (logical)
+# -m initial memory allocation pool for JVM (chr; default "512m")
+# -x maximum memory allocation pool for JVM (chr; default "1g")
+# -i bam infile, including path (chr)
+# -o path for outfiles (chr); path will be made if it does not exist
+# -n count lines: "TRUE" or "FALSE" (logical)
+# -t tally entries: "TRUE" or "FALSE" (logical)
+# -e evaluate corrected bam: "TRUE" or "FALSE" (logical)
+# -r remove intermediate files: "TRUE" or "FALSE" (logical)
+# -p number of cores for parallelization (int >= 1; default: 1)
 ```
 
 This ALSO pipeline takes as input two paired parental bam files (strain 1 assembly and strain 2 assembly) that have been sorted, subject to duplicate removal, and outputs 3 bam files for each sample, namely, "paternal","maternal","ambiguous" bams.

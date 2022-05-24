@@ -7,36 +7,23 @@
 time_start="$(date +%s)"
 
 
-#  Source functions into environment ------------------------------------------
-# shellcheck disable=1091
-if [[ -f "./bin/auxiliary/functions-preprocessing-HPC.sh" ]]; then
-    . ./bin/auxiliary/functions-preprocessing-HPC.sh ||
-        {
-            echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
-            exit 1
-        }
-
-    . ./bin/auxiliary/functions-in-progress.sh ||
-        {
-            echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
-            exit 1
-        }
-elif [[ -f "./functions-preprocessing-HPC.sh" ]]; then
-    . ./functions-preprocessing-HPC.sh ||
-        {
-            echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
-            exit 1
-        }
-
-    . ./functions-in-progress.sh ||
-        {
-            echo "Exiting: Unable to source 'functions-in-progress.sh'."
-            exit 1
-        }
-else
-    echo -e "Exiting: Could not find auxiliary information."
+#  Set working directory and source functions --------------------------------- 
+#  Check for proper "$(pwd)"
+if [[ "$(basename "$(pwd)")" != "2021_kga0_4dn-mouse-cross" ]]; then
+    echo "Exiting: You must run this script from" \
+    "\"2021_kga0_4dn-mouse-cross\", the project's top directory."
     exit 1
 fi
+
+#  Source functions into environment
+# shellcheck disable=1091
+. ./bin/auxiliary/functions-preprocessing-HPC.sh ||
+    {
+        echo "Exiting: Unable to source auxiliary information."
+        echo "Are you in the correct working directory," \
+        "\"2021_kga0_4dn-mouse-cross\"?"
+        exit 1
+    }
 
 
 #  Handle arguments, assign variables -----------------------------------------
@@ -115,8 +102,8 @@ echo -e "Running ${0}... "
 
 #  Evaluate "${safe_mode}"
 case "$(echo "${safe_mode}" | tr '[:upper:]' '[:lower:]')" in
-    true | t) echo -e "-u: Safe mode is on." && set -Eeuxo pipefail ;;
-    false | f) echo -e "-u: Safe mode is off." ;;
+    true | t) echo -e "-u: Safe mode is TRUE." && set -Eeuxo pipefail ;;
+    false | f) echo -e "-u: Safe mode is FALSE." ;;
     *) \
         echo -e "Exiting: -u safe mode argument must be \"TRUE\" or \"FALSE\".\n"
         exit 1
@@ -129,7 +116,7 @@ case "$(echo "${conda}" | tr '[:upper:]' '[:lower:]')" in
         echo -e "-c: Use KA conda environment is FALSE."
         ;;
     true | t) \
-        #  Conda anvironment used by KA for writing and testing the pipeline
+        #  Conda environment used by KA for writing and testing the pipeline
         echo -e "-c: Use KA conda environment is TRUE."
         conda activate pipeline-test_env  
         ;;
@@ -311,16 +298,7 @@ fi
 #  05: Generate lists of QNAMEs to exclude ------------------------------------
 if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     echo -e "Started step 5/13: Generating lists of QNAMEs to exclude from ${out_rm}."
-    if [[ -f ./bin/generate-qname-lists.R ]]; then
-        script="./bin/generate-qname-lists.R"
-    elif [[ -f ./generate-qname-lists.R ]]; then
-        script="./generate-qname-lists.R"
-    else
-        echo -e "Exiting: Could not find generate-qname-lists.R."
-        exit 1
-    fi
-
-    Rscript "${script}" \
+    Rscript ./bin/generate-qname-lists.R \
     --bam "${out_rm}" \
     --bai "${out_rm_bai}" \
     --outdir "${TMPDIR}" \
@@ -329,12 +307,12 @@ if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     --unmated TRUE \
     --ambiguous TRUE \
     --trans TRUE \
-    --duplicated FALSE \
+    --duplicated TRUE \
     --singleton TRUE \
     --unique TRUE \
     --tally FALSE \
     --remove TRUE
-    
+
     if [[ -f "${TMPDIR}/${out_unmated}" ]]; then
         touch "${step_5}"
     else

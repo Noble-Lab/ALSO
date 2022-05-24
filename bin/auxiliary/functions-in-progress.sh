@@ -52,6 +52,48 @@ display_spinning_icon() {
 echo_loop() { for i in "${@:-*}"; do echo "${i}"; done; }
 
 
+exclude_qname_reads_picard() {
+    # Filter a bam infile to exclude reads with QNAMEs listed in a txt file;
+    # write the filtered results to a bam outfile
+    #
+    # :param 1: name of bam infile, including path (chr)
+    # :param 2: name of txt QNAME list, including path (chr)
+    # :param 3: name of bam outfile, including path (cannot be same as bam
+    #           infile) (chr)
+    # :param 4: initial memory allocation pool for JVM (chr)
+    # :param 5: maximum memory allocation pool for JVM (chr)
+    # :param 6: use the picard.jar available on the GS grid system (logical)
+    start="$(date +%s)"
+    dir_picard="/net/gs/vol3/software/modules-sw/picard/2.26.4/Linux/CentOS7/x86_64"
+
+    case "$(echo "${6}" | tr '[:upper:]' '[:lower:]')" in
+        true | t) \
+            java -jar -Xms"${4}" -Xmx"${5}" \
+            "${dir_picard}"/picard.jar FilterSamReads \
+            I="${1}" \
+            O="${3}" \
+            READ_LIST_FILE="${2}" \
+            FILTER="excludeReadList"
+            ;;
+        false | f) \
+            picard -Xms"${4}" -Xmx"${5}" FilterSamReads \
+            I="${1}" \
+            O="${3}" \
+            READ_LIST_FILE="${2}" \
+            FILTER="excludeReadList"
+            ;;
+        *) \
+            echo "Exiting: Parameter 6 is not \"TRUE\" or \"FALSE\"."
+            return 1
+            ;;
+    esac
+
+    end="$(date +%s)"
+    calculate_run_time "${start}" "${end}" \
+    "Exclude reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
+}
+
+
 filter_duplicate_qnames_gzip(){
     # Using an infile single-column list of QNAMEs, exclude QNAMEs from an
     # AS.txt.gz file
@@ -77,8 +119,8 @@ find_set_complement() {
     # and #2; comparing samples #1 and #2, list elements unique to sample #1;
     # function acts on and outputs only the first column
     #
-    # :param 1: sample #1 AS.txt.gz file
-    # :param 2: sample #2 AS.txt.gz file
+    # :param 1: sorted sample #1 AS.txt.gz file
+    # :param 2: sorted sample #2 AS.txt.gz file
     # :param 3: outputs elements unique to sample #2
     start="$(date +%s)"
 
@@ -99,8 +141,8 @@ find_set_intersection() {
     # Find and list the set intersection elements between AS.txt.gz files for
     # samples #1 and #2
     #
-    # :param 1: sample #1 AS.txt.gz file
-    # :param 2: sample #2 AS.txt.gz file
+    # :param 1: sorted sample #1 AS.txt.gz file
+    # :param 2: sorted sample #2 AS.txt.gz file
     # :param 3: outputs set intersection between samples #1 and #2
     start="$(date +%s)"
 
@@ -299,6 +341,48 @@ randomly_sample_lines_from_file() {
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
     "Randomly sample ${1} lines from $(basename "${2}")."
+}
+
+
+retain_qname_reads_picard() {
+    # Filter a bam infile to retain reads with QNAMEs listed in a txt file;
+    # write the filtered results to a bam outfile
+    #
+    # :param 1: name of bam infile, including path (chr)
+    # :param 2: name of txt QNAME list, including path (chr)
+    # :param 3: name of bam outfile, including path (cannot be same as bam
+    #           infile) (chr)
+    # :param 4: initial memory allocation pool for JVM (chr)
+    # :param 5: maximum memory allocation pool for JVM (chr)
+    # :param 6: use the picard.jar available on the GS grid system (logical)
+    start="$(date +%s)"
+    dir_picard="/net/gs/vol3/software/modules-sw/picard/2.26.4/Linux/CentOS7/x86_64"
+
+    case "$(echo "${6}" | tr '[:upper:]' '[:lower:]')" in
+        true | t) \
+            java -jar -Xms"${4}" -Xmx"${5}" \
+            "${dir_picard}"/picard.jar FilterSamReads \
+            I="${1}" \
+            O="${3}" \
+            READ_LIST_FILE="${2}" \
+            FILTER="includeReadList"
+            ;;
+        false | f) \
+            picard -Xms"${4}" -Xmx"${5}" FilterSamReads \
+            I="${1}" \
+            O="${3}" \
+            READ_LIST_FILE="${2}" \
+            FILTER="includeReadList"
+            ;;
+        *) \
+            echo "Exiting: Parameter 6 is not \"TRUE\" or \"FALSE\"."
+            return 1
+            ;;
+    esac
+
+    end="$(date +%s)"
+    calculate_run_time "${start}" "${end}" \
+    "Exclude reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
 }
 
 

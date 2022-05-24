@@ -153,45 +153,6 @@ echo_flagstat() {
 echo_loop() { for i in "${@:-*}"; do echo "${i}"; done; }
 
 
-exclude_qname_reads_picard() {
-    # Filter a bam infile to exclude reads with QNAMEs listed in a txt file;
-    # write the filtered results to a bam outfile
-    #
-    # :param 1: name of bam infile, including path (chr)
-    # :param 2: name of txt QNAME list, including path (chr)
-    # :param 3: name of bam outfile, including path (cannot be same as bam
-    #           infile) (chr)
-    # :param 4: use the picard.jar available on the GS grid system (logical)
-    start="$(date +%s)"
-    dir_picard="/net/gs/vol3/software/modules-sw/picard/2.26.4/Linux/CentOS7/x86_64"
-
-    case "$(echo "${4}" | tr '[:upper:]' '[:lower:]')" in
-        true | t) \
-            java -jar "${dir_picard}"/picard.jar FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="excludeReadList"
-            ;;
-        false | f) \
-            picard FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="excludeReadList"
-            ;;
-        *) \
-            echo "Exiting: Parameter 4 is not \"TRUE\" or \"FALSE\"."
-            return 1
-            ;;
-    esac
-
-    end="$(date +%s)"
-    calculate_run_time "${start}" "${end}" \
-    "Exclude reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
-}
-
-
 extract_n_lines_gzip_auto() {
     # Extract n number of records from a gzipped file
     #
@@ -588,45 +549,6 @@ repair_bam_auto() {
     echo ""
     calculate_run_time "${start}" "${end}"  \
     "Order $(basename "${2}") such that pairs are together."
-}
-
-
-retain_qname_reads_picard() {
-    # Filter a bam infile to include reads with QNAMEs listed in a txt file;
-    # write the filtered results to a bam outfile, the name and path of which
-    # is user-specified
-    # 
-    # :param 1: name of bam infile, including path (chr)
-    # :param 2: name of txt QNAME list, including path (chr)
-    # :param 3: name of bam outfile, including path (chr; cannot be same as bam
-    #           infile)
-    # :param 4: use the picard.jar available on the GS grid system (logical)
-    start="$(date +%s)"
-
-    case "$(echo "${4}" | tr '[:upper:]' '[:lower:]')" in
-        true | t) \
-            java -jar "${dir_picard}"/picard.jar FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="includeReadList"
-            ;;
-        false | f) \
-            picard FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="includeReadList"                       
-            ;;
-        *) \
-            echo "Exiting: Parameter 4 is not \"TRUE\" or \"FALSE\"."
-            return 1
-            ;;
-    esac
-
-    end="$(date +%s)"
-    calculate_run_time "${start}" "${end}" \
-    "Retain reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
 }
 
 

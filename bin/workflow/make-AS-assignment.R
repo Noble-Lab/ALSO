@@ -185,9 +185,9 @@ ap <- add_argument(
     type = "character",
     default = NULL,
     help = "
-        tab-separated txt file (gzipped or not), including path, containing
-        intersecting query names (QNAME) and alignment scores (AS) for two
-        samples <chr>
+        tab-separated txt file (gzipped or not) without header, including path,
+        containing intersecting query names (QNAME) and alignment scores (AS)
+        for two samples (chr)
 
         For example, the first five rows of a given txt file appears as
         follows, where column 1 is the QNAME, column 2 is the AS for sample 1,
@@ -202,23 +202,23 @@ ap <- add_argument(
 ap <- add_argument(
     ap,
     short = "-s",
-    arg = "--strain_1",
+    arg = "--sample_1",
     type = "character",
     default = NULL,
     help = "
-        strain name for sample 1; should be the same as the column 2 header in
-        the tab-separated txt intersection file <chr>
+        sample name for sample 1; corresponds to the AS in column 2 of the tab-
+        separated intersection file (chr)
     "
 )
 ap <- add_argument(
     ap,
     short = "-u",
-    arg = "--strain_2",
+    arg = "--sample_2",
     type = "character",
     default = NULL,
     help = "
-        strain name for sample 2; should be the same as the column 3 header in
-        the tab-separated txt intersection file <chr>
+        sample name for sample 2; corresponds to the AS in column 3 of the tab-
+        separated intersection file (chr)
     "
 )
 ap <- add_argument(
@@ -227,7 +227,7 @@ ap <- add_argument(
     arg = "--outdir",
     type = "character",
     default = NULL,
-    help = "directory for saving txt.gz outfiles, including path <chr>"
+    help = "directory for saving txt.gz outfiles, including path (chr)"
 )
 ap <- add_argument(
     ap,
@@ -235,7 +235,7 @@ ap <- add_argument(
     arg = "--outprefix",
     type = "character",
     default = NULL,
-    help = "prefix for outfiles <chr>"
+    help = "prefix for outfiles (chr)"
 )
 ap <- add_argument(
     ap,
@@ -246,7 +246,7 @@ ap <- add_argument(
     help = "
         alignment score threshold; the absolute value of the difference in
         alignment scores between samples 1 and 2 must be greater than this
-        value in order for a strain-specific assignment to be made; if not, the
+        value in order for a sample-specific assignment to be made; if not, the
         assignment will be \"ambiguous\" (int > 0)
 
         For example...
@@ -268,13 +268,13 @@ ap <- add_argument(
     default = TRUE,
     help = "
         if present, remove outfiles in the outdirectory prior to generating
-        outfiles <logical>
+        outfiles (logical)
     "
 )
 
 
 #  Parse the arguments --------------------------------------------------------
-test_in_RStudio <- TRUE  # Hardcode T for testing in RStudio; F for CLI
+test_in_RStudio <- FALSE  # Hardcode T for testing in RStudio; F for CLI
 if(isTRUE(test_in_RStudio)) {
     #  RStudio-interactive work
     dir_base <- "."
@@ -289,16 +289,16 @@ if(isTRUE(test_in_RStudio)) {
         dir_in, "/",
         "Disteche_sample_1.dedup.intersection.AS.no-header.txt.gz"
     )
-    strain_1 <- "mm10"
-    strain_2 <- "CAST"
+    sample_1 <- "mm10"
+    sample_2 <- "CAST"
     outprefix <- unlist(stringr::str_split(basename(intersection), "\\."))[1]
     threshold <- 0
     chunk <- 1000000L
     remove <- TRUE
     cl <- c(
         "--intersection", intersection,
-        "--strain_1", strain_1,
-        "--strain_2", strain_2,
+        "--sample_1", sample_1,
+        "--sample_2", sample_2,
         "--outdir", dir_out,
         "--outprefix", outprefix,
         "--threshold", threshold,
@@ -308,7 +308,7 @@ if(isTRUE(test_in_RStudio)) {
     arguments <- parse_args(ap, cl)
     rm(
         ap, cl,
-        intersection, strain_1, strain_2,
+        intersection, sample_1, sample_2,
         dir_base, dir_in, dir_out,
         outprefix, threshold, chunk, remove
     )
@@ -328,10 +328,10 @@ rm(test_in_RStudio)
 
 #  Check on the arguments that were supplied ----------------------------------
 stopifnot(file.exists(arguments$intersection))
-if(arguments$strain_1 == "") stop("--strain_1 is an empty string.")
-if(is.na(arguments$strain_1)) stop("--strain_1 is NA.")
-if(arguments$strain_2 == "") stop("--strain_2 is an empty string.")
-if(is.na(arguments$strain_2)) stop("--strain_2 is NA.")
+if(arguments$sample_1 == "") stop("--sample_1 is an empty string.")
+if(is.na(arguments$sample_1)) stop("--sample_1 is NA.")
+if(arguments$sample_2 == "") stop("--sample_2 is an empty string.")
+if(is.na(arguments$sample_2)) stop("--sample_2 is NA.")
 if(arguments$outprefix == "") stop("--outprefix is an empty string.")
 if(is.na(arguments$outprefix)) stop("--outprefix is NA.")
 stopifnot(arguments$threshold %% 1 == 0)
@@ -349,8 +349,8 @@ if(isTRUE(arguments$remove)) {
     remove_outfiles(
         arguments$outdir,
         arguments$outprefix,
-        arguments$strain_1,
-        arguments$strain_2
+        arguments$sample_1,
+        arguments$sample_2
     )
     cat("\n")
 }
@@ -370,8 +370,8 @@ cat("\n")
 #  Iterate through intersection file in chunks
 cat(paste0(
     "Started: Processing ", basename(arguments$intersection), ", writing ",
-    "out files based on assignments to \"", arguments$strain_1, "\", \"",
-    arguments$strain_2, "\", or \"ambiguous\".\n"
+    "out files based on assignments to \"", arguments$sample_1, "\", \"",
+    arguments$sample_2, "\", or \"ambiguous\".\n"
 ))
 n <- ceiling(rec_total / rec_n) %>% as.integer()
 bar <- utils::txtProgressBar(min = 0, max = n, initial = 0, style = 3)
@@ -385,11 +385,11 @@ for(i in 1:n) {
     AS <- read.delim(
         connection, nrows = arguments$chunk, header = FALSE
     )
-    colnames(AS) <- c("qname", arguments$strain_1, arguments$strain_2)
+    colnames(AS) <- c("qname", arguments$sample_1, arguments$sample_2)
     AS <- make_assignment(AS, arguments$threshold)
     ambiguous <- AS %>% dplyr::filter(assignment == "ambiguous")
-    sample_1 <- AS %>% dplyr::filter(assignment == arguments$strain_1)
-    sample_2 <- AS %>% dplyr::filter(assignment == arguments$strain_2)
+    sample_1 <- AS %>% dplyr::filter(assignment == arguments$sample_1)
+    sample_2 <- AS %>% dplyr::filter(assignment == arguments$sample_2)
     
     readr::write_tsv(
         ambiguous[, 1] %>% as.data.frame(),
@@ -398,20 +398,20 @@ for(i in 1:n) {
     )
     readr::write_tsv(
         sample_1[, 1] %>% as.data.frame(),
-        file = denote_outfile(arguments$strain_1),
+        file = denote_outfile(arguments$sample_1),
         append = TRUE
     )
     readr::write_tsv(
         sample_2[, 1] %>% as.data.frame(),
-        file = denote_outfile(arguments$strain_2),
+        file = denote_outfile(arguments$sample_2),
         append = TRUE
     )
     utils::setTxtProgressBar(bar, i)
 }
 cat(paste0(
     "Completed: Processing ", basename(arguments$intersection), ", writing ",
-    "out files based on assignments to \"", arguments$strain_1, "\", \"",
-    arguments$strain_2, "\", or \"ambiguous\".\n"
+    "out files based on assignments to \"", arguments$sample_1, "\", \"",
+    arguments$sample_2, "\", or \"ambiguous\".\n"
 ))
 
 
