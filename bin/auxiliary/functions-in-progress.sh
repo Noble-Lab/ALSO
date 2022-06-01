@@ -52,6 +52,19 @@ display_spinning_icon() {
 echo_loop() { for i in "${@:-*}"; do echo "${i}"; done; }
 
 
+evaluate_run_upto() {
+    # Evaluate variable "${run_upto}", exiting if it is equal to the current step
+    #
+    # :param 1: value assigned to "${run_upto}" (int)
+    # :param 2: current step (int)
+    [[ "${1}" -eq "${2}" ]] &&
+        {
+            echo -e "Exiting: script has run upto the step specified in argument -n: step ${2}.\n\n"
+            exit 0
+        }
+}
+
+
 exclude_qname_reads_picard() {
     # Filter a bam infile to exclude reads with QNAMEs listed in a txt file;
     # write the filtered results to a bam outfile

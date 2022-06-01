@@ -173,7 +173,10 @@ set.seed(24)
 #  Create a parser
 ap <- arg_parser(
     name = script,
-    description = "",
+    description = "
+        Output sorted, gzipped lists of QNAMEs for different assignments based
+        on AS.
+    ",
     hide.opts = TRUE
 )
 
@@ -377,6 +380,7 @@ n <- ceiling(rec_total / rec_n) %>% as.integer()
 bar <- utils::txtProgressBar(min = 0, max = n, initial = 0, style = 3)
 
 denote_outfile <- function(x) {
+    #TODO Documentation...
     paste0(arguments$outdir, "/", arguments$outprefix, ".", x, ".txt.gz")
 }
 

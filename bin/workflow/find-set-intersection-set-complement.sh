@@ -45,10 +45,8 @@ print_usage() {
     echo "  - Step 02: Find set intersection between sample #1 and sample #2"
     echo "  - Step 03: Find set complement for \"sample #1\""
     echo "  - Step 04: Find set complement for \"sample #2\""
-    echo "  - Step 05: Check that intersection and complement sums to set size"
-    echo "             (optional)"
-    echo "  - Step 06: Remove temporary files, move \${TMPDIR} outfiles to"
-    echo "             \${outpath}"
+    echo "  - Step 05: Check that intersection and complement sums to set size (optional)"
+    echo "  - Step 06: Remove temporary files, move \${TMPDIR} outfiles to \${outpath}"
     echo ""
     echo ""
     echo "Dependencies:"
@@ -57,14 +55,14 @@ print_usage() {
     echo ""
     echo "Arguments:"
     echo "-h print this help message and exit"
-    echo "-u use safe mode: \"TRUE\" or \"FALSE\" (logical)"
+    echo "-u use safe mode: TRUE or FALSE (logical; default: FALSE)"
     echo "-i AS.txt.gz \"infile #1\", including path (chr)"
     echo "-j AS.txt.gz \"infile #2\", including path (chr)"
     echo "-1 string for \"sample #1\" (chr)"
     echo "-2 string for \"sample #2\" (chr)"
     echo "-o path for outfiles (chr); path will be made if it does not exist"
     echo "-p prefix for outfiles (chr)"
-    echo "-c count lines: \"TRUE\" or \"FALSE\" (logical)"
+    echo "-c count lines: TRUE or FALSE (logical)"
     exit
 }
 
@@ -84,7 +82,7 @@ while getopts "h:u:i:j:1:2:p:o:c:" opt; do
     esac
 done
 
-[[ -z "${safe_mode}" ]] && print_usage
+[[ -z "${safe_mode}" ]] && safe_mode=FALSE
 [[ -z "${infile_1}" ]] && print_usage
 [[ -z "${infile_2}" ]] && print_usage
 [[ -z "${sample_1}" ]] && print_usage
