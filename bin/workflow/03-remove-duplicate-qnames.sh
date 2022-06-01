@@ -33,7 +33,11 @@ elif [[ -f "./functions-preprocessing-HPC.sh" ]]; then
             echo "Exiting: Unable to source 'functions-in-progress.sh'."
             exit 1
         }
+else
+    echo -e "Exiting: Could not find auxiliary information."
+    exit 1
 fi
+
 
 
 #  Handle arguments, assign variables -----------------------------------------
@@ -147,8 +151,7 @@ esac
 #  Make "${outpath}" if it doesn't exist
 [[ -d "${outpath}" ]] ||
     {
-        echo -e "-o: Directory ${outpath} does not exist; making the"
-        echo -e "directory."
+        echo -e "-o: Directory ${outpath} does not exist; making the directory."
         mkdir -p "${outpath}"
     }
 
@@ -163,8 +166,7 @@ case "$(echo "${tally}" | tr '[:upper:]' '[:lower:]')" in
         echo -e "-t: \"Tally entries\" is FALSE."
         ;;
     *) \
-        echo -e "Exiting: -t \"tally entries\" argument must be TRUE or"
-        echo -e "FALSE.\n"
+        echo -e "Exiting: -t \"tally entries\" argument must be TRUE or FALSE.\n"
         exit 1
         ;;
 esac
@@ -196,8 +198,7 @@ case "$(echo "${evaluate}" | tr '[:upper:]' '[:lower:]')" in
         echo -e "-e: \"Evaluate corrected bam\" is FALSE."
         ;;
     *) \
-        echo -e "Exiting: -e \"evaluate corrected bam\" argument must be TRUE"
-        echo -e "or FALSE.\n"
+        echo -e "Exiting: -e \"evaluate corrected bam\" argument must be TRUE or FALSE.\n"
         exit 1
         ;;
 esac
@@ -213,8 +214,7 @@ case "$(echo "${remove}" | tr '[:upper:]' '[:lower:]')" in
         echo -e "-r: \"Remove intermediate files\" is FALSE."
         ;;
     *) \
-        echo -e "Exiting: -r \"remove intermediate files\" must be TRUE or"
-        echo -e "FALSE.\n"
+        echo -e "Exiting: -r \"remove intermediate files\" must be TRUE or FALSE.\n"
         exit 1
         ;;
 esac
@@ -222,13 +222,13 @@ esac
 #  Check "${parallelize}"
 [[ ! "${parallelize}" =~ ^[0-9]+$ ]] &&
     {
-        echo -e "Exiting: -p parallelize argument must be an integer.\n"
+        echo -e "Exiting: -p \"parallelize\" argument must be an integer.\n"
         exit 1
     }
 
 [[ ! $((parallelize)) -ge 1 ]] &&
     {
-        echo -e "Exiting: -p parallelize argument must be an integer >= 1.\n"
+        echo -e "Exiting: -p \"parallelize\" argument must be an integer >= 1.\n"
         exit 1
     }
 
