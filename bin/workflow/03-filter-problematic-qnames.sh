@@ -6,7 +6,6 @@
 
 time_start="$(date +%s)"
 
-
 #  Source functions into environment ------------------------------------------
 # shellcheck disable=1091
 if [[ -f "./bin/auxiliary/functions-preprocessing-HPC.sh" ]]; then
@@ -86,7 +85,7 @@ print_usage() {
     echo "-f run samtools flagstat on bams: \"TRUE\" or \"FALSE\" (logical)"
     echo "-c count lines: \"TRUE\" or \"FALSE\" (logical)"
     echo "-t tally entries: \"TRUE\" or \"FALSE\" (logical)"
-    echo "-n run upto step (int 1-13; default: 13)"
+    echo "-n run up to step (int 1-13; default: 13)"
     echo "-r remove intermediate files: \"TRUE\" or \"FALSE\" (logical)"
     echo "-p number of cores for parallelization (int >= 1; default: 1)"
     exit
@@ -105,7 +104,7 @@ while getopts "h:u:l:m:x:i:o:f:c:t:n:r:p:" opt; do
         f) flagstat="${OPTARG}" ;;
         c) count="${OPTARG}" ;;
         t) tally="${OPTARG}" ;;
-        n) run_upto="${OPTARG}" ;;
+        n) run_up_to="${OPTARG}" ;;
         r) remove="${OPTARG}" ;;
         p) parallelize="${OPTARG}" ;;
         *) print_usage ;;
@@ -114,14 +113,14 @@ done
 
 [[ -z "${safe_mode}" ]] && safe_mode=FALSE
 [[ -z "${cluster}" ]] && cluster=FALSE
-[[ -x "${memory_min}" ]] && memory_min="512m"
-[[ -x "${memory_max}" ]] && memory_max="1g"
+[[ -z "${memory_min}" ]] && memory_min="512m"
+[[ -z "${memory_max}" ]] && memory_max="1g"
 [[ -z "${infile}" ]] && print_usage
 [[ -z "${outpath}" ]] && print_usage
 [[ -z "${flagstat}" ]] && print_usage
 [[ -z "${count}" ]] && print_usage
 [[ -z "${tally}" ]] && print_usage
-[[ -z "${run_upto}" ]] && run_upto=13
+[[ -z "${run_up_to}" ]] && run_up_to=13
 [[ -z "${remove}" ]] && print_usage
 [[ -z "${parallelize}" ]] && parallelize=1
 
@@ -149,7 +148,7 @@ case "$(echo "${cluster}" | tr '[:upper:]' '[:lower:]')" in
     true | t) echo -e "-c: \"Run on GS HPC\" is TRUE." ;;
     false | f) echo -e "-c: \"Run on GS HPC\" is FALSE." && check_dependency picard ;;
     *) \
-        echo -e "Exiting: -c argument must be TRUE or FALSE.\n"
+        echo -e "Exiting: -c \"run on GS HPC\" argument must be TRUE or FALSE.\n"
         return 1
         ;;
 esac
@@ -164,7 +163,7 @@ esac
 #  Make "${outpath}" if it doesn't exist
 [[ -d "${outpath}" ]] ||
     {
-        echo -e "-o: Directory ${outpath} does not exist; making the directory."
+        echo -e "-o: Directory ${outpath} does not exist; making the directory.\n"
         mkdir -p "${outpath}"
     }
 
@@ -216,20 +215,20 @@ case "$(echo "${count}" | tr '[:upper:]' '[:lower:]')" in
         ;;
 esac
 
-#  Evaluate "${run_upto}"
-[[ ! "${run_upto}" =~ ^[0-9]+$ ]] &&
+#  Evaluate "${run_up_to}"
+[[ ! "${run_up_to}" =~ ^[0-9]+$ ]] &&
     {
-        echo -e "Exiting: -n \"run_upto\" argument must be an integer in the range of 1-13.\n"
+        echo -e "Exiting: -n \"run_up_to\" argument must be an integer in the range of 1-13.\n"
         exit 1
     }
 
-case "${run_upto}" in
+case "${run_up_to}" in
     1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | \
     11 | 12 | 13 | 14 | 15 | 16 | 17 | 18) \
-        echo -e "-n: \"Run upto\" is set to step ${run_upto}"
+        echo -e "-n: \"Run up to\" is set to step #${run_up_to}."
         ;;
     *) \
-        echo -e "Exiting: -n \"run_upto\" argument must be an integer in the range of 1-13.\n"
+        echo -e "Exiting: -n \"run_up_to\" argument must be an integer in the range of 1-13.\n"
         exit 1
         ;;
 esac
@@ -320,7 +319,7 @@ else
     :
 fi
 
-evaluate_run_upto "${run_upto}" 1
+evaluate_run_up_to "${run_up_to}" 1
 
 
 #  02: Remove low-quality reads (-f 3 -F 12 -q 30) ----------------------------
@@ -337,7 +336,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 2
+evaluate_run_up_to "${run_up_to}" 2
 
 
 #  03: Sort bam by coordinate, writing a tmp file that overwrites the infile --
@@ -355,7 +354,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 3
+evaluate_run_up_to "${run_up_to}" 3
 
 
 #  04: Index bam file ---------------------------------------------------------
@@ -372,7 +371,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 4
+evaluate_run_up_to "${run_up_to}" 4
 
 
 #  05: Generate lists of QNAMEs to exclude ------------------------------------
@@ -419,7 +418,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 5
+evaluate_run_up_to "${run_up_to}" 5
 
 
 #  06: Sort bam by QNAME ------------------------------------------------------
@@ -438,7 +437,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 6
+evaluate_run_up_to "${run_up_to}" 6
 
 
 #  07: List and tally QNAMEs in the sorted bam file ---------------------------
@@ -456,7 +455,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 7
+evaluate_run_up_to "${run_up_to}" 7
 
 
 #  08: Create txt.gz outfiles for QNAME > 2 -----------------------------------
@@ -475,7 +474,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 8
+evaluate_run_up_to "${run_up_to}" 8
 
 
 #  09: Create txt.gz outfiles for QNAME < 2 -----------------------------------
@@ -494,7 +493,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 9
+evaluate_run_up_to "${run_up_to}" 9
 
 
 #  10: Count lines in outfiles with QNAME > 2, QNAME < 2 (optional) -----------
@@ -530,7 +529,7 @@ if [[ "${count}" == 1 ]]; then
     fi
 fi
 
-evaluate_run_upto "${run_upto}" 10
+evaluate_run_up_to "${run_up_to}" 10
 
 
 #  11: Collect outfiles in an array -------------------------------------------
@@ -602,7 +601,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 11
+evaluate_run_up_to "${run_up_to}" 11
 
 
 #  12: Combine outfiles into one file for excluding problematic QNAME reads ---
@@ -642,7 +641,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 12
+evaluate_run_up_to "${run_up_to}" 12
 
 
 #  13: Exclude problematic QNAME reads from bam infile ------------------------
@@ -665,7 +664,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 13
+evaluate_run_up_to "${run_up_to}" 13
 
 
 #  14: Run flagstat on bam in and outfiles (optional) -------------------------
@@ -696,7 +695,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 14
+evaluate_run_up_to "${run_up_to}" 14
 
 
 #  15: Sort corrected bam -----------------------------------------------------
@@ -714,7 +713,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 15
+evaluate_run_up_to "${run_up_to}" 15
 
 
 #  16: Index corrected bam ----------------------------------------------------
@@ -731,7 +730,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 16
+evaluate_run_up_to "${run_up_to}" 16
 
 
 #  17: Remove unneeded intermediate files (optional) --------------------------
@@ -752,7 +751,7 @@ else
     exit 1
 fi
 
-evaluate_run_upto "${run_upto}" 17
+evaluate_run_up_to "${run_up_to}" 17
 
 
 #  18: Move outfiles from "${TMPDIR}" to "${outpath}" -------------------------

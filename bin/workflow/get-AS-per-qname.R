@@ -197,7 +197,7 @@ ap <- add_argument(
 
 
 #  Parse the arguments --------------------------------------------------------
-test_in_RStudio <- FALSE  # Hardcode T for testing in RStudio; F for CLI
+test_in_RStudio <- TRUE  # Hardcode T for testing in RStudio; F for CLI
 if(isTRUE(test_in_RStudio)) {
     #  RStudio-interactive work
     dir_base <- "."
@@ -208,8 +208,11 @@ if(isTRUE(test_in_RStudio)) {
     dir_out <- paste0(
         dir_base, "/", dir_data, "/", "files_bam"
     )
-    bam <- paste0(dir_in, "/", "Disteche_sample_13.dedup.CAST.corrected.bam")
-    bai <- paste0(dir_in, "/", "Disteche_sample_13.dedup.CAST.corrected.bam.bai")
+    # bam <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam")
+    # bai <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam.bai")
+    # strain <- "CAST"
+    bam <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam")
+    bai <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam.bai")
     strain <- "CAST"
     chunk <- 100000
     cl <- c(
@@ -250,6 +253,26 @@ dir.create(file.path(arguments$outdir), showWarnings = FALSE)
 
 #  Set up variables, environment prior to loading in .bam information... ------
 #+ ...including mate information
+
+#  Add strain name to the file if it's not already present; save it to
+#+ "outname" and "outname_tmp"
+if(grepl(arguments$strain, basename(arguments$bam), fixed = TRUE)) {
+    outstring <- paste0(stringr::str_remove(basename(arguments$bam), ".bam"))
+    
+    outname <- paste0(outstring, ".AS.txt.gz")
+    outname_tmp <- paste0(outstring, ".AS.tmp.txt.gz")
+    
+    rm(outstring)
+} else {
+    outstring <- paste0(".", arguments$strain, ".AS.txt.gz")
+    outstring_tmp <- paste0(".", arguments$strain, ".AS.tmp.txt.gz")
+    
+    outname <- gsub(".bam", outstring, basename(arguments$bam))
+    outname_tmp <- gsub(".bam", outstring_tmp, basename(arguments$bam))
+    
+    rm(outstring, outstring_tmp)
+}
+
 cat(paste0(
     "Using Rsamtools to load in '", basename(arguments$bam),
     "' and reading fields such as 'qname' into memory (in chunks of ",
@@ -344,14 +367,7 @@ for(i in 1:n) {
         #  Write out QNAMEs and AS's to txt.gz file
         readr::write_tsv(
             pertinent,
-            paste0(
-                arguments$outdir, "/",
-                gsub(
-                    ".bam",
-                    paste0(".", arguments$strain, ".AS.txt.gz"),
-                    basename(arguments$bam)
-                )
-            ),
+            paste0(arguments$outdir, "/", outname),
             append = TRUE
         )
     }
@@ -359,90 +375,28 @@ for(i in 1:n) {
 }
 
 
-cat(paste0("Completed: Processing ", basename(arguments$bam), "\n"))
-cat(paste0(
-    "Have written out ",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.txt.gz"),
-        basename(arguments$bam)
-    ),
-    "\n"
-))
+cat(paste0("Completed: Processing ", arguments$bam, "\n"))
+cat(paste0("Have written out ", arguments$outdir, "/", outname, "\n"))
 
 
 #  Sort the AS.txt.gz file ----------------------------------------------------
-# system(paste0(
-#     "echo \"",
-#     "source ./bin/auxiliary/functions-preprocessing.sh && ",
-#     "sort_file_AS_overwrite_infile ", arguments$outdir, "/",
-#     gsub(
-#         ".bam",
-#         paste0(".", arguments$strain, ".AS.txt.gz"),
-#         basename(arguments$bam)
-#     ),
-#     "\" | bash"
-# ))
-
-cat(paste0(
-    "Started: Sorting ",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.txt.gz"),
-        basename(arguments$bam)
-    ),
-    "\n"
-))
+cat(paste0("Started: Sorting ", arguments$outdir, "/", outname, "\n"))
 
 command_sort <- paste0(
     "echo \"",
     "sort -k1,2 <(gunzip -cf ",
-    arguments$outdir, "/",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.txt.gz"),
-        basename(arguments$bam)
-    ),
+    arguments$outdir, "/", outname,
     ") | gzip > ",
-    arguments$outdir, "/",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.tmp.txt.gz"),
-        basename(arguments$bam)
-    ),
+    arguments$outdir, "/", outname_tmp,
     " && mv -f ",
-    arguments$outdir, "/",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.tmp.txt.gz"),
-        basename(arguments$bam)
-    ),
+    arguments$outdir, "/", outname_tmp,
     " ",
-    arguments$outdir, "/",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.txt.gz"),
-        basename(arguments$bam)
-    ),
+    arguments$outdir, "/", outname,
     "\" | bash"
 )
 system(command_sort)
 
-# #FIXME mv: cannot stat './data/files_bam/Disteche_sample_13.dedup.CAST.corrected.CAST.AS.tmp.txt.gz': No such file or directory
-# #NOTE Basically works, but throws a strange error message
-# #NOTE Observed this error when running from the CL:
-#       Error: unexpected ',' in ","
-#       Execution halted
-
-cat(paste0(
-    "Completed: Sorting ",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.txt.gz"),
-        basename(arguments$bam)
-    ),
-    "\n"
-))
+cat(paste0("Completed: Sorting ", arguments$outdir, "/", outname, "\n"))
 
 
 #  End the script -------------------------------------------------------------
