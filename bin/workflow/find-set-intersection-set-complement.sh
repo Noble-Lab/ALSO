@@ -175,14 +175,12 @@ step_6="$(echo_completion_file "${outpath}" 6 "${prefix}")"
 
 #  01: Copy files of interest to ${TMPDIR} ------------------------------------
 if [[ ! -f "${step_1}" ]]; then
-    echo -e "Started step 1/X: Copying ${base_1} and ${base_2} into"
-    echo -e "${TMPDIR}."
+    echo -e "Started step 1/6: Copying ${base_1} and ${base_2} into ${TMPDIR}."
 
     cp "${infile_1}" "${infile_2}" "${TMPDIR}" && \
     touch "${step_1}"
 
-    echo -e "Completed step 1/X: Copying ${base_1} and ${base_2} into"
-    echo -e "${TMPDIR}.\n"
+    echo -e "Completed step 1/6: Copying ${base_1} and ${base_2} into ${TMPDIR}.\n"
 else
     echo_completion_message 1
 fi
@@ -190,14 +188,12 @@ fi
 
 #  02: Find set intersection between sample #1 and sample #2 ------------------
 if [[ ! -f "${step_2}" && -f "${step_1}" ]]; then
-    echo -e "Started step 2/X: Finding set intersection between ${base_1}"
-    echo -e "and ${base_2}."
+    echo -e "Started step 2/6: Finding set intersection between ${base_1} and ${base_2}."
 
     find_set_intersection "${tmp_1}" "${tmp_2}" "${tmp_inter}" && \
     touch "${step_2}"
 
-    echo -e "Completed step 2/X: Finding set intersection between ${base_1}"
-    echo -e "and ${base_2}.\n"
+    echo -e "Completed step 2/6: Finding set intersection between ${base_1} and ${base_2}.\n"
 elif [[ -f "${step_2}" && -f "${step_1}" ]]; then
     echo_completion_message 2
 else
@@ -208,14 +204,12 @@ fi
 
 #  03: Find set complement for sample #1 --------------------------------------
 if [[ ! -f "${step_3}" && -f "${step_2}" ]]; then
-    echo -e "Started step 3/X: Between ${base_1} and ${base_2}, finding set"
-    echo -e "complement for ${base_1}."
+    echo -e "Started step 3/6: Between ${base_1} and ${base_2}, finding set complement for ${base_1}."
 
     find_set_complement "${tmp_1}" "${tmp_2}" "${tmp_comp_1}" && \
     touch "${step_3}"
 
-    echo -e "Completed step 3/X: Between ${base_1} and ${base_2}, finding set"
-    echo -e "complement for ${base_1}.\n"
+    echo -e "Completed step 3/6: Between ${base_1} and ${base_2}, finding set complement for ${base_1}.\n"
 elif [[ -f "${step_3}" && -f "${step_2}" ]]; then
     echo_completion_message 3
 else
@@ -226,14 +220,12 @@ fi
 
 #  04: Find set complement for sample #2 --------------------------------------
 if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
-    echo -e "Started step 4/X: Between ${base_1} and ${base_2}, finding set"
-    echo -e "complement for ${base_2}."
+    echo -e "Started step 4/6: Between ${base_1} and ${base_2}, finding set complement for ${base_2}."
 
     find_set_complement "${tmp_2}" "${tmp_1}" "${tmp_comp_2}" && \
     touch "${step_4}"
 
-    echo -e "Completed step 4/X: Between ${base_1} and ${base_2}, finding set"
-    echo -e "complement for ${base_2}.\n"
+    echo -e "Completed step 4/6: Between ${base_1} and ${base_2}, finding set complement for ${base_2}.\n"
 elif [[ -f "${step_4}" && -f "${step_3}" ]]; then
     echo_completion_message 4
 else
@@ -252,8 +244,7 @@ if [[ "${count}" == 1 ]]; then
         n_1=$(zcat "${tmp_1}" | wc -l)
         n_2=$(zcat "${tmp_2}" | wc -l)
 
-        echo -e "Started step 5/X: Check that the set intersection and set"
-        echo -e "complement sums to the set size."
+        echo -e "Started step 5/6: Check that the set intersection and set complement sums to the set size."
 
         echo "Sum of ${base_inter} and ${base_comp_1}: $(( n_inter + n_comp_1 ))" && \
         echo "Count for ${tmp_1}: $(( n_1 ))" && \
@@ -262,8 +253,7 @@ if [[ "${count}" == 1 ]]; then
         echo "Count for ${tmp_2}: $(( n_2 ))" && \
         touch "${step_5}"
 
-        echo -e "Completed step 5/X: Check that the set intersection and set"
-        echo -e "complement sums to the set size.\n"
+        echo -e "Completed step 5/6: Check that the set intersection and set complement sums to the set size.\n"
     elif [[ -f "${step_5}" && -f "${step_4}" ]]; then
         n_inter=$(zcat "${tmp_inter}" | wc -l)
         n_comp_1=$(zcat "${tmp_comp_1}" | wc -l)
@@ -286,15 +276,13 @@ fi
 
 #  06: Remove temporary files, move "${TMPDIR}" outfiles to "${outpath}" ------
 if [[ -f "${step_4}" && -f "${tmp_inter}" ]]; then
-    echo -e "Started step 6/X: Removing temporary files, moving outfiles"
-    echo -e "from ${TMPDIR} to ${outpath}."
+    echo -e "Started step 6/6: Removing temporary files, moving outfiles from ${TMPDIR} to ${outpath}."
 
     rm "${tmp_1}" "${tmp_2}" && \
     mv -f "${TMPDIR}/"*.txt.gz "${outpath}" && \
     touch "${step_6}"
 
-    echo -e "Completed step 6/X: Removing temporary files, moving outfiles"
-    echo -e "from ${TMPDIR} to ${outpath}.\n"
+    echo -e "Completed step 6/6: Removing temporary files, moving outfiles from ${TMPDIR} to ${outpath}.\n"
 fi
 
 

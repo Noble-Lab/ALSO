@@ -52,14 +52,14 @@ display_spinning_icon() {
 echo_loop() { for i in "${@:-*}"; do echo "${i}"; done; }
 
 
-evaluate_run_upto() {
-    # Evaluate variable "${run_upto}", exiting if it is equal to the current step
+evaluate_run_up_to() {
+    # Evaluate variable "${run_up_to}", exiting if it is equal to the current step
     #
-    # :param 1: value assigned to "${run_upto}" (int)
+    # :param 1: value assigned to "${run_up_to}" (int)
     # :param 2: current step (int)
     [[ "${1}" -eq "${2}" ]] &&
         {
-            echo -e "Exiting: script has run upto the step specified in argument -n: step ${2}.\n\n"
+            echo -e "Exiting: script has run up to step ${2}, the step specified in argument -n.\n\n"
             exit 0
         }
 }
@@ -128,21 +128,20 @@ filter_duplicate_qnames_gzip(){
 
 #QUESTION Depending on the order of inputs here, what is in the output?
 find_set_complement() {
-    # Find and list the set complement between AS.txt.gz files for samples #1
-    # and #2; comparing samples #1 and #2, list elements unique to sample #1;
-    # function acts on and outputs only the first column
+    # Find, list, and sort the set complement between AS.txt.gz files for
+    # samples #1 and #2; comparing samples #1 and #2, list elements unique to
+    # sample #1; function acts on and outputs only the first column
     #
     # :param 1: sorted sample #1 AS.txt.gz file
     # :param 2: sorted sample #2 AS.txt.gz file
-    # :param 3: outputs elements unique to sample #2
+    # :param 3: file for elements unique to sample #2
     start="$(date +%s)"
 
+    echo "Writing out and sorting set elements unique to $(basename "${1}") in comparison to $(basename "${2}")... "
     grep -vxFf <(zcat -df "${2}" | cut -f1) <(zcat -df "${1}" | cut -f1) \
     | sort \
     | gzip \
-    > "${3}" &
-    display_spinning_icon $! \
-    "Writing out and sorting set elements unique to $(basename "${1}") in comparison to $(basename "${2}")... "
+    > "${3}"
     
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
@@ -151,21 +150,20 @@ find_set_complement() {
 
 
 find_set_intersection() {
-    # Find and list the set intersection elements between AS.txt.gz files for
-    # samples #1 and #2
+    # Find, list, and sort the set intersection elements between AS.txt.gz
+    # files for samples #1 and #2
     #
     # :param 1: sorted sample #1 AS.txt.gz file
     # :param 2: sorted sample #2 AS.txt.gz file
-    # :param 3: outputs set intersection between samples #1 and #2
+    # :param 3: for for set intersection elements for samples #1 and #2
     start="$(date +%s)"
 
+    echo "Writing out and sorting set intersection elements for $(basename "${1}") and $(basename "${2}")... "
     join <(zcat -df "${1}") <(zcat -df "${2}") \
     | tr ' ' \\t \
     | sort \
     | gzip \
-    > "${3}" &
-    display_spinning_icon $! \
-    "Writing out and sorting set intersection elements for $(basename "${1}") and $(basename "${2}")... "
+    > "${3}"
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
