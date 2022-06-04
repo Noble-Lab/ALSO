@@ -197,7 +197,7 @@ ap <- add_argument(
 
 
 #  Parse the arguments --------------------------------------------------------
-test_in_RStudio <- TRUE  # Hardcode T for testing in RStudio; F for CLI
+test_in_RStudio <- FALSE  # Hardcode TRUE for interactive testing; FALSE for CLI
 if(isTRUE(test_in_RStudio)) {
     #  RStudio-interactive work
     dir_base <- "."

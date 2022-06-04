@@ -42,7 +42,7 @@ echo_completion_file() {
     # :param 1: outpath (chr)
     # :param 2: string description (chr)
     # :param 3: step number (int)
-    echo "${1}/${2}_allelic-segregation_step-${3}.txt"
+    echo "${1}/${2}.allelic-segregation.step-${3}.txt"
 }
 
 # :param 1: directory in which to search
@@ -53,72 +53,73 @@ find_files() { find "${1}" -maxdepth 1 -type f -name "${2}"; }
 #  Handle arguments, assign variables -----------------------------------------
 print_usage() {
     echo "Arguments:"
-    echo "-h print this help message and exit"
-    echo "-u use safe mode: TRUE or FALSE (logical; default: FALSE)"
-    echo "-l run on GS HPC: TRUE or FALSE (logical; default: FALSE)"
-    echo "-m initial memory allocation pool for JVM (chr; default \"512m\")"
-    echo "-x maximum memory allocation pool for JVM (chr; default \"4096m\")"
-    echo "-r string for sample #1 (chr)"
-    echo "-s string for sample #2 (chr)"
-    echo "-1 bam infile #1, including path (chr)"
-    echo "-2 bam infile #2, including path (chr)"
-    echo "-p prefix for outfiles (chr)"
-    echo "-o results directory for outfiles (chr); path will be made if it"
-    echo "   does not exist"
-    echo "-c number of records to read into memory at one time when running"
-    echo "   step #1 (int > 0; default: 100000)"
-    echo "-d number of records to read into memory at one time when running"
-    echo "   step #3 (int > 0; default: 1000000)"
-    echo "-t alignment score threshold (int >= 0; default: 0); the absolute"
-    echo "   value of the difference in alignment scores between samples #1"
-    echo "   and #2 must be greater than this value in order for a sample-"
-    echo "   specific assignment to be made; if not, the assignment will be"
-    echo "   \"ambiguous\""
-    echo "-m count lines: TRUE or FALSE (logical; default: TRUE)"
-    echo "-n step in pipeline to run up to (int 1-X; default: X)"
+    echo "-h  print this help message and exit"
+    echo "-u  use safe mode: TRUE or FALSE [logical; default: FALSE]"
+    echo "-l  run on GS HPC: TRUE or FALSE [logical; default: FALSE]"
+    echo "-m  initial memory allocation pool for JVM [chr; default: \"512m\"]"
+    echo "-x  maximum memory allocation pool for JVM [chr; default: \"4096m\"]"
+    echo "-r  string for sample #1 [chr]"
+    echo "-s  string for sample #2 [chr]"
+    echo "-1  bam infile #1, including path [chr]"
+    echo "-2  bam infile #2, including path [chr]"
+    echo "-p  prefix for outfiles [chr]"
+    echo "-o  results directory for outfiles [chr]; path will be made if it"
+    echo "    does not exist"
+    echo "-c  number of records to read into memory at one time when running"
+    echo "    step #1 [int > 0; default: 100000]"
+    echo "-d  number of records to read into memory at one time when running"
+    echo "    step #3 [int > 0; default: 1000000]"
+    echo "-t  alignment score threshold [int >= 0; default: 0]; the absolute"
+    echo "    value of the difference in alignment scores between samples #1"
+    echo "    and #2 must be greater than this value in order for a sample-"
+    echo "    specific assignment to be made; if not greater than this value,"
+    echo "    then the assignment will be \"ambiguous\""
+    echo "-m  count lines: TRUE or FALSE [logical; default: TRUE]"
+    echo "-n  step in pipeline to run up to [int 1-4; default: 4]"
     # exit
 }
 
 
-print_usage
-
-# while getopts "h:u:l:m:x:r:s:1:2:p:o:c:d:t:a:n:" opt; do
-#     case "${opt}" in
-#         h) print_usage ;;
-#         u) safe_mode="${OPTARG}" ;;
-#         l) cluster="${OPTARG}" ;;
-#         m) memory_min="${OPTARG}" ;;
-#         x) memory_max="${OPTARG}" ;;
-#         r) strain_1="${OPTARG}" ;;
-#         s) strain_2="${OPTARG}" ;;
-#         1) bam_1="${OPTARG}" ;;
-#         2) bam_2="${OPTARG}" ;;
-#         p) prefix="${OPTARG}" ;;
-#         o) outpath="${OPTARG}" ;;
-#         c) chunk_step_1="${OPTARG}" ;;
-#         d) chunk_step_3="${OPTARG}" ;;
-#         t) threshold="${OPTARG}" ;;
-#         a) count="${OPTARG}" ;;
-#         n) run_up_to="${OPTARG}" ;;
-#         *) print_usage ;;
-#     esac
-# done
-
-safe_mode=FALSE
-cluster=FALSE
-memory_min="512m"
-memory_max="4096m"
-strain_1="mm10"
-strain_2="CAST"
-bam_1="./data/files_bam/Disteche_sample_1.dedup.mm10.corrected.bam"
-bam_2="./data/files_bam/Disteche_sample_1.dedup.CAST.corrected.bam"
-prefix="Disteche_sample_1"
-outpath="./results/kga0/2022-0531_allelic-segregation"
-chunk_step_1=100000
-chunk_step_3=1000000
-threshold=0
-count=TRUE
-run_up_to=4
+interactive=TRUE  # Hardcode TRUE for interactive testing; FALSE for CLI
+if [[ "${interactive}" == "TRUE" ]]; then
+    safe_mode=FALSE
+    cluster=FALSE
+    memory_min="512m"
+    memory_max="4096m"
+    strain_1="mm10"
+    strain_2="CAST"
+    bam_1="./data/files_bam/Disteche_sample_1.dedup.mm10.corrected.downsample-3000000.bam"
+    bam_2="./data/files_bam/Disteche_sample_1.dedup.CAST.corrected.downsample-3000000.bam"
+    prefix="Disteche_sample_1"
+    outpath="./results/kga0/2022-0603_allelic-segregation"
+    chunk_step_1=100000
+    chunk_step_3=1000000
+    threshold=0
+    count=TRUE
+    run_up_to=4
+else
+    while getopts "h:u:l:m:x:r:s:1:2:p:o:c:d:t:a:n:" opt; do
+        case "${opt}" in
+            h) print_usage ;;
+            u) safe_mode="${OPTARG}" ;;
+            l) cluster="${OPTARG}" ;;
+            m) memory_min="${OPTARG}" ;;
+            x) memory_max="${OPTARG}" ;;
+            r) strain_1="${OPTARG}" ;;
+            s) strain_2="${OPTARG}" ;;
+            1) bam_1="${OPTARG}" ;;
+            2) bam_2="${OPTARG}" ;;
+            p) prefix="${OPTARG}" ;;
+            o) outpath="${OPTARG}" ;;
+            c) chunk_step_1="${OPTARG}" ;;
+            d) chunk_step_3="${OPTARG}" ;;
+            t) threshold="${OPTARG}" ;;
+            a) count="${OPTARG}" ;;
+            n) run_up_to="${OPTARG}" ;;
+            *) print_usage ;;
+        esac
+    done
+fi
 
 [[ -z "${safe_mode}" ]] && safe_mode=FALSE
 [[ -z "${cluster}" ]] && cluster=FALSE
@@ -417,7 +418,7 @@ evaluate_run_up_to "${run_up_to}" 1
 
 # script_2="./find-set-intersection-set-complement.sh"
 # dir_experiment_2="${outpath}/run_find-set-inter-set-complement"
-#TODO (   ) Script uses display_spinning_icon(); need to remove this
+#TODO ( Y  ) Script uses display_spinning_icon(); need to remove this
 if [[ ! -f "${step_2}" && -f "${step_1}" ]]; then
     echo -e "Started step 2/4: Running ${script_2}."
     
@@ -450,9 +451,9 @@ if [[ ! -f "${step_2}" && -f "${step_1}" ]]; then
     fi
 fi
 
-comp_1=$(find_files "${dir_experiment_2}" "*${strain_1}*complement.txt.gz")
-comp_2=$(find_files "${dir_experiment_2}" "*${strain_2}*complement.txt.gz")
-inter=$(find_files "${dir_experiment_2}" "*${strain_1}-${strain_2}*inter.txt.gz")
+comp_1=$(find_files "${dir_experiment_2}" "*${strain_1}*complement*")
+comp_2=$(find_files "${dir_experiment_2}" "*${strain_2}*complement*")
+inter=$(find_files "${dir_experiment_2}" "*${strain_1}-${strain_2}*inter*")
 
 if [[ -f "${comp_1}" && -f "${comp_2}" && -f "${inter}" ]]; then
     touch "${step_2}"
@@ -463,7 +464,7 @@ evaluate_run_up_to "${run_up_to}" 2
 
 
 #  Step 3 ---------------------------------------------------------------------
-#   -i, --inter  tab-separated txt file (gzipped or not) without
+#   -i, --intersection  tab-separated txt file (gzipped or not) without
 #                       header, including path, containing intersecting
 #                       query names (QNAME) and alignment scores (AS) for
 #                       two samples (chr)
@@ -507,7 +508,7 @@ if [[ ! -f "${step_3}" && -f "${step_2}" ]]; then
         " \
         Running...\n \
         Rscript \"${script_3}\"\n \
-        --inter \"${inter}\"\n \
+        --intersection \"${inter}\"\n \
         --sample_1 \"${strain_1}\"\n \
         --sample_2 \"${strain_2}\"\n \
         --outdir \"${dir_experiment_3}\"\n \
@@ -517,7 +518,7 @@ if [[ ! -f "${step_3}" && -f "${step_2}" ]]; then
         --remove TRUE"
 
         Rscript "${script_3}" \
-        --inter "${inter}" \
+        --intersection "${inter}" \
         --sample_1 "${strain_1}" \
         --sample_2 "${strain_2}" \
         --outdir "${dir_experiment_3}" \
@@ -565,6 +566,8 @@ evaluate_run_up_to "${run_up_to}" 3
 
 # script_4="./filter-qnames-by-assignment.sh"
 # dir_experiment_4="${outpath}/run_filter-qnames-by-assignment"
+#TODO (   ) Clean up the message formatting
+#TODO (   ) Have picard be less verbose
 if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
     echo -e "Completed step 4/4: Running ${script_3}."
 
