@@ -113,16 +113,6 @@ display_spinning_icon() {
 }
 
 
-echo_completion_file() {
-    # #TODO Description of function
-    #
-    # :param 1: outpath (chr)
-    # :param 2: step number (int)
-    # :param 3: bam infile (chr)
-    echo "${1}/filter-qnames.step-${2}.$(basename "${3/.bam/.txt}")"
-}
-
-
 echo_completion_message() {
     # #TODO Description of function
     #

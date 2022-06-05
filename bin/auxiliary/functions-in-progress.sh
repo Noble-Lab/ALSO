@@ -53,7 +53,8 @@ echo_loop() { for i in "${@:-*}"; do echo "${i}"; done; }
 
 
 evaluate_run_up_to() {
-    # Evaluate variable "${run_up_to}", exiting if it is equal to the current step
+    # Evaluate variable "${run_up_to}", exiting if it is equal to the current
+    # step
     #
     # :param 1: value assigned to "${run_up_to}" (int)
     # :param 2: current step (int)

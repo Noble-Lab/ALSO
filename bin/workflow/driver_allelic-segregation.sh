@@ -6,103 +6,168 @@
 
 time_start="$(date +%s)"
 
+#TODO (   ) Messaging for when a step has started and completed
+#TODO (   ) Replace use non-"*_updated" with use of "*_updated" functions
 #  Source functions into environment ------------------------------------------
 # shellcheck disable=1091
 if [[ -f "./bin/auxiliary/functions-preprocessing-HPC.sh" ]]; then
     . ./bin/auxiliary/functions-preprocessing-HPC.sh ||
         {
-            echo -e "Exiting: Unable to source 'functions-preprocessing-HPC.sh'.\n"
-            # exit 1
+            echo -e "Exiting: Unable to source \
+            'functions-preprocessing-HPC.sh'.\n"
+            exit 1
         }
 
     . ./bin/auxiliary/functions-in-progress.sh ||
         {
-            echo -e "Exiting: Unable to source 'functions-preprocessing-HPC.sh'.\n"
-            # exit 1
+            echo -e "Exiting: Unable to source \
+            'functions-preprocessing-HPC.sh'.\n"
+            exit 1
         }
 elif [[ -f "./functions-preprocessing-HPC.sh" ]]; then
     . ./functions-preprocessing-HPC.sh ||
         {
-            echo -e "Exiting: Unable to source 'functions-preprocessing-HPC.sh'.\n"
-            # exit 1
+            echo -e "Exiting: Unable to source \
+            'functions-preprocessing-HPC.sh'.\n"
+            exit 1
         }
 
     . ./functions-in-progress.sh ||
         {
-            echo -e "Exiting: Unable to source 'functions-in-progress.sh'.\n"
-            # exit 1
+            echo -e "Exiting: Unable to source \
+            'functions-in-progress.sh'.\n"
+            exit 1
         }
 else
     echo -e "Exiting: Couldn't find auxiliary information.\n"
-    # exit 1
+    exit 1
 fi
 
     
-echo_completion_file() {
+echo_completion_file_driver() {
+    # #TODO Description of function
+    #
     # :param 1: outpath (chr)
     # :param 2: string description (chr)
     # :param 3: step number (int)
-    echo "${1}/${2}.allelic-segregation.step-${3}.txt"
+    echo "${1}/$(basename "${0}" ".sh").${2}.step-${3}.txt"
 }
 
-# :param 1: directory in which to search
-# :param 2: pattern and/or name to identify file
-find_files() { find "${1}" -maxdepth 1 -type f -name "${2}"; }
+
+find_files() {
+    # #TODO Description of function
+    #
+    # :param 1: directory in which to search
+    # :param 2: pattern and/or name to identify file
+    find "${1}" -maxdepth 1 -type f -name "${2}"
+}
 
 
+#TODO (   ) For the individual scripts in this pipeline, remove transferring
+#           to/from TMPDIR; then, include an option to do so in this driver
+#           script
 #  Handle arguments, assign variables -----------------------------------------
 print_usage() {
+    echo ""
+    echo "${0}:"
+    echo "Run the allelic-segregation pipeline."
+    echo "  - Part #1  <get-AS-per-qname.R>"
+    echo "             For \"sample #1\" and \"sample #2\" bam files, output"
+    echo "             sorted, tab-separated, gzipped txt files of bam"
+    echo "             querynames (QNAMEs) and alignment scores (AS's)."
+    echo ""
+    echo "  - Part #2  <find-set-intersection-set-complement.sh>"
+    echo "             Find the set intersection and set complements for tab-"
+    echo "             separated, gzipped txt files containing QNAMEs and"
+    echo "             AS's."
+    echo ""
+    echo "  - Part #3  <generate-assignment-lists.R>"
+    echo "             Comparing AS's, assign set-intersection QNAMEs to"
+    echo "             categories \"sample #1\", \"sample #2\", or"
+    echo "             \"ambiguous\", saving the categorized QNAMEs in"
+    echo "             distinct sorted, gzipped txt files for each category."
+    echo ""
+    echo "  - Part #4  <filter-qnames-by-assignment.sh>"
+    echo "             Use assignment category txt files from to generate"
+    echo "             assignment-specific bam files via picard"
+    echo "             FilterSamReads."
+    echo ""
+    echo ""
+    echo "Dependencies:"
+    echo "  - argparser >= #TODO"
+    echo "  - bedtools >= 2.29.0"
+    echo "  - GNU echo >= #TODO"
+    echo "  - GNU find >= #TODO #TODO Does BSD work also?"
+    echo "  - GNU zcat >= 1.09 #TODO Check on this..."
+    echo "  - picard >= 2.27.1"
+    echo "  - R >= 4.0"
+    echo "  - Rscript >= 4.0"
+    echo "  - Rsamtools >= #TODO"
+    echo "  - samtools >= 1.13"
+    echo "  - Subread repair >= 2.0.1"
+    echo "  - scales >= #TODO"
+    echo "  - tidyverse >= #TODO"
+    echo ""
+    echo ""
     echo "Arguments:"
     echo "-h  print this help message and exit"
     echo "-u  use safe mode: TRUE or FALSE [logical; default: FALSE]"
     echo "-l  run on GS HPC: TRUE or FALSE [logical; default: FALSE]"
+    echo "-d  run pipeline in \${TMPDIR}: TRUE or FALSE [logical; default:"
+    echo "    TRUE]"
     echo "-m  initial memory allocation pool for JVM [chr; default: \"512m\"]"
     echo "-x  maximum memory allocation pool for JVM [chr; default: \"4096m\"]"
-    echo "-r  string for sample #1 [chr]"
-    echo "-s  string for sample #2 [chr]"
+    echo "-r  string for \"sample #1\" [chr]"
+    echo "-s  string for \"sample #2\" [chr]"
     echo "-1  bam infile #1, including path [chr]"
     echo "-2  bam infile #2, including path [chr]"
     echo "-p  prefix for outfiles [chr]"
     echo "-o  results directory for outfiles [chr]; path will be made if it"
     echo "    does not exist"
+    echo "-b  number of records to read into memory at one time when running"
+    echo "    the script for Part #1, get-AS-per-qname.R [int > 0; default:"
+    echo "    100000]"
     echo "-c  number of records to read into memory at one time when running"
-    echo "    step #1 [int > 0; default: 100000]"
-    echo "-d  number of records to read into memory at one time when running"
-    echo "    step #3 [int > 0; default: 1000000]"
+    echo "    the script for Part #3, generate-assignment-lists.R [int > 0;"
+    echo "    default: 1000000]"
     echo "-t  alignment score threshold [int >= 0; default: 0]; the absolute"
-    echo "    value of the difference in alignment scores between samples #1"
-    echo "    and #2 must be greater than this value in order for a sample-"
-    echo "    specific assignment to be made; if not greater than this value,"
-    echo "    then the assignment will be \"ambiguous\""
-    echo "-m  count lines: TRUE or FALSE [logical; default: TRUE]"
+    echo "    value of the difference in alignment scores between \"sample"
+    echo "    #1\" and \"sample #2\" must be greater than this value in order"
+    echo "    for a sample-specific assignment to be made; if not greater than"
+    echo "    this value, then the assignment will be \"ambiguous\""
+    echo "-a  count lines: TRUE or FALSE [logical; default: TRUE]"
     echo "-n  step in pipeline to run up to [int 1-4; default: 4]"
-    # exit
+    exit
 }
 
 
-interactive=TRUE  # Hardcode TRUE for interactive testing; FALSE for CLI
+interactive=FALSE  # Hardcode TRUE for interactive testing; FALSE for CL usage
 if [[ "${interactive}" == "TRUE" ]]; then
     safe_mode=FALSE
     cluster=FALSE
+    use_TMPDIR=TRUE
     memory_min="512m"
     memory_max="4096m"
     strain_1="mm10"
     strain_2="CAST"
-    bam_1="./data/files_bam/Disteche_sample_1.dedup.mm10.corrected.downsample-3000000.bam"
-    bam_2="./data/files_bam/Disteche_sample_1.dedup.CAST.corrected.downsample-3000000.bam"
+    # bam_1="./data/files_bam/Disteche_sample_1.dedup.mm10.corrected.downsample-3000000.bam"
+    # bam_2="./data/files_bam/Disteche_sample_1.dedup.CAST.corrected.downsample-3000000.bam"
+    bam_1="./data/files_bam/Disteche_sample_1.dedup.mm10.corrected.bam"
+    bam_2="./data/files_bam/Disteche_sample_1.dedup.CAST.corrected.bam"
     prefix="Disteche_sample_1"
-    outpath="./results/kga0/2022-0603_allelic-segregation"
+    outpath="./results/kga0/2022-0604_allelic-segregation"
     chunk_step_1=100000
     chunk_step_3=1000000
     threshold=0
     count=TRUE
     run_up_to=4
 else
-    while getopts "h:u:l:m:x:r:s:1:2:p:o:c:d:t:a:n:" opt; do
+    while getopts "h:u:l:d:m:x:r:s:1:2:p:o:b:c:t:a:n:" opt; do
         case "${opt}" in
             h) print_usage ;;
             u) safe_mode="${OPTARG}" ;;
             l) cluster="${OPTARG}" ;;
+            d) use_TMPDIR="${OPTARG}" ;;
             m) memory_min="${OPTARG}" ;;
             x) memory_max="${OPTARG}" ;;
             r) strain_1="${OPTARG}" ;;
@@ -111,8 +176,8 @@ else
             2) bam_2="${OPTARG}" ;;
             p) prefix="${OPTARG}" ;;
             o) outpath="${OPTARG}" ;;
-            c) chunk_step_1="${OPTARG}" ;;
-            d) chunk_step_3="${OPTARG}" ;;
+            b) chunk_step_1="${OPTARG}" ;;
+            c) chunk_step_3="${OPTARG}" ;;
             t) threshold="${OPTARG}" ;;
             a) count="${OPTARG}" ;;
             n) run_up_to="${OPTARG}" ;;
@@ -123,6 +188,7 @@ fi
 
 [[ -z "${safe_mode}" ]] && safe_mode=FALSE
 [[ -z "${cluster}" ]] && cluster=FALSE
+[[ -z "${use_TMPDIR}" ]] && use_TMPDIR=TRUE
 [[ -z "${memory_min}" ]] && memory_min="512m"
 [[ -z "${memory_max}" ]] && memory_max="4096m"
 [[ -z "${strain_1}" ]] && print_usage
@@ -138,6 +204,7 @@ fi
 [[ -z "${run_up_to}" ]] && run_up_to=4
 
 
+#TODO (   ) Some kind of check that zcat is GNU >= 1.09 and not, say, BSD
 #  Check variable assignments from arguments ----------------------------------
 echo -e ""
 echo -e "Running ${0}... "
@@ -148,7 +215,7 @@ case "$(echo "${safe_mode}" | tr '[:upper:]' '[:lower:]')" in
     false | f) echo -e "-u: \"Safe mode\" is FALSE." ;;
     *) \
         echo -e "Exiting: -u \"safe mode\" argument must be TRUE or FALSE.\n"
-        # exit 1
+        exit 1
         ;;
 esac
 
@@ -163,7 +230,16 @@ case "$(echo "${cluster}" | tr '[:upper:]' '[:lower:]')" in
     false | f) echo -e "-l: \"Run on GS HPC\" is FALSE." && check_dependency picard ;;
     *) \
         echo -e "Exiting: -l \"run on GS HPC\" argument must be TRUE or FALSE.\n"
-        # exit 1
+        exit 1
+        ;;
+esac
+
+case "$(echo "${use_TMPDIR}" | tr '[:upper:]' '[:lower:]')" in
+    true | t) echo -e "-d: \"Run in \${TMPDIR}\" is TRUE." && use_TMPDIR=TRUE ;;
+    false | f) echo -e "-d: \"Run in \${TMPDIR}\" is FALSE." && use_TMPDIR=FALSE ;;
+    *) \
+        echo -e "Exiting: -d \"run in \${TMPDIR}\" argument must be TRUE or FALSE.\n"
+        exit 1
         ;;
 esac
 
@@ -171,28 +247,28 @@ esac
 [[ "${strain_1}" == "${strain_2}" ]] &&
     {
         echo -e "Exiting: -r \"strain 1\" is the same as -s \"strain 2\".\n"
-        # exit 1
+        exit 1
     }
 
 #  Evaluate "${bam_1}"
 [[ -f "${bam_1}" ]] ||
     {
         echo -e "Exiting: -1 \"bam 1\" does not exist.\n"
-        # exit 1
+        exit 1
     }
 
 #  Evaluate "${bam_2}"
 [[ -f "${bam_2}" ]] ||
     {
         echo -e "Exiting: -2 \"bam 2\" does not exist.\n"
-        # exit 1
+        exit 1
     }
 
 #  Make sure "${bam_1}" and "${bam_2}" are not the same
 [[ $(basename "${bam_1}") == $(basename "${bam_2}") ]] &&
     {
         echo -e "Exiting: -1 \"bam 1\" is apparently the same as -2 \"bam 2\".\n"
-        # exit 1
+        exit 1
     }
 
 #  Make "${outpath}" if it doesn't exist
@@ -206,7 +282,7 @@ esac
 [[ ! "${threshold}" =~ ^[0-9]+$ ]] &&
     {
         echo -e "Exiting: -n \"threshold\" argument must be an integer >= 0.\n"
-        # exit 1
+        exit 1
     }
 
 #  Evaluate "${count}"
@@ -215,7 +291,7 @@ case "$(echo "${count}" | tr '[:upper:]' '[:lower:]')" in
     false | f) echo -e "-c: \"Count lines\" is FALSE." ;;
     *) \
         echo -e "Exiting: -c \"count lines\" argument must be TRUE or FALSE.\n"
-        # exit 1
+        exit 1
         ;;
 esac
 
@@ -223,7 +299,7 @@ esac
 [[ ! "${run_up_to}" =~ ^[0-9]+$ ]] &&
     {
         echo -e "Exiting: -n \"run_up_to\" argument must be an integer in the range of 1-4.\n"
-        # exit 1
+        exit 1
     }
 
 case "${run_up_to}" in
@@ -232,12 +308,44 @@ case "${run_up_to}" in
         ;;
     *) \
         echo -e "Exiting: -n \"run_up_to\" argument must be an integer in the range of 1-4.\n"
-        # exit 1
+        exit 1
         ;;
 esac
 
+echo -e ""
 
-#  Check that pipeline scripts are accessible ---------------------------------
+
+#  Adjust arguments if running "-d TRUE", then report the arguments -----------
+[[ ${use_TMPDIR} == TRUE ]] &&
+    {
+        echo -e "Started: Copying bam infiles into \${TMPDIR}"
+        cp "${bam_1}" "${bam_2}" "${TMPDIR}"
+        echo -e "Completed: Copying bam infiles into \${TMPDIR}\n"
+
+        bam_1="${TMPDIR}/$(basename "${bam_1}")"
+        bam_2="${TMPDIR}/$(basename "${bam_2}")"
+    }
+
+echo -e "Running the pipeline with the following parameters:"
+echo -e "  -u ${safe_mode}"
+echo -e "  -l ${cluster}"
+echo -e "  -d ${use_TMPDIR}"
+echo -e "  -m ${memory_min}"
+echo -e "  -x ${memory_max}"
+echo -e "  -r ${strain_1}"
+echo -e "  -s ${strain_2}"
+echo -e "  -1 ${bam_1}"
+echo -e "  -2 ${bam_2}"
+echo -e "  -p ${prefix}"
+echo -e "  -o ${outpath}"
+echo -e "  -b ${chunk_step_1}"
+echo -e "  -c ${chunk_step_3}"
+echo -e "  -t ${threshold}"
+echo -e "  -a ${count}"
+echo -e "  -n ${run_up_to}\n\n"
+
+
+#  Check that pipeline scripts are accessible by the driver -------------------
 #+ ...if so, then assign them to variables
 if [[ -f "./bin/workflow/get-AS-per-qname.R" ]]; then
     script_1="./bin/workflow/get-AS-per-qname.R"
@@ -247,7 +355,7 @@ elif [[ -f "./get-AS-per-qname.R" ]]; then
     :
 else
     echo -e "Exiting: Couldn't find \"get-AS-per-qname.R\"."
-    # exit 1
+    exit 1
 fi
 
 if [[ -f "./bin/workflow/find-set-intersection-set-complement.sh" ]]; then
@@ -258,7 +366,7 @@ elif [[ -f "./find-set-intersection-set-complement.sh" ]]; then
     :
 else
     echo -e "Exiting: Couldn't find \"find-set-intersection-set-complement.sh\"."
-    # exit 1
+    exit 1
 fi
 
 if [[ -f "./bin/workflow/generate-assignment-lists.R" ]]; then
@@ -269,7 +377,7 @@ elif [[ -f "./generate-assignment-lists.R" ]]; then
     :
 else
     echo -e "Exiting: Couldn't find \"generate-assignment-lists.R\"."
-    # exit 1
+    exit 1
 fi
 
 if [[ -f "./bin/workflow/filter-qnames-by-assignment.sh" ]]; then
@@ -280,7 +388,7 @@ elif [[ -f "./filter-qnames-by-assignment.sh" ]]; then
     :
 else
     echo -e "Exiting: Couldn't find \"filter-qnames-by-assignment.sh\"."
-    # exit 1
+    exit 1
 fi
 
 # echo "${script_1}"
@@ -290,10 +398,17 @@ fi
 
 
 #  Assign variables for outdirectories ----------------------------------------
-dir_experiment_1="${outpath}/01_run_get-AS-per-qname"
-dir_experiment_2="${outpath}/02_run_find-set-inter-set-complement"
-dir_experiment_3="${outpath}/03_run_generate-assignment-lists"
-dir_experiment_4="${outpath}/04_run_filter-qnames-by-assignment"
+if [[ ${use_TMPDIR} == TRUE ]]; then
+    dir_experiment_1="${TMPDIR}/${prefix}/01_run_get-AS-per-qname"
+    dir_experiment_2="${TMPDIR}/${prefix}/02_run_find-set-inter-set-complement"
+    dir_experiment_3="${TMPDIR}/${prefix}/03_run_generate-assignment-lists"
+    dir_experiment_4="${TMPDIR}/${prefix}/04_run_filter-qnames-by-assignment"
+else
+    dir_experiment_1="${outpath}/${prefix}/01_run_get-AS-per-qname"
+    dir_experiment_2="${outpath}/${prefix}/02_run_find-set-inter-set-complement"
+    dir_experiment_3="${outpath}/${prefix}/03_run_generate-assignment-lists"
+    dir_experiment_4="${outpath}/${prefix}/04_run_filter-qnames-by-assignment"
+fi
 
 # echo "${dir_experiment_1}"
 # echo "${dir_experiment_2}"
@@ -302,10 +417,10 @@ dir_experiment_4="${outpath}/04_run_filter-qnames-by-assignment"
 
 
 #  Assign variables for completion files --------------------------------------
-step_1="$(echo_completion_file "${outpath}" "${prefix}" 1)"
-step_2="$(echo_completion_file "${outpath}" "${prefix}" 2)"
-step_3="$(echo_completion_file "${outpath}" "${prefix}" 3)"
-step_4="$(echo_completion_file "${outpath}" "${prefix}" 4)"
+step_1="$(echo_completion_file_driver "${outpath}" "${prefix}" 1)"
+step_2="$(echo_completion_file_driver "${outpath}" "${prefix}" 2)"
+step_3="$(echo_completion_file_driver "${outpath}" "${prefix}" 3)"
+step_4="$(echo_completion_file_driver "${outpath}" "${prefix}" 4)"
 
 # echo "${step_1}"
 # echo "${step_2}"
@@ -352,14 +467,13 @@ evaluate_run_up_to "${run_up_to}" 0
 
 # script_1="./get-AS-per-qname.R"
 # dir_experiment_1="${outpath}/run_get-AS-per-qname"
-#TODO (   ) Provide more informative messages output by "get-AS-per-qname.R"
+#TODO (   ) Provide more informative messages from "get-AS-per-qname.R"
 #TODO (   ) Clean up the message formatting
-#TODO ( Y ) Fix the name of outfiles, which mention the strain twice
 if [[ ! -f "${step_1}" ]]; then
-    echo -e "Started step 1/4: Running ${script_1}."
+    echo -e "Started part 1/4: Running ${script_1}."
     
-    #  Create key-value array for samples #1, #2 (should work with different
-    #+ versions of bash, zsh, etc.)
+    #  Create key-value array for samples #1 and #2 (this style of array should
+    #+ work with different versions of bash, zsh, etc.)
     unset array
     declare -A array
     array["${strain_1}"]="${bam_1}"
@@ -389,7 +503,7 @@ if [[ ! -f "${step_1}" ]]; then
             --chunk "${chunk_step_1}"
         else
             echo "Exiting: ${bai} and/or ${bam} not found."
-            # exit 1
+            exit 1
         fi
     done
 fi
@@ -399,7 +513,7 @@ AS_2=$(find_files "${dir_experiment_1}" "*${strain_2}*AS.txt.gz")
 
 if [[ -f "${AS_1}" && -f "${AS_2}" ]]; then
     touch "${step_1}"
-    echo -e "Completed step 1/4: Running ${script_1}.\n"
+    echo -e "Completed part 1/4: Running ${script_1}.\n"
 fi
 
 evaluate_run_up_to "${run_up_to}" 1
@@ -420,7 +534,7 @@ evaluate_run_up_to "${run_up_to}" 1
 # dir_experiment_2="${outpath}/run_find-set-inter-set-complement"
 #TODO ( Y  ) Script uses display_spinning_icon(); need to remove this
 if [[ ! -f "${step_2}" && -f "${step_1}" ]]; then
-    echo -e "Started step 2/4: Running ${script_2}."
+    echo -e "Started part 2/4: Running ${script_2}."
     
     if [[ -f "${AS_1}" ]] && [[ -f "${AS_2}" ]]; then
         echo -e \
@@ -447,7 +561,7 @@ if [[ ! -f "${step_2}" && -f "${step_1}" ]]; then
         -c "${count}"
     else
         echo "Exiting: ${AS_1} and/or ${AS_2} not found."
-        # exit 1
+        exit 1
     fi
 fi
 
@@ -457,7 +571,7 @@ inter=$(find_files "${dir_experiment_2}" "*${strain_1}-${strain_2}*inter*")
 
 if [[ -f "${comp_1}" && -f "${comp_2}" && -f "${inter}" ]]; then
     touch "${step_2}"
-    echo -e "Completed step 2/4: Running ${script_2}.\n"
+    echo -e "Completed part 2/4: Running ${script_2}.\n"
 fi
 
 evaluate_run_up_to "${run_up_to}" 2
@@ -501,7 +615,7 @@ evaluate_run_up_to "${run_up_to}" 2
 #TODO (   ) Provide more informative messages output by generate-assignment-lists.R
 #TODO (   ) Clean up the message formatting
 if [[ ! -f "${step_3}" && -f "${step_2}" ]]; then
-    echo -e "Completed step 3/4: Running ${script_3}."
+    echo -e "Started part 3/4: Running ${script_3}."
 
     if [[ -f "${comp_1}" && -f "${comp_2}" && -f "${inter}" ]]; then
         echo -e \
@@ -528,7 +642,7 @@ if [[ ! -f "${step_3}" && -f "${step_2}" ]]; then
         --remove TRUE
     else
         echo "Exiting: ${inter} not found."
-        # exit 1
+        exit 1
     fi
 fi
 
@@ -538,7 +652,7 @@ ambiguous=$(find_files "${dir_experiment_3}" "*ambiguous.txt.gz")
 
 if [[ -f "${assign_1}" && -f "${assign_2}" && -f "${ambiguous}" ]]; then
     touch "${step_3}"
-    echo -e "Completed step 3/4: Running ${script_3}.\n"
+    echo -e "Completed part 3/4: Running ${script_3}.\n"
 fi
 
 evaluate_run_up_to "${run_up_to}" 3
@@ -569,7 +683,7 @@ evaluate_run_up_to "${run_up_to}" 3
 #TODO (   ) Clean up the message formatting
 #TODO (   ) Have picard be less verbose
 if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
-    echo -e "Completed step 4/4: Running ${script_3}."
+    echo -e "Started part 4/4: Running ${script_4}."
 
     if [[ -f "${assign_1}" && -f "${assign_2}" && "${ambiguous}" ]]; then
         echo -e \
@@ -612,7 +726,7 @@ if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
         -n "${count}"
     else
         echo "Exiting: ${assign_1}, ${assign_2}, and/or ${ambiguous} not found."
-        # exit 1
+        exit 1
     fi
 fi
 
@@ -628,8 +742,21 @@ if \
     [[ -f "${s2_s1}" && -f "${s2_s2}" && -f "${s2_ambiguous}" ]]; \
 then
     touch "${step_4}"
-    echo -e "Completed step 4/4: Running ${script_4}.\n"
+    echo -e "Completed part 4/4: Running ${script_4}.\n"
 fi
+
+[[ ${use_TMPDIR} == TRUE ]] &&
+    {
+        if \
+            [[ -f "${step_1}" && -f "${step_2}" ]] && \
+            [[ -f "${step_3}" && -f "${step_4}" ]]; \
+        then
+            mv -f "${TMPDIR}/${prefix}" "${outpath}" &&
+            rm "${bam_1}" "${bam_2}" "${bam_1}.bai" "${bam_2}.bai" &&
+            echo -e "Copied outfiles from \${TMPDIR} to ${outpath}"
+        fi
+
+    }
 
 
 #  Return run time ------------------------------------------------------------
