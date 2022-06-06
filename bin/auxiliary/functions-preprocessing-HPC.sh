@@ -113,16 +113,6 @@ display_spinning_icon() {
 }
 
 
-echo_completion_file() {
-    # #TODO Description of function
-    #
-    # :param 1: outpath (chr)
-    # :param 2: step number (int)
-    # :param 3: bam infile (chr)
-    echo "${1}/filter-qnames.step-${2}.$(basename "${3/.bam/.txt}")"
-}
-
-
 echo_completion_message() {
     # #TODO Description of function
     #
@@ -151,45 +141,6 @@ echo_flagstat() {
 
 #TODO Write a function description
 echo_loop() { for i in "${@:-*}"; do echo "${i}"; done; }
-
-
-exclude_qname_reads_picard() {
-    # Filter a bam infile to exclude reads with QNAMEs listed in a txt file;
-    # write the filtered results to a bam outfile
-    #
-    # :param 1: name of bam infile, including path (chr)
-    # :param 2: name of txt QNAME list, including path (chr)
-    # :param 3: name of bam outfile, including path (cannot be same as bam
-    #           infile) (chr)
-    # :param 4: use the picard.jar available on the GS grid system (logical)
-    start="$(date +%s)"
-    dir_picard="/net/gs/vol3/software/modules-sw/picard/2.26.4/Linux/CentOS7/x86_64"
-
-    case "$(echo "${4}" | tr '[:upper:]' '[:lower:]')" in
-        true | t) \
-            java -jar "${dir_picard}"/picard.jar FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="excludeReadList"
-            ;;
-        false | f) \
-            picard FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="excludeReadList"
-            ;;
-        *) \
-            echo "Exiting: Parameter 4 is not \"TRUE\" or \"FALSE\"."
-            return 1
-            ;;
-    esac
-
-    end="$(date +%s)"
-    calculate_run_time "${start}" "${end}" \
-    "Exclude reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
-}
 
 
 extract_n_lines_gzip_auto() {
@@ -248,9 +199,9 @@ get_qname_parallel() {
 
 
 identify_qnames() {
-    # Using txt infile from list_tally_qnames, create txt outfiles for
-    # QNAME == 2; outfile names are derived from infile name; function runs the
-    # following commands in succession:
+    # Using txt.gz infile from list_tally_qnames, create txt.gz outfiles for
+    # QNAME == 2, QNAME > 2, or QNAME < 2; outfile names are derived from
+    # infile name; function runs the following commands in succession:
     #    1. filter txt infile for 'QNAME == 2', 'QNAME > 2', or 'QNAME < 2'
     #       based on user specification; write results to new txt file
     #    2. create a txt-file list of QNAMEs without tallies from the txt file
@@ -305,7 +256,8 @@ identify_qnames() {
 
     #  Step 1
     # shellcheck disable=SC2016
-    get_qname_parallel "${1}" \
+    get_qname_parallel \
+    "${1}" \
     "${dir_str}" \
     "${comp}" \
     "${4}" \
@@ -374,7 +326,7 @@ list_tally_qnames() {
 
     #  Trim leading whitespaces
     if [[ -f "${1/.bam/.QNAME.tmp.txt}" ]]; then
-        cut -c 6- "${1/.bam/.QNAME.tmp.txt}" > "${1/.bam/.QNAME.txt}"
+        cut -c 7- "${1/.bam/.QNAME.tmp.txt}" > "${1/.bam/.QNAME.txt}"
     else
         echo "$(basename "${1/.bam/.QNAME.tmp.txt}") not found."
         return 1
@@ -388,6 +340,47 @@ list_tally_qnames() {
         return 1
     fi
         
+    end="$(date +%s)"
+    echo ""
+    calculate_run_time "${start}" "${end}"  \
+    "List and tally QNAMEs in $(basename "${1}")."
+}
+
+
+list_tally_qnames_gzip() {
+    # List and tally QNAMEs in a bam infile; function acts on a bam infile to
+    # perform piped commands (samtools view, cut, sort, uniq -c, sort -nr) that
+    # list and tally QNAMEs; function writes the results to a txt outfile, the
+    # name of which is derived from the txt infile; finally, the outfile is
+    # gzipped
+    #
+    # :param 1: name of bam infile, including path (chr)
+    start="$(date +%s)"
+    
+    samtools view "${1}" \
+    | cut -f 1 \
+    | sort \
+    | uniq -c \
+    | sort -nr \
+    > "${1/.bam/.QNAME.tmp.txt}"
+
+    #  Trim leading whitespaces
+    if [[ -f "${1/.bam/.QNAME.tmp.txt}" ]]; then
+        cut -c 7- "${1/.bam/.QNAME.tmp.txt}" > "${1/.bam/.QNAME.txt}"
+    else
+        echo "$(basename "${1/.bam/.QNAME.tmp.txt}") not found."
+        return 1
+    fi
+
+    #  Remove temporary intermediate file, gzip outfile
+    if [[ -f "${1/.bam/.QNAME.txt}" ]]; then
+        rm "${1/.bam/.QNAME.tmp.txt}"
+        gzip "${1/.bam/.QNAME.txt}"
+    else
+        echo "$(basename "${1/.bam/.QNAME.txt}") not found."
+        return 1
+    fi
+    
     end="$(date +%s)"
     echo ""
     calculate_run_time "${start}" "${end}"  \
@@ -413,7 +406,7 @@ list_tally_qnames_trans() {
 
     # #  Trim leading whitespaces
     # if [[ -f "${1/.bam/.trans-QNAME.tmp.txt}" ]]; then
-    #     cut -c 6- "${1/.bam/.trans-QNAME.tmp.txt}" > "${1/.bam/.trans-QNAME.txt}"
+    #     cut -c 7- "${1/.bam/.trans-QNAME.tmp.txt}" > "${1/.bam/.trans-QNAME.txt}"
     # else
     #     echo "$(basename "${1/.bam/.trans-QNAME.tmp.txt}") not found."
     #     return 1
@@ -546,45 +539,6 @@ repair_bam_auto() {
     echo ""
     calculate_run_time "${start}" "${end}"  \
     "Order $(basename "${2}") such that pairs are together."
-}
-
-
-retain_qname_reads_picard() {
-    # Filter a bam infile to include reads with QNAMEs listed in a txt file;
-    # write the filtered results to a bam outfile, the name and path of which
-    # is user-specified
-    # 
-    # :param 1: name of bam infile, including path (chr)
-    # :param 2: name of txt QNAME list, including path (chr)
-    # :param 3: name of bam outfile, including path (chr; cannot be same as bam
-    #           infile)
-    # :param 4: use the picard.jar available on the GS grid system (logical)
-    start="$(date +%s)"
-
-    case "$(echo "${4}" | tr '[:upper:]' '[:lower:]')" in
-        true | t) \
-            java -jar "${dir_picard}"/picard.jar FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="includeReadList"
-            ;;
-        false | f) \
-            picard FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="includeReadList"                       
-            ;;
-        *) \
-            echo "Exiting: Parameter 4 is not \"TRUE\" or \"FALSE\"."
-            return 1
-            ;;
-    esac
-
-    end="$(date +%s)"
-    calculate_run_time "${start}" "${end}" \
-    "Retain reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
 }
 
 

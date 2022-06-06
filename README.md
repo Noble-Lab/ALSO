@@ -5,20 +5,32 @@
 This ALSO pipeline is used to segregate sci-ATAC-seq alignments to parental alleles of origin based on alignment scores.
 
 ## News and Updates
+* 2022-06-04
+ +  Pipeline is completed; can call it with `driver_allelic-segregation.sh`
+ + Adding instructions for using `driver_allelic-segregation.sh` to `README`.
+ + `#TODO` Tets on the HPC and with large files: Do we need to increase memory to the JVM when running `picard`?
+ + `#TODO` Clean up messages output by the driver
+ + `#TODO` Determine and list all dependencies
+
+* 2022-05-23
+ + Addressing error in preprocessing pipeline in which some duplicate QNAMEs persist in processed bam.
+ + Adding instructions for using the correction script, `03-remove-duplicate-qnames.sh`.
+ + `#TODO` Add corrections in `03-remove-duplicate-qnames.sh` to the initial preprocessing script: `03-filter-problematic-qnames-HPC.sh` `#DONE`
+
 * 2022-05-11
- + Cleaned up the old example code.
- + Will create a pull request for Shendure lab after allel score comparison..
- + Kris will work on the allele score comparison module.
+  + Cleaned up the old example code.
+  + Will create a pull request for Shendure lab after allele score comparison..
+  + Kris will work on the allele score comparison module.
 
 * 2022-05-10
- + Kris' new version preprocess module passed tests from both Kris and Gang.
- + Gang would run the preprocess module on all samples. 
+  + Kris' new version preprocess module passed tests from both Kris and Gang.
+  + Gang would run the preprocess module on all samples. 
 
 * 2022-05-04
- + Gang tested on the one sample from mm10, one sample from CAST.
- + Kris tesed test on the largest bam that we have.
- + Bill cleaned the space of vol6, and we would store all the future results in vol6.
- + update the workflow according to Kris's newest preprocess module (4 steps).
+  + Gang tested on the one sample from mm10, one sample from CAST.
+  + Kris tesed test on the largest bam that we have.
+  + Bill cleaned the space of vol6, and we would store all the future results in vol6.
+  + update the workflow according to Kris's newest preprocess module (4 steps).
 
 * 2022-05-02
   + upload/update test code for debugging the preprocess module
@@ -94,7 +106,60 @@ The user needs to run the following steps to prepare the input for KA's pipeline
 2. sci-ATAC-seq analysis pipeline from the Shendure Lab. ([Example Code 2](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/02-sci-ATAC-seq-analysis.sh))
 3. Preprocess the bam. ([Example Code 3](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/bin/workflow/03-preprocess-mm10.sh))
 
+Example for calling `driver_allelic-segregation.sh`
+```
+#  Call from 2021_kga0_4dn-mouse-cross or a directory containing
+#+ functions-in-progress.sh, functions-preprocessing-HPC.sh,
+#+ get-AS-per-qname.R, find-set-intersection-set-complement.sh,
+#+ generate-assignment-lists.R, and filter-qnames-by-assignment.sh
+bash ./bin/workflow/driver_allelic-segregation.sh \
+-u FALSE \
+-l FALSE \
+-d TRUE \
+-m "512m" \
+-x "4096m" \
+-r "mm10" \
+-s "CAST" \
+-1 "path/to/mm10/Disteche_sample_N.dedup.corrected.bam" \
+-2 "path/to/CAST/Disteche_sample_N.dedup.corrected.bam" \
+-p "Disteche_sample_1_downsampled_test-again" \
+-o "./path/to/directory/for/results" \
+-b 100000 \
+-c 1000000 \
+-t 0 \
+-a TRUE \
+-n 4
 
+# Arguments:
+# -h  print this help message and exit
+# -u  use safe mode: TRUE or FALSE [logical; default: FALSE]
+# -l  run on GS HPC: TRUE or FALSE [logical; default: FALSE]
+# -d  run pipeline in ${TMPDIR}: TRUE or FALSE [logical; default:
+#     TRUE]
+# -m  initial memory allocation pool for JVM [chr; default: "512m"]
+# -x  maximum memory allocation pool for JVM [chr; default: "4096m"]
+# -r  string for "sample #1" [chr]
+# -s  string for "sample #2" [chr]
+# -1  bam infile #1, including path [chr]
+# -2  bam infile #2, including path [chr]
+# -p  prefix for outfiles [chr]
+# -o  results directory for outfiles [chr]; path will be made if it
+#     does not exist
+# -b  number of records to read into memory at one time when running
+#     the script for Part #1, get-AS-per-qname.R [int > 0; default:
+#     100000]
+# -c  number of records to read into memory at one time when running
+#     the script for Part #3, generate-assignment-lists.R [int > 0;
+#     default: 1000000]
+# -t  alignment score threshold [int >= 0; default: 0]; the absolute
+#     value of the difference in alignment scores between "sample
+#     #1" and "sample #2" must be greater than this value in order
+#     for a sample-specific assignment to be made; if not greater than
+#     this value, then the assignment will be "ambiguous"
+# -a  count lines: TRUE or FALSE [logical; default: TRUE]
+# -n  step in pipeline to run up to [int 1-4; default: 4]
+```
+ 
 ```{bash preprocess-bam}
 ## 05.11
 # run for all 22 samples
@@ -114,7 +179,6 @@ do
     qsub -l mfree=12G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i ${strain} > results/${strain}-preprocessed/2022-${Date}-${strain}-pre-${i}.submit
     echo "Submitted."
 done
-
 
 ```
 
@@ -138,6 +202,62 @@ bash ./filter-qnames.sh \
 #+ -i is for infile
 #+ -o is for outpath
 #+ -p is for number of cores for parallelization (for calls to samtools)
+```
+
+Example for calling `03-remove-duplicate-qnames.sh`
+```
+#  Call from 2021_kga0_4dn-mouse-cross or a directory containing
+#+ functions-in-progress.sh and functions-preprocessing-HPC.sh
+bash ./bin/workflow/03-remove-duplicate-qnames.sh \
+-u FALSE \
+-c TRUE \
+-m "512m" \
+-x "4048m" \
+-i "${dir_data}/${infile}" \
+-o "${dir_data}" \
+-n TRUE \
+-t FALSE \
+-e TRUE \
+-r TRUE \
+-p "${parallelize}" \
+> "${dir_log}/rm-dup-qnames_${strain}_${ID}.o.txt" \
+2> "${dir_log}/rm-dup-qnames_${strain}_${ID}.e.txt"
+# ./bin/workflow/03-remove-duplicate-qnames.sh:
+# Run pipeline to filter duplicate QNAMEs from bam file.
+#   - Step 01: Copy files of interest to ${TMPDIR}
+#   - Step 02: Sort bam by QNAME
+#   - Step 03: List and tally QNAMEs in the sorted bam file
+#   - Step 04: Create txt.gz outfiles for QNAME > 2
+#   - Step 05: Count lines in infile, outfiles (optional)
+#   - Step 06: Tally entries in infile, outfiles (optional)
+#   - Step 07: Exclude problematic QNAME reads from bam infile
+#   - Step 08: Sort corrected bam by QNAME (optional)
+#   - Step 09: List and tally QNAMEs in the corrected bam file
+#              (optional)
+#   - Step 10: Create txt.gz outfiles for QNAME >, <, = 2 (optional)
+#   - Step 11: Remove temporary bams, move ${TMPDIR} outfiles to
+#              ${outpath}
+#
+#
+# Dependencies:
+#   - parallel >= 20200101
+#   - picard >= 2.27.1
+#   - samtools >= 1.13
+#
+#
+# Arguments:
+# -h print this help message and exit
+# -u use safe mode: "TRUE" or "FALSE" (logical)
+# -c run on GS HPC: "TRUE" or "FALSE" (logical)
+# -m initial memory allocation pool for JVM (chr; default "512m")
+# -x maximum memory allocation pool for JVM (chr; default "1g")
+# -i bam infile, including path (chr)
+# -o path for outfiles (chr); path will be made if it does not exist
+# -n count lines: "TRUE" or "FALSE" (logical)
+# -t tally entries: "TRUE" or "FALSE" (logical)
+# -e evaluate corrected bam: "TRUE" or "FALSE" (logical)
+# -r remove intermediate files: "TRUE" or "FALSE" (logical)
+# -p number of cores for parallelization (int >= 1; default: 1)
 ```
 
 This ALSO pipeline takes as input two paired parental bam files (strain 1 assembly and strain 2 assembly) that have been sorted, subject to duplicate removal, and outputs 3 bam files for each sample, namely, "paternal","maternal","ambiguous" bams.

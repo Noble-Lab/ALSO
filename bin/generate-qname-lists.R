@@ -542,7 +542,7 @@ ap <- add_argument(
     default = TRUE,
     help = "save trans read QNAME list in a txt.gz outfile <logical>"
 )
-ap <- add_argument(
+ap <- add_argument(  #FIXME See the comment at line 748
     ap,
     short = "-d",
     arg = "--duplicated",
@@ -551,6 +551,12 @@ ap <- add_argument(
     help = "
         save duplicated QNAME (i.e., QNAME entries > 2) list in a txt.gz
         outfile <logical>
+
+        #BUG A failure occurs with duplicate recognition because of the way
+        that the data is read in and analyzed in chunks; duplicates are only
+        recognized if they are within the same chunk and, because the data are
+        coordinate-sorted, many duplicates are in different chunks; thus, many
+        true duplicates are not recognized and persist into outfiles
     "
 )
 ap <- add_argument(
@@ -602,10 +608,9 @@ ap <- add_argument(
 #  Parse the command line arguments -------------------------------------------
 test_in_RStudio <- FALSE  # Hardcode T for testing in RStudio; F for CLI
 if(isTRUE(test_in_RStudio)) {
-    #  RStudio-interactive work
+    #  Interactive work in RStudio
     dir_base <- "/Users/kalavattam/Dropbox/UW/projects-etc"
     dir_proj <- paste0(dir_base, "/", "2021_kga0_4dn-mouse-cross")
-    # dir_data <- "results/kga0/2022-0416-0418_test-preprocessing-module"
     dir_data <- "data/files_bam"
     dir_in_out <- paste0(dir_proj, "/", dir_data)
     bam <- "Disteche_sample_13.dedup.mm10.sort-c.rm.chr19.bam"
@@ -645,7 +650,7 @@ if(isTRUE(test_in_RStudio)) {
         uniq, tally, remove
     )
 } else if(isFALSE(test_in_RStudio)) {
-    #  Command-line calls
+    #  Command line calls
     arguments <- parse_args(ap)
     rm(ap)
 } else {
@@ -657,7 +662,7 @@ if(isTRUE(test_in_RStudio)) {
 rm(test_in_RStudio)
 
 
-#  Check that files exist -----------------------------------------------------
+#  Check on the arguments that were supplied ----------------------------------
 stopifnot(file.exists(arguments$bam))
 stopifnot(file.exists(arguments$bai))
 stopifnot(arguments$chunk != 0)
@@ -683,9 +688,8 @@ dir.create(file.path(arguments$outdir), showWarnings = FALSE)
 cat(paste0(
     "Using Rsamtools to load in '", basename(arguments$bam),
     "' and reading fields such as 'qname' into memory (in chunks of ",
-    scales::comma(arguments$chunk), " records per iteration).\n"
+    scales::comma(arguments$chunk), " records per iteration).\n\n"
 ))
-cat("\n")
 
 #  Record the number of records in a chunk; tally and record the total number
 #+ of records in the bam file
@@ -694,14 +698,12 @@ cat(paste0(
 ))
 rec_n <- as.integer(arguments$chunk)
 rec_total <- count_records(arguments$bam)
-cat(paste0("Number of records: ", scales::comma(rec_total), "\n"))
-cat("\n")
+cat(paste0("Number of records: ", scales::comma(rec_total), "\n\n"))
 
 #  Remove already-created outfiles in outdirectory (optional)
 if(isTRUE(arguments$remove)) {
-    cat(paste0("If present, removing outfiles in the outdirectory...\n"))
+    cat(paste0("If present, removing outfiles in the outdirectory...\n\n"))
     remove_outfiles(arguments$outdir, basename(arguments$bam))
-    cat("\n")
 }
 
 
@@ -749,6 +751,7 @@ for(i in 1:n) {
     if(isTRUE(arguments$duplicated)) {
         write_duplicated_qnames(pertinent, uniq, tally)
     }
+    #FIXME See the note associated with argument 'duplicate' above
 
     #  Determine and evaluate singleton QNAME entries, writing out tables
     if(isTRUE(arguments$singleton)) {

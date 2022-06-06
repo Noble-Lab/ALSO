@@ -147,7 +147,8 @@ set.seed(24)
 ap <- arg_parser(
     name = script,
     description = "
-        
+        Output a sorted, tab-separated, gzipped table of qnames and AS's for a
+        given bam infile.
     ",
     hide.opts = TRUE
 )
@@ -196,19 +197,18 @@ ap <- add_argument(
 
 
 #  Parse the arguments --------------------------------------------------------
-test_in_RStudio <- TRUE  # Hardcode T for testing in RStudio; F for CLI
+test_in_RStudio <- FALSE  # Hardcode TRUE for interactive testing; FALSE for CLI
 if(isTRUE(test_in_RStudio)) {
     #  RStudio-interactive work
     dir_base <- "."
     dir_data <- "data"
-    dir_in <- paste0(
-        dir_base, "/", dir_data, "/", "files_bam"
-    )
-    dir_out <- paste0(
-        dir_base, "/", dir_data, "/", "files_bam"
-    )
-    bam <- paste0(dir_in, "/", "Disteche_sample_13.dedup.CAST.corrected.bam")
-    bai <- paste0(dir_in, "/", "Disteche_sample_13.dedup.CAST.corrected.bam.bai")
+    dir_in <- paste0(dir_base, "/", dir_data, "/", "files_bam")
+    dir_out <- paste0(dir_base, "/", dir_data, "/", "files_bam")
+    # bam <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam")
+    # bai <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam.bai")
+    # strain <- "CAST"
+    bam <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam")
+    bai <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam.bai")
     strain <- "CAST"
     chunk <- 100000
     cl <- c(
@@ -233,7 +233,7 @@ if(isTRUE(test_in_RStudio)) {
 rm(test_in_RStudio)
 
 
-#  Check that files exist -----------------------------------------------------
+#  Check on the arguments that were supplied ----------------------------------
 stopifnot(file.exists(arguments$bam))
 stopifnot(file.exists(arguments$bai))
 if(arguments$strain == "") stop("--strain is an empty string.")
@@ -249,6 +249,26 @@ dir.create(file.path(arguments$outdir), showWarnings = FALSE)
 
 #  Set up variables, environment prior to loading in .bam information... ------
 #+ ...including mate information
+
+#  Add strain name to the file if it's not already present; save it to
+#+ "outname" and "outname_tmp"
+if(grepl(arguments$strain, basename(arguments$bam), fixed = TRUE)) {
+    outstring <- paste0(stringr::str_remove(basename(arguments$bam), ".bam"))
+    
+    outname <- paste0(outstring, ".AS.txt.gz")
+    outname_tmp <- paste0(outstring, ".AS.tmp.txt.gz")
+    
+    rm(outstring)
+} else {
+    outstring <- paste0(".", arguments$strain, ".AS.txt.gz")
+    outstring_tmp <- paste0(".", arguments$strain, ".AS.tmp.txt.gz")
+    
+    outname <- gsub(".bam", outstring, basename(arguments$bam))
+    outname_tmp <- gsub(".bam", outstring_tmp, basename(arguments$bam))
+    
+    rm(outstring, outstring_tmp)
+}
+
 cat(paste0(
     "Using Rsamtools to load in '", basename(arguments$bam),
     "' and reading fields such as 'qname' into memory (in chunks of ",
@@ -256,8 +276,7 @@ cat(paste0(
 ))
 cat("\n")
 
-#  Record the number of records in a chunk; tally and record the total number
-#+ of records in the bam file
+#  Tally and record the total number of records in the bam file
 cat(paste0(
     "Counting the number of records in ", basename(arguments$bam), "...\n"
 ))
@@ -265,8 +284,6 @@ rec_n <- as.integer(arguments$chunk)
 rec_total <- count_records(arguments$bam)
 cat(paste0("Number of records: ", scales::comma(rec_total), "\n"))
 cat("\n")
-
-# isOpen(bam)
 
 #  Iterate through bam file in chunks
 bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = TRUE)
@@ -328,14 +345,16 @@ for(i in 1:n) {
             dplyr::rename(qname = qname.odd) %>%
             dplyr::select(-c(colnames(.)[3], colnames(.)[5]))
             
-        #  Take the AS min for each mate pair...
-        #+ Taking the AS min via pmin() gives us the worst AS score per read
-        #+ pair; our logic is that the read pair should be represented by the
-        #+ worst of its two alignment scores
+        #  Take the AS min for each mate pair: Taking the AS min via pmin()
+        #+ gives us the worst AS score per read pair; our logic is that the
+        #+ read pair should be represented by the worst of its two alignment
+        #+ scores
         pertinent$pmin <- pmin(pertinent[, 2][[1]], pertinent[, 3][[1]])
         
         #  Rename, reorder, remove columns
-        string <- colnames(pertinent)[[2]] %>% stringr::str_split("\\.") %>% unlist()
+        string <- colnames(pertinent)[[2]] %>%
+            stringr::str_split("\\.") %>%
+            unlist()
         colnames(pertinent)[4] <- paste0(string[1], ".", string[2], ".pmin")
         pertinent <- pertinent %>% dplyr::select(-c(
             colnames(pertinent)[2], colnames(pertinent)[3]
@@ -344,68 +363,36 @@ for(i in 1:n) {
         #  Write out QNAMEs and AS's to txt.gz file
         readr::write_tsv(
             pertinent,
-            paste0(
-                arguments$outdir, "/",
-                gsub(
-                    ".bam",
-                    paste0(".", arguments$strain, ".AS.txt.gz"),
-                    basename(arguments$bam)
-                )
-            ),
+            paste0(arguments$outdir, "/", outname),
             append = TRUE
         )
     }
     utils::setTxtProgressBar(bar, i)
 }
 
+
+cat(paste0("Completed: Processing ", arguments$bam, "\n"))
+cat(paste0("Have written out ", arguments$outdir, "/", outname, "\n"))
+
+
 #  Sort the AS.txt.gz file ----------------------------------------------------
-# system(paste0(
-#     "echo \"",
-#     "source ./bin/auxiliary/functions-preprocessing.sh && ",
-#     "sort_file_AS_overwrite_infile ", arguments$outdir, "/",
-#     gsub(
-#         ".bam",
-#         paste0(".", arguments$strain, ".AS.txt.gz"),
-#         basename(arguments$bam)
-#     ),
-#     "\" | bash"
-# ))
+cat(paste0("Started: Sorting ", arguments$outdir, "/", outname, "\n"))
 
 command_sort <- paste0(
     "echo \"",
-    "sort -k1,1 -k2n <(gunzip -c ",
-    arguments$outdir, "/",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.txt.gz"),
-        basename(arguments$bam)
-    ),
+    "sort -k1,2 <(gunzip -cf ",
+    arguments$outdir, "/", outname,
     ") | gzip > ",
-    arguments$outdir, "/",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.tmp.txt.gz"),
-        basename(arguments$bam)
-    ),
+    arguments$outdir, "/", outname_tmp,
     " && mv -f ",
-    arguments$outdir, "/",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.tmp.txt.gz"),
-        basename(arguments$bam)
-    ),
+    arguments$outdir, "/", outname_tmp,
     " ",
-    arguments$outdir, "/",
-    gsub(
-        ".bam",
-        paste0(".", arguments$strain, ".AS.txt.gz"),
-        basename(arguments$bam)
-    ),
+    arguments$outdir, "/", outname,
     "\" | bash"
 )
 system(command_sort)
-#FIXME mv: cannot stat './data/files_bam/Disteche_sample_13.dedup.CAST.corrected.CAST.AS.tmp.txt.gz': No such file or directory
-#NOTE Basically works, but throws a strange error message
+
+cat(paste0("Completed: Sorting ", arguments$outdir, "/", outname, "\n"))
 
 
 #  End the script -------------------------------------------------------------

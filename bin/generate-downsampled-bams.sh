@@ -4,12 +4,26 @@
 #  KA
 
 
-#  Start recording time -------------------------------------------------------
-start="$(date +%s)"
+time_start="$(date +%s)"
+
+#  Set up functions -----------------------------------------------------------
+calculate_run_time() {
+    # Calculate run time for chunk of code
+    #
+    # :param 1: start time in $(date +%s) format
+    # :param 2: end time in $(date +%s) format
+    # :param 3: message to be displayed when printing the run time (chr)
+    run_time="$(echo "${2}" - "${1}" | bc -l)"
+    
+    echo ""
+    echo "${3}"
+    printf 'Run time: %dh:%dm:%ds\n' \
+    $(( run_time/3600 )) $(( run_time%3600/60 )) $(( run_time%60 ))
+    echo ""
+}
 
 
-#  Functions ------------------------------------------------------------------
-checkDependency() {
+check_dependency() {
     # Check if program is available in "${PATH}"; exit if not
     # 
     # :param 1: program to be checked (chr)
@@ -21,71 +35,68 @@ checkDependency() {
 }
 
 
-displaySpinningIcon() {
-    # Display "spinning icon" while a background process runs
-    # 
-    # :param 1: PID of the last program the shell ran in the background (int)
-    # :param 2: message to be displayed next to the spinning icon (chr)
-    spin="/|\\–"
-    i=0
-    while kill -0 "${1}" 2> /dev/null; do
-        i=$(( (i + 1) % 4 ))
-        printf "\r${spin:$i:1} %s" "${2}"
-        sleep .15
-    done
-}
-
-
 #  Parse arguments, assign variables ------------------------------------------
-printUsage() {
+print_usage() {
     echo ""
     echo "${0}:"
-    echo "Take a deduplicated paired-end bam file not containing singletons"
-    echo "and sample it down to a user-specified number of reads while"
-    echo "retaining mate information."
+    echo "Downsample a paired-end bam file not containing singletons"
+    echo "to a user-specified number of reads while retaining mate"
+    echo "information."
     echo ""
     echo ""
     echo "Dependencies:"
-    echo " - BBMap >= 38.95"
-    echo " - bedtools >= 2.29.0"
-    echo " - samtools >= 1.13"
+    echo "  - BBMap >= 38.95"
+    echo "  - bedtools >= 2.29.0"
+    echo "  - repair >= 2.0.1 (part of Subread)"
+    echo "  - samtools >= 1.13"
     echo ""
     echo ""
     echo "Arguments:"
-    echo "-h <print this help message and exit>"
-    echo "-u <use safe mode: \"TRUE\" or \"FALSE\" (logical); default is"
-    echo "    \"FALSE\">"
-    echo "-i <deduplicated bam infile, including path (chr)>"
-    echo "-o <path for downsampled bam file (chr); path will be made if it"
-    echo "    does not exist>"
-    echo "-d <number of paired-end reads to sample down to (even int >= 2);"
-    echo "    default: 300000>"
-    echo "-x <prefix for downsampled paired-end bam outfiles (chr, optional);"
-    echo "    if \"-x\" is undefined, then prefix is derived from the name of"
-    echo "    the infile>"
-    echo "-s <seed number for deterministic random sampling (int >= 1);"
-    echo "    default: 24>"
-    echo "-p <number of cores for parallelization (int >= 1); default: 4>"
+    echo "-h  print this help message and exit"
+    echo "-u  use safe mode: TRUE or FALSE [logical]; default: FALSE"
+    echo "-i  deduplicated bam infile, including path [chr]"
+    echo "-o  path for downsampled bam file [chr]; path will be made if it"
+    echo "    does not exist"
+    echo "-d  number of paired-end reads to sample down to [even int >= 2];"
+    echo "    default: 300000"
+    echo "-x  prefix for downsampled paired-end bam outfiles [chr, optional];"
+    echo "    if \"-x\" is blank, then prefix is derived from the name of the"
+    echo "    infile"
+    echo "-s  seed number for deterministic random sampling [int >= 1;"
+    echo "    default: 24]"
+    echo "-p  number of cores for parallelization [int >= 1; default: 4]"
     exit
 }
 
-while getopts "h:u:i:o:x:d:s:p:" opt; do
-    case "${opt}" in
-        h) printUsage ;;
-        u) safe_mode="${OPTARG}" ;;
-        i) infile="${OPTARG}" ;;
-        o) outpath="${OPTARG}" ;;
-        d) downsample="${OPTARG}" ;;
-        x) prefix="${OPTARG}" ;;
-        s) seed="${OPTARG}" ;;
-        p) parallelize="${OPTARG}" ;;
-        *) printUsage ;;
-    esac
-done
+interactive=TRUE  # Hardcode TRUE for interactive testing; FALSE for CLI
+if [[ "${interactive}" == TRUE ]]; then
+    safe_mode=FALSE
+    infile="./data/files_bam/Disteche_sample_1.dedup.CAST.corrected.bam"
+    # infile="./data/files_bam/Disteche_sample_1.dedup.mm10.corrected.bam"
+    outpath="./data/files_bam"
+    downsample=3000000
+    prefix=""
+    seed=24
+    parallelize=4
+else
+    while getopts "h:u:i:o:x:d:s:p:" opt; do
+        case "${opt}" in
+            h) print_usage ;;
+            u) safe_mode="${OPTARG}" ;;
+            i) infile="${OPTARG}" ;;
+            o) outpath="${OPTARG}" ;;
+            d) downsample="${OPTARG}" ;;
+            x) prefix="${OPTARG}" ;;
+            s) seed="${OPTARG}" ;;
+            p) parallelize="${OPTARG}" ;;
+            *) print_usage ;;
+        esac
+    done
+fi
 
 [[ -z "${safe_mode}" ]] && safe_mode="FALSE"
-[[ -z "${infile}" ]] && printUsage
-[[ -z "${outpath}" ]] && printUsage
+[[ -z "${infile}" ]] && print_usage
+[[ -z "${outpath}" ]] && print_usage
 [[ -z "${prefix}" ]] && prefix=""
 [[ -z "${downsample}" ]] && downsample=300000
 [[ -z "${seed}" ]] && seed=24
@@ -93,22 +104,17 @@ done
 
 
 #  Check user input -----------------------------------------------------------
-checkDependency bedtools
-checkDependency samtools
-checkDependency reformat.sh
+check_dependency bedtools
+check_dependency reformat.sh  # part of BBMap
+check_dependency repair
+check_dependency samtools
 
 #  Evaluate "${safe_mode}"
 case "$(echo "${safe_mode}" | tr '[:upper:]' '[:lower:]')" in
-    true | t) \
-        echo -e "-u: Safe mode is on.\n"
-        set -Eeuxo pipefail
-        ;;
-    false | f) \
-        echo -e "-u: Safe mode is off.\n"
-        :
-        ;;
+    true | t) echo -e "-u: \"Safe mode\" is on.\n" && set -Eeuxo pipefail ;;
+    false | f) echo -e "-u: \"Safe mode\" is off.\n" ;;
     *) \
-        echo -e "Exiting: -u safe-mode argument must be \"TRUE\" or \"FALSE\".\n"
+        echo -e "Exiting: -u \"safe mode\" argument must be \"TRUE\" or \"FALSE\".\n"
         exit 1
         ;;
 esac
@@ -177,28 +183,34 @@ esac
 echo "Started: ${0}"
 
 #  Prior to downsampling, get the mate pairs next to each other 
+echo -e "Started: \"Repairing\" $(basename "${infile}")..."
 repair -d -c -T "${parallelize}" \
 -i "${infile}" \
--o "${infile%.bam}.tmp.bam" &
-displaySpinningIcon $! "\"Repairing\" ${infile}... "
+-o "${infile%.bam}.tmp.bam"
+echo -e "Completed: \"Repairing\" $(basename "${infile}")...\n"
 
 #  Split bam infile by forward and reverse strands
 #+ e.g., see biostars.org/p/420892/
+echo -e "Started: Splitting forward strand to separate bam..."
 samtools view -@ "${parallelize}" \
 -F 16 "${infile%.bam}.tmp.bam" \
--o "${infile/.bam/.only-forward.bam}" &
-displaySpinningIcon $! "Splitting forward strand to separate bam... "
+-o "${infile/.bam/.only-forward.bam}"
+echo -e "Completed: Splitting forward strand to separate bam...\n"
 
+echo -e "Started: Splitting reverse strand to separate bam..."
 samtools view -@ "${parallelize}" \
 -f 16 "${infile%.bam}.tmp.bam" \
--o "${infile/.bam/.only-reverse.bam}" &
-displaySpinningIcon $! "Splitting reverse strand to separate bam... "
+-o "${infile/.bam/.only-reverse.bam}"
+echo -e "Completed: Splitting reverse strand to separate bam...\n"
 
 #  Remove unneeded intermediate file
 rm "${infile%.bam}.tmp.bam"
 
 #  Move "work files" into ${outpath}, then cd into ${outpath} for further work
-mv -f "${infile/.bam/.only-forward.bam}" "${infile/.bam/.only-reverse.bam}" "${outpath}/"
+mv -f \
+"${infile/.bam/.only-forward.bam}" \
+"${infile/.bam/.only-reverse.bam}" \
+"${outpath}/"
 
 cd "${outpath}" ||
     {
@@ -211,48 +223,65 @@ downsample_split=$((downsample / 2))
 infile="$(basename "${infile}")"
 
 #  Sample forward mate
+echo -e "Started: Randomly sampling ${infile/.bam/.only-forward.bam} to ${downsample_split} reads..."
 reformat.sh \
 in="${infile/.bam/.only-forward.bam}" \
 out="${infile/.bam/.only-forward.downsample.bam}" \
 sampleseed="${seed}" \
-samplereadstarget="${downsample_split}" &
-displaySpinningIcon $! "Randomly sampling ${infile/.bam/.only-forward.bam} to ${downsample_split} reads... "
+samplereadstarget="${downsample_split}"
+echo -e "Completed: Randomly sampling ${infile/.bam/.only-forward.bam} to ${downsample_split} reads...\n"
 
 #  Sample reverse mate
+echo -e "Started: Randomly sampling ${infile/.bam/.only-reverse.bam} to ${downsample_split} reads..."
 reformat.sh \
 in="${infile/.bam/.only-reverse.bam}" \
 out="${infile/.bam/.only-reverse.downsample.bam}" \
 sampleseed="${seed}" \
-samplereadstarget="${downsample_split}" &
-displaySpinningIcon $! "Randomly sampling ${infile/.bam/.only-reverse.bam} to ${downsample_split} reads... "
+samplereadstarget="${downsample_split}"
+echo -e "Completed: Randomly sampling ${infile/.bam/.only-reverse.bam} to ${downsample_split} reads...\n"
 
 #  Remove unneeded intermediate files
-rm "${infile/.bam/.only-forward.bam}" "${infile/.bam/.only-reverse.bam}"
+rm \
+"${infile/.bam/.only-forward.bam}" \
+"${infile/.bam/.only-reverse.bam}"
 
 #  Coordinate-sort sampled forward mate
+echo -e "Started: Sorting ${infile/.bam/.only-forward.downsample.bam}..."
 samtools sort -@ "${parallelize}" \
 "${infile/.bam/.only-forward.downsample.bam}" \
--o "${infile/.bam/.only-forward.downsample.sort.bam}" &
-displaySpinningIcon $! "Sorting ${infile/.bam/.only-forward.downsample.bam}... "
+-o "${infile/.bam/.only-forward.downsample.sort.bam}"
+echo -e "Completed: Sorting ${infile/.bam/.only-forward.downsample.bam}...\n"
 
 #  Coordinate-sort sampled reverse mate
+echo -e "Started: Sorting ${infile/.bam/.only-reverse.downsample.bam}..."
 samtools sort -@ "${parallelize}" \
 "${infile/.bam/.only-reverse.downsample.bam}" \
--o "${infile/.bam/.only-reverse.downsample.sort.bam}" &
-displaySpinningIcon $! "Sorting ${infile/.bam/.only-reverse.downsample.bam}... "
+-o "${infile/.bam/.only-reverse.downsample.sort.bam}"
+echo -e "Completed: Sorting ${infile/.bam/.only-reverse.downsample.bam}...\n"
 
 #  Remove unneeded intermediate files
-rm "${infile/.bam/.only-forward.downsample.bam}" "${infile/.bam/.only-reverse.downsample.bam}"
+rm \
+"${infile/.bam/.only-forward.downsample.bam}" \
+"${infile/.bam/.only-reverse.downsample.bam}"
 
 #  Merged the coordinate-sorted, sampled mates
+echo -e "Started: Merging..."
+echo -e "  - ${infile/.bam/.only-forward.downsample.sort.bam}"
+echo -e "  - ${infile/.bam/.only-reverse.downsample.sort.bam}"
+echo -e "...to form ${infile/.bam/.downsample-}${downsample}.bam..."
 samtools merge -@ "${parallelize}" \
 "${infile/.bam/.only-forward.downsample.sort.bam}" \
 "${infile/.bam/.only-reverse.downsample.sort.bam}" \
--o "${infile/.bam/.downsample-}${downsample}.bam" &
-displaySpinningIcon $! "Merging ${infile/.bam/.only-forward.downsample.sort.bam} and ${infile/.bam/.only-reverse.downsample.sort.bam} to form ${infile/.bam/.downsample-}${downsample}.bam... "
+-o "${infile/.bam/.downsample-}${downsample}.bam"
+echo -e "Completed: Merging..."
+echo -e "  - ${infile/.bam/.only-forward.downsample.sort.bam}"
+echo -e "  - ${infile/.bam/.only-reverse.downsample.sort.bam}"
+echo -e "...to form ${infile/.bam/.downsample-}${downsample}.bam...\n"
 
 #  Remove unneeded intermediate files
-rm "${infile/.bam/.only-forward.downsample.sort.bam}" "${infile/.bam/.only-reverse.downsample.sort.bam}"
+rm \
+"${infile/.bam/.only-forward.downsample.sort.bam}" \
+"${infile/.bam/.only-reverse.downsample.sort.bam}"
 
 #  Coordinate-sort the repaired bam file
 samtools sort -@ "${parallelize}" \
@@ -262,75 +291,33 @@ samtools sort -@ "${parallelize}" \
 #  Remove unneeded intermediate file
 rm "${infile/.bam/.downsample-}${downsample}.bam"
 
-#  If chrom.sizes is not in infile working directory, then download it
-if [[ ! -f "hg38.chrom.sizes" ]]; then
-    echo "hg38.chrom.sizes not found"
-    echo "Downloading hg38.chrom.sizes... "
-    curl \
-    "https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.chrom.sizes" \
-    > "hg38.chrom.sizes"
-else
-    echo "hg38.chrom.sizes found; moving to next step"
-    :
-fi
-
-#  Using chrom.sizes file, create a randomly shuffled version of the bam file
-bedtools bamtobed -bed12 \
--i "${infile/.bam/.downsample-}${downsample}.sort.bam" \
-> "${infile/.bam/.downsample-}${downsample}.sort.bed"
-
-bedtools shuffle \
--i "${infile/.bam/.downsample-}${downsample}.sort.bed" \
--g "hg38.chrom.sizes" \
-> "${infile/.bam/.downsample-}${downsample}.shuffle.bed" \
-
-bedtools bedtobam -bed12 \
--i "${infile/.bam/.downsample-}${downsample}.shuffle.bed" \
--g "hg38.chrom.sizes" \
-> "${infile/.bam/.downsample-}${downsample}.shuffle.bam"
-
-#  Remove unneeded intermediate file
-rm \
-"${infile/.bam/.downsample-}${downsample}.sort.bed" \
-"${infile/.bam/.downsample-}${downsample}.shuffle.bed"
-
 #  If specified by the user, rename outfiles
-[[ "${prefix}" != "" ]] &&
-    {
-        if [[ "${prefix: -4}" == ".bam" ]]; then
-            #  Reset "${prefix}" to version in which ".bam" is stripped off
-            prefix="${prefix%.bam}"
+if [[ "${prefix}" != "" ]]; then
+    if [[ "${prefix: -4}" == ".bam" ]]; then
+        #  Reset "${prefix}" to version in which ".bam" is stripped off
+        prefix="${prefix%.bam}"
 
-            #  Rename the sorted bam file
-            mv "${infile/.bam/.downsample-}${downsample}.sort.bam" "${prefix}.sort.bam"
-            echo "${infile/.bam/.downsample-}${downsample}.sort.bam renamed to ${prefix}.sort.bam"
-
-            #  Rename the shuffled bam file
-            mv "${infile/.bam/.downsample-}${downsample}.shuffle.bam" "${prefix}.shuffle.bam"
-            echo "${infile/.bam/.downsample-}${downsample}.shuffle.bam renamed to ${prefix}.shuffle.bam"
-        else
-            #  Rename the sorted bam file
-            mv "${infile/.bam/.downsample-}${downsample}.sort.bam" "${prefix}.sort.bam"
-            echo "${infile/.bam/.downsample-}${downsample}.sort.bam renamed to ${prefix}.sort.bam"
-
-            #  Rename the shuffled bam file
-            mv "${infile/.bam/.downsample-}${downsample}.shuffle.bam" "${prefix}.shuffle.bam"
-            echo "${infile/.bam/.downsample-}${downsample}.shuffle.bam renamed to ${prefix}.shuffle.bam"
-        fi
-    }
+        #  Rename the sorted bam file
+        mv -f "${infile/.bam/.downsample-}${downsample}.sort.bam" "${prefix}.bam"
+        echo "${infile/.bam/.downsample-}${downsample}.sort.bam renamed to ${prefix}.bam"
+    else
+        #  Rename the sorted bam file
+        mv -f "${infile/.bam/.downsample-}${downsample}.sort.bam" "${prefix}.bam"
+        echo "${infile/.bam/.downsample-}${downsample}.sort.bam renamed to ${prefix}.bam"
+    fi
+else
+    mv -f \
+    "${infile/.bam/.downsample-}${downsample}.sort.bam" \
+    "${infile/.bam/.downsample-}${downsample}.bam"
+fi
 
 #  Return to starting directory
 cd - || ! echo "Warning: \"cd -\" failed. Look into this..."
 
 
 #  End recording time ---------------------------------------------------------
-end="$(date +%s)"
-
-#  Return run time
-run_time="$(echo "${end}" - "${start}" | bc -l)"
-echo ""
-echo "Completed: ${0}"
-echo "${0} run time: ${run_time} seconds."
-echo ""
+time_end="$(date +%s)"
+calculate_run_time "${time_start}" "${time_end}" "Completed: ${0}"
+echo -e ""
 
 exit 0
