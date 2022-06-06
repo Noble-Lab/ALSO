@@ -202,12 +202,8 @@ if(isTRUE(test_in_RStudio)) {
     #  RStudio-interactive work
     dir_base <- "."
     dir_data <- "data"
-    dir_in <- paste0(
-        dir_base, "/", dir_data, "/", "files_bam"
-    )
-    dir_out <- paste0(
-        dir_base, "/", dir_data, "/", "files_bam"
-    )
+    dir_in <- paste0(dir_base, "/", dir_data, "/", "files_bam")
+    dir_out <- paste0(dir_base, "/", dir_data, "/", "files_bam")
     # bam <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam")
     # bai <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam.bai")
     # strain <- "CAST"

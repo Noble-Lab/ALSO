@@ -35,22 +35,32 @@ elif [[ -f "./functions-preprocessing-HPC.sh" ]]; then
         }
 fi
 
+echo_completion_file_filter() {
+    # #TODO Description of function
+    #
+    # :param 1: outpath (chr)
+    # :param 2: step number (int)
+    # :param 3: sample descriptor (chr)
+    echo "${1}/$(basename "${0}" ".sh").${3}.step-${2}.txt"
+}
+
 
 #  Handle arguments, assign variables -----------------------------------------
 print_usage() {
     echo ""
     echo "${0}:"
-    echo "Run pipeline to generate bam files for assignments."
-    echo "  - Step 01: Copy files of interest to \${TMPDIR}"
-    echo "  - Step 02: Combine \"assign\" and \"unique\" files into \"combined\" files"
-    echo "  - Step 03: Create a version of bam infile #1 for \"ambiguous\" assignments"
-    echo "  - Step 04: Create a version of bam infile #2 for \"ambiguous\" assignments"
-    echo "  - Step 05: Create a version of bam infile #1 for \"sample #1\" assignments"
-    echo "  - Step 06: Create a version of bam infile #2 for \"sample #1\" assignments"
-    echo "  - Step 07: Create a version of bam infile #1 for \"sample #2\" assignments"
-    echo "  - Step 08: Create a version of bam infile #2 for \"sample #2\" assignments"
-    echo "  - Step 09: Check that counts in bam outfiles are equal to bam infiles (optional)"
-    echo "  - #TODO Step 10: Check that samtools flagstat readouts for bam infiles and outfiles are equivalent (optional)"
+    echo "Use sorted, gzipped lists of QNAMEs for alignment score-based"
+    echo "assignments to generate assignment-specific bam files via the"
+    echo "following steps:"
+    echo "  - Step 01: Combine \"assign\" and \"unique\" files into \"combined\" files"
+    echo "  - Step 02: Create a version of bam infile #1 for \"ambiguous\" assignments"
+    echo "  - Step 03: Create a version of bam infile #2 for \"ambiguous\" assignments"
+    echo "  - Step 04: Create a version of bam infile #1 for \"sample #1\" assignments"
+    echo "  - Step 05: Create a version of bam infile #2 for \"sample #1\" assignments"
+    echo "  - Step 06: Create a version of bam infile #1 for \"sample #2\" assignments"
+    echo "  - Step 07: Create a version of bam infile #2 for \"sample #2\" assignments"
+    echo "  - Step 08: Check that counts in bam outfiles are equal to bam infiles (optional)"
+    echo "  - #TODO Step 09: Check that samtools flagstat readouts for bam infiles and outfiles are equivalent (optional)"
     echo ""
     echo ""
     echo "Dependencies:"
@@ -229,86 +239,64 @@ echo ""
 
 
 #  Assign variables needed for the pipeline -----------------------------------
-base_assign_ambiguous="$(basename "${assign_ambiguous}")"
-base_assign_sample_1="$(basename "${assign_sample_1}")"
-base_assign_sample_2="$(basename "${assign_sample_2}")"
-base_unique_sample_1="$(basename "${unique_sample_1}")"
-base_unique_sample_2="$(basename "${unique_sample_2}")"
-base_combined_sample_1="${prefix}.${sample_1}.combined.txt.gz"
-base_combined_sample_2="${prefix}.${sample_2}.combined.txt.gz"
+combined_sample_1="${outpath}/${prefix}.${sample_1}.combined.txt.gz"
+combined_sample_2="${outpath}/${prefix}.${sample_2}.combined.txt.gz"
 
-base_bam_1="$(basename "${bam_1}")"
-base_bam_1_ambiguous="${base_bam_1%.bam}.ambiguous.bam"
-base_bam_1_sample_1="${base_bam_1%.bam}.${sample_1}.bam"
-base_bam_1_sample_2="${base_bam_1%.bam}.${sample_2}.bam"
+bam_1_ambiguous="${outpath}/$(basename "${bam_1}" ".bam").ambiguous.bam"
+bam_1_sample_1="${outpath}/$(basename "${bam_1}" ".bam").${sample_1}.bam"
+bam_1_sample_2="${outpath}/$(basename "${bam_1}" ".bam").${sample_2}.bam"
 
-base_bam_2="$(basename "${bam_2}")"
-base_bam_2_ambiguous="${base_bam_2%.bam}.ambiguous.bam"
-base_bam_2_sample_1="${base_bam_2%.bam}.${sample_1}.bam"
-base_bam_2_sample_2="${base_bam_2%.bam}.${sample_2}.bam"
-
-tmp_assign_ambiguous="${TMPDIR}/${base_assign_ambiguous}"
-tmp_assign_sample_1="${TMPDIR}/${base_assign_sample_1}"
-tmp_assign_sample_2="${TMPDIR}/${base_assign_sample_2}"
-tmp_unique_sample_1="${TMPDIR}/${base_unique_sample_1}"
-tmp_unique_sample_2="${TMPDIR}/${base_unique_sample_2}"
-tmp_combined_sample_1="${TMPDIR}/${base_combined_sample_1}"
-tmp_combined_sample_2="${TMPDIR}/${base_combined_sample_2}"
-
-tmp_bam_1="${TMPDIR}/${base_bam_1}"
-tmp_bam_1_ambiguous="${TMPDIR}/${base_bam_1_ambiguous}"
-tmp_bam_1_sample_1="${TMPDIR}/${base_bam_1_sample_1}"
-tmp_bam_1_sample_2="${TMPDIR}/${base_bam_1_sample_2}"
-
-tmp_bam_2="${TMPDIR}/${base_bam_2}"
-tmp_bam_2_ambiguous="${TMPDIR}/${base_bam_2_ambiguous}"
-tmp_bam_2_sample_1="${TMPDIR}/${base_bam_2_sample_1}"
-tmp_bam_2_sample_2="${TMPDIR}/${base_bam_2_sample_2}"
+bam_2_ambiguous="${outpath}/$(basename "${bam_2}" ".bam").ambiguous.bam"
+bam_2_sample_1="${outpath}/$(basename "${bam_2}" ".bam").${sample_1}.bam"
+bam_2_sample_2="${outpath}/$(basename "${bam_2}" ".bam").${sample_2}.bam"
 
 #  Assign variables for completion files
-step_1="$(echo_completion_file "${outpath}" 1 "${prefix}")"
-step_2="$(echo_completion_file "${outpath}" 2 "${prefix}")"
-step_3="$(echo_completion_file "${outpath}" 3 "${prefix}")"
-step_4="$(echo_completion_file "${outpath}" 4 "${prefix}")"
-step_5="$(echo_completion_file "${outpath}" 5 "${prefix}")"
-step_6="$(echo_completion_file "${outpath}" 6 "${prefix}")"
-step_7="$(echo_completion_file "${outpath}" 7 "${prefix}")"
-step_8="$(echo_completion_file "${outpath}" 8 "${prefix}")"
-step_9="$(echo_completion_file "${outpath}" 9 "${prefix}")"
-# step_10="$(echo_completion_file "${outpath}" 10 "${prefix}")"
-# step_11="$(echo_completion_file "${outpath}" 11 "${prefix}")"
+step_1="$(echo_completion_file_filter "${outpath}" 1 "${prefix}")"
+step_2="$(echo_completion_file_filter "${outpath}" 2 "${prefix}")"
+step_3="$(echo_completion_file_filter "${outpath}" 3 "${prefix}")"
+step_4="$(echo_completion_file_filter "${outpath}" 4 "${prefix}")"
+step_5="$(echo_completion_file_filter "${outpath}" 5 "${prefix}")"
+step_6="$(echo_completion_file_filter "${outpath}" 6 "${prefix}")"
+step_7="$(echo_completion_file_filter "${outpath}" 7 "${prefix}")"
+step_8="$(echo_completion_file_filter "${outpath}" 8 "${prefix}")"
+# step_9="$(echo_completion_file_filter "${outpath}" 9 "${prefix}")"
 
 
-#  01: Copy files of interest to ${TMPDIR} ------------------------------------
+#  01: Combine "assign" and "unique" files into "combined" files --------------
 if [[ ! -f "${step_1}" ]]; then
-    echo -e "Started step 1/X: Copying pertinent files into ${TMPDIR}."
+    echo -e "Started ${0} step 1/X: Combining \"assign\" and \"unique\"" \
+    "files into \"combined\" files."
 
-    cp "${bam_1}" "${bam_2}" \
-    "${assign_ambiguous}" \
-    "${assign_sample_1}" \
-    "${assign_sample_2}" \
-    "${unique_sample_1}" \
-    "${unique_sample_2}" \
-    "${TMPDIR}" && \
+    cat "${assign_sample_1}" "${unique_sample_1}" > "${combined_sample_1}" && \
+    cat "${assign_sample_2}" "${unique_sample_2}" > "${combined_sample_2}" && \
     touch "${step_1}"
 
-    echo -e "Completed step 1/X: Copying pertinent files into ${TMPDIR}.\n"
-else
+    echo -e "Completed ${0} step 1/X: Combining \"assign\" and \"unique\"" \
+    "files into \"combined\" files.\n"
+elif [[ -f "${step_1}" ]]; then
     echo_completion_message 1
+else
+    echo_exit_message 1
+    exit 1
 fi
 
 
-#  02: Combine "assign" and "unique" files into "combined" files --------------
+#  03: Create a version of bam infile #1 for "ambiguous" assignments ----------
 if [[ ! -f "${step_2}" && -f "${step_1}" ]]; then
-    echo -e "Started step 2/X: Combining \"assign\" and \"unique\" files into \"combined\" files."
+    echo -e "Started ${0} step 2/X: Using ${assign_ambiguous} to filter" \
+    "reads in ${bam_1}, thus creating ${bam_1_ambiguous}."
 
-    cat "${tmp_assign_sample_1}" "${tmp_unique_sample_1}" \
-    > "${tmp_combined_sample_1}" && \
-    cat "${tmp_assign_sample_2}" "${tmp_unique_sample_2}" \
-    > "${tmp_combined_sample_2}" && \
+    retain_qname_reads_picard \
+    "${bam_1}" \
+    "${assign_ambiguous}" \
+    "${bam_1_ambiguous}" \
+    "${memory_min}" \
+    "${memory_max}" \
+    "${cluster}" && \
     touch "${step_2}"
 
-    echo -e "Completed step 2/X: Combining \"assign\" and \"unique\" files into \"combined\" files.\n"
+    echo -e "Completed ${0} step 2/X: Using ${assign_ambiguous} to filter" \
+    "reads in ${bam_1}, thus creating ${bam_1_ambiguous}.\n"
 elif [[ -f "${step_2}" && -f "${step_1}" ]]; then
     echo_completion_message 2
 else
@@ -317,20 +305,22 @@ else
 fi
 
 
-#  03: Create a version of bam infile #1 for "ambiguous" assignments ----------
+#  03: Create a version of bam infile #2 for "ambiguous" assignments ----------
 if [[ ! -f "${step_3}" && -f "${step_2}" ]]; then
-    echo -e "Started step 3/X: Using ${tmp_assign_ambiguous} to filter reads in ${tmp_bam_1}, thus creating ${tmp_bam_1_ambiguous}."
+    echo -e "Started ${0} step 3/X: Using ${assign_ambiguous} to filter" \
+    "reads in ${bam_1}, thus creating ${bam_1_ambiguous}."
 
     retain_qname_reads_picard \
-    "${tmp_bam_1}" \
-    "${tmp_assign_ambiguous}" \
-    "${tmp_bam_1_ambiguous}" \
+    "${bam_2}" \
+    "${assign_ambiguous}" \
+    "${bam_2_ambiguous}" \
     "${memory_min}" \
     "${memory_max}" \
     "${cluster}" && \
     touch "${step_3}"
 
-    echo -e "Completed step 3/X: Using ${tmp_assign_ambiguous} to filter reads in ${tmp_bam_1}, thus creating ${tmp_bam_1_ambiguous}.\n"
+    echo -e "Completed ${0} step 3/X: Using ${assign_ambiguous} to filter" \
+    "reads in ${bam_1}, thus creating ${bam_1_ambiguous}.\n"
 elif [[ -f "${step_3}" && -f "${step_2}" ]]; then
     echo_completion_message 3
 else
@@ -339,20 +329,22 @@ else
 fi
 
 
-#  04: Create a version of bam infile #2 for "ambiguous" assignments ----------
+#  04: Create a version of bam infile #1 for "sample #1" assignments ----------
 if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
-    echo -e "Started step 4/X: Using ${tmp_assign_ambiguous} to filter reads in ${tmp_bam_1}, thus creating ${tmp_bam_1_ambiguous}."
+    echo -e "Started ${0} step 4/X: Using ${combined_sample_1} to filter" \
+    "reads in ${bam_1}, thus creating ${bam_1_sample_1}."
 
     retain_qname_reads_picard \
-    "${tmp_bam_2}" \
-    "${tmp_assign_ambiguous}" \
-    "${tmp_bam_2_ambiguous}" \
+    "${bam_1}" \
+    "${combined_sample_1}" \
+    "${bam_1_sample_1}" \
     "${memory_min}" \
     "${memory_max}" \
     "${cluster}" && \
     touch "${step_4}"
 
-    echo -e "Completed step 4/X: Using ${tmp_assign_ambiguous} to filter reads in ${tmp_bam_1}, thus creating ${tmp_bam_1_ambiguous}.\n"
+    echo -e "Completed ${0} step 4/X: Using ${combined_sample_1} to filter" \
+    "reads in ${bam_1}, thus creating ${bam_1_sample_1}.\n"
 elif [[ -f "${step_4}" && -f "${step_3}" ]]; then
     echo_completion_message 4
 else
@@ -361,20 +353,22 @@ else
 fi
 
 
-#  05: Create a version of bam infile #1 for "sample #1" assignments ----------
+#  05: Create a version of bam infile #2 for "sample #1" assignments ----------
 if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
-    echo -e "Started step 5/X: Using ${tmp_combined_sample_1} to filter reads in ${tmp_bam_1}, thus creating ${tmp_bam_1_sample_1}."
+    echo -e "Started ${0} step 5/X: Using ${combined_sample_1} to filter" \
+    "reads in ${bam_2}, thus creating ${bam_2_sample_1}."
 
     retain_qname_reads_picard \
-    "${tmp_bam_1}" \
-    "${tmp_combined_sample_1}" \
-    "${tmp_bam_1_sample_1}" \
+    "${bam_2}" \
+    "${combined_sample_1}" \
+    "${bam_2_sample_1}" \
     "${memory_min}" \
     "${memory_max}" \
     "${cluster}" && \
     touch "${step_5}"
 
-    echo -e "Completed step 5/X: Using ${tmp_combined_sample_1} to filter reads in ${tmp_bam_1}, thus creating ${tmp_bam_1_sample_1}.\n"
+    echo -e "Completed ${0} step 5/X: Using ${combined_sample_1} to filter" \
+    "reads in ${bam_2}, thus creating ${bam_2_sample_1}.\n"
 elif [[ -f "${step_5}" && -f "${step_4}" ]]; then
     echo_completion_message 5
 else
@@ -383,20 +377,22 @@ else
 fi
 
 
-#  06: Create a version of bam infile #2 for "sample #1" assignments ----------
+#  06: Create a version of bam infile #1 for "sample #2" assignments ----------
 if [[ ! -f "${step_6}" && -f "${step_5}" ]]; then
-    echo -e "Started step 6/X: Using ${tmp_combined_sample_1} to filter reads in ${tmp_bam_2}, thus creating ${tmp_bam_2_sample_1}."
+    echo -e "Started ${0} step 6/X: Using ${combined_sample_2} to filter" \
+    "reads in ${bam_1}, thus creating ${bam_1_sample_2}."
 
     retain_qname_reads_picard \
-    "${tmp_bam_2}" \
-    "${tmp_combined_sample_1}" \
-    "${tmp_bam_2_sample_1}" \
+    "${bam_1}" \
+    "${combined_sample_2}" \
+    "${bam_1_sample_2}" \
     "${memory_min}" \
     "${memory_max}" \
     "${cluster}" && \
     touch "${step_6}"
 
-    echo -e "Completed step 6/X: Using ${tmp_combined_sample_1} to filter reads in ${tmp_bam_2}, thus creating ${tmp_bam_2_sample_1}.\n"
+    echo -e "Completed ${0} step 6/X: Using ${combined_sample_2} to filter" \
+    "reads in ${bam_1}, thus creating ${bam_1_sample_2}.\n"
 elif [[ -f "${step_6}" && -f "${step_5}" ]]; then
     echo_completion_message 6
 else
@@ -405,20 +401,22 @@ else
 fi
 
 
-#  07: Create a version of bam infile #1 for "sample #2" assignments ----------
+#  07: Create a version of bam infile #2 for "sample #2" assignments ----------
 if [[ ! -f "${step_7}" && -f "${step_6}" ]]; then
-    echo -e "Started step 7/X: Using ${tmp_combined_sample_2} to filter reads in ${tmp_bam_1}, thus creating ${tmp_bam_1_sample_2}."
+    echo -e "Started ${0} step 7/X: Using ${combined_sample_2} to filter" \
+    "reads in ${bam_2}, thus creating ${bam_2_sample_2}."
 
     retain_qname_reads_picard \
-    "${tmp_bam_1}" \
-    "${tmp_combined_sample_2}" \
-    "${tmp_bam_1_sample_2}" \
+    "${bam_2}" \
+    "${combined_sample_2}" \
+    "${bam_2_sample_2}" \
     "${memory_min}" \
     "${memory_max}" \
     "${cluster}" && \
     touch "${step_7}"
 
-    echo -e "Completed step 7/X: Using ${tmp_combined_sample_2} to filter reads in ${tmp_bam_1}, thus creating ${tmp_bam_1_sample_2}.\n"
+    echo -e "Completed ${0} step 7/X: Using ${combined_sample_2} to filter" \
+    "reads in ${bam_2}, thus creating ${bam_2_sample_2}.\n"
 elif [[ -f "${step_7}" && -f "${step_6}" ]]; then
     echo_completion_message 7
 else
@@ -427,104 +425,69 @@ else
 fi
 
 
-#  08: Create a version of bam infile #2 for "sample #2" assignments ----------
-if [[ ! -f "${step_8}" && -f "${step_7}" ]]; then
-    echo -e "Started step 8/X: Using ${tmp_combined_sample_2} to filter reads in ${tmp_bam_2}, thus creating ${tmp_bam_2_sample_2}."
-
-    retain_qname_reads_picard \
-    "${tmp_bam_2}" \
-    "${tmp_combined_sample_2}" \
-    "${tmp_bam_2_sample_2}" \
-    "${memory_min}" \
-    "${memory_max}" \
-    "${cluster}" && \
-    touch "${step_8}"
-
-    echo -e "Completed step 8/X: Using ${tmp_combined_sample_2} to filter reads in ${tmp_bam_2}, thus creating ${tmp_bam_2_sample_2}.\n"
-elif [[ -f "${step_8}" && -f "${step_7}" ]]; then
-    echo_completion_message 8
-else
-    echo_exit_message 8
-    exit 1
-fi
-
-
-#  Optional step 09 -----------------------------------------------------------
+#  08: Check that outfile counts equal infile counts (optional) ---------------
 if [[ "${count}" == 1 ]]; then
-    #  09: Check that counts in bam outfiles are equal to bam infiles ---------
-    n_tmp_bam_1="$(samtools view -c "${tmp_bam_1}")"
-    n_tmp_bam_1_ambiguous="$(samtools view -c "${tmp_bam_1_ambiguous}")"
-    n_tmp_bam_1_sample_1="$(samtools view -c "${tmp_bam_1_sample_1}")"
-    n_tmp_bam_1_sample_2="$(samtools view -c "${tmp_bam_1_sample_2}")"
-    sum_bam_1_outfiles=$(( n_tmp_bam_1_ambiguous + n_tmp_bam_1_sample_1 + n_tmp_bam_1_sample_2 ))
+    n_bam_1="$(samtools view -c "${bam_1}")"
+    n_bam_1_ambiguous="$(samtools view -c "${bam_1_ambiguous}")"
+    n_bam_1_sample_1="$(samtools view -c "${bam_1_sample_1}")"
+    n_bam_1_sample_2="$(samtools view -c "${bam_1_sample_2}")"
+    sum_bam_1_outfiles=$(( n_bam_1_ambiguous + n_bam_1_sample_1 + n_bam_1_sample_2 ))
 
-    n_tmp_bam_2="$(samtools view -c "${tmp_bam_2}")"
-    n_tmp_bam_2_ambiguous="$(samtools view -c "${tmp_bam_2_ambiguous}")"
-    n_tmp_bam_2_sample_1="$(samtools view -c "${tmp_bam_2_sample_1}")"
-    n_tmp_bam_2_sample_2="$(samtools view -c "${tmp_bam_2_sample_2}")"
-    sum_bam_2_outfiles=$(( n_tmp_bam_2_ambiguous + n_tmp_bam_2_sample_1 + n_tmp_bam_2_sample_2 ))
-    if [[ ! -f "${step_9}" && -f "${step_8}" ]]; then
-        echo -e "Started step 9/X: Check that counts in bam outfiles are equal to bam infiles."
+    n_bam_2="$(samtools view -c "${bam_2}")"
+    n_bam_2_ambiguous="$(samtools view -c "${bam_2_ambiguous}")"
+    n_bam_2_sample_1="$(samtools view -c "${bam_2_sample_1}")"
+    n_bam_2_sample_2="$(samtools view -c "${bam_2_sample_2}")"
+    sum_bam_2_outfiles=$(( n_bam_2_ambiguous + n_bam_2_sample_1 + n_bam_2_sample_2 ))
+    if [[ ! -f "${step_8}" && -f "${step_7}" ]]; then
+        echo -e "Started ${0} step 8/X: Check that counts in bam outfiles" \
+        "are equal to bam infiles."
 
-        echo "  - ${base_bam_1}: $(( n_tmp_bam_1 ))" && \
-        echo "  - ${base_bam_1_ambiguous}: $(( n_tmp_bam_1_ambiguous ))" && \
-        echo "  - ${tmp_bam_1_sample_1}: $(( n_tmp_bam_1_sample_1 ))" && \
-        echo "  - ${tmp_bam_1_sample_2}: $(( n_tmp_bam_1_sample_2 ))" && \
-        echo "  - Sum of ${base_bam_1} outfiles: $(( sum_bam_1_outfiles ))" && \
+        echo "  - ${bam_1}: $(( n_bam_1 ))" && \
+        echo "  - ${bam_1_ambiguous}: $(( n_bam_1_ambiguous ))" && \
+        echo "  - ${bam_1_sample_1}: $(( n_bam_1_sample_1 ))" && \
+        echo "  - ${bam_1_sample_2}: $(( n_bam_1_sample_2 ))" && \
+        echo "  - Sum of ${bam_1} outfiles: $(( sum_bam_1_outfiles ))" && \
         echo "" && \
-        echo "  - ${base_bam_2}: $(( n_tmp_bam_2 ))" && \
-        echo "  - ${base_bam_2_ambiguous}: $(( n_tmp_bam_2_ambiguous ))" && \
-        echo "  - ${tmp_bam_2_sample_1}: $(( n_tmp_bam_2_sample_1 ))" && \
-        echo "  - ${tmp_bam_2_sample_2}: $(( n_tmp_bam_2_sample_2 ))" && \
-        echo "  - Sum of ${base_bam_2} outfiles: $(( sum_bam_2_outfiles ))" && \
+        echo "  - ${bam_2}: $(( n_bam_2 ))" && \
+        echo "  - ${bam_2_ambiguous}: $(( n_bam_2_ambiguous ))" && \
+        echo "  - ${bam_2_sample_1}: $(( n_bam_2_sample_1 ))" && \
+        echo "  - ${bam_2_sample_2}: $(( n_bam_2_sample_2 ))" && \
+        echo "  - Sum of ${bam_2} outfiles: $(( sum_bam_2_outfiles ))" && \
         echo "" && \
-        touch "${step_9}"
+        touch "${step_8}"
 
-        echo -e "Completed step 9/X: Check that counts in bam outfiles are equal to bam infiles.\n"
-    elif [[ -f "${step_9}" && -f "${step_8}" ]]; then
-        echo -e "Started step 9/X: Check that counts in bam outfiles are equal to bam infiles."
+        echo -e "Completed ${0} step 8/X: Check that counts in bam outfiles" \
+        "are equal to bam infiles.\n"
+    elif [[ -f "${step_8}" && -f "${step_7}" ]]; then
+        echo -e "Started ${0} step 8/X: Check that counts in bam outfiles" \
+        "are equal to bam infiles."
 
-        echo "  - ${base_bam_1}: $(( n_tmp_bam_1 ))" && \
-        echo "  - ${base_bam_1_ambiguous}: $(( n_tmp_bam_1_ambiguous ))" && \
-        echo "  - ${tmp_bam_1_sample_1}: $(( n_tmp_bam_1_sample_1 ))" && \
-        echo "  - ${tmp_bam_1_sample_2}: $(( n_tmp_bam_1_sample_2 ))" && \
-        echo "  - ${base_bam_1} outfiles: $(( sum_bam_1_outfiles ))" && \
+        echo "  - ${bam_1}: $(( n_bam_1 ))" && \
+        echo "  - ${bam_1_ambiguous}: $(( n_bam_1_ambiguous ))" && \
+        echo "  - ${bam_1_sample_1}: $(( n_bam_1_sample_1 ))" && \
+        echo "  - ${bam_1_sample_2}: $(( n_bam_1_sample_2 ))" && \
+        echo "  - ${bam_1} outfiles: $(( sum_bam_1_outfiles ))" && \
         echo "" && \
-        echo "  - ${base_bam_2}: $(( n_tmp_bam_2 ))" && \
-        echo "  - ${base_bam_2_ambiguous}: $(( n_tmp_bam_2_ambiguous ))" && \
-        echo "  - ${tmp_bam_2_sample_1}: $(( n_tmp_bam_2_sample_1 ))" && \
-        echo "  - ${tmp_bam_2_sample_2}: $(( n_tmp_bam_2_sample_2 ))" && \
-        echo "  - ${base_bam_2} outfiles: $(( sum_bam_2_outfiles ))" && \
+        echo "  - ${bam_2}: $(( n_bam_2 ))" && \
+        echo "  - ${bam_2_ambiguous}: $(( n_bam_2_ambiguous ))" && \
+        echo "  - ${bam_2_sample_1}: $(( n_bam_2_sample_1 ))" && \
+        echo "  - ${bam_2_sample_2}: $(( n_bam_2_sample_2 ))" && \
+        echo "  - ${bam_2} outfiles: $(( sum_bam_2_outfiles ))" && \
         echo ""
 
-        echo -e "Completed step 9/X: Check that counts in bam outfiles are equal to bam infiles.\n"
+        echo -e "Completed ${0} step 8/X: Check that counts in bam outfiles" \
+        "are equal to bam infiles.\n"
     else
-        echo_exit_message 9
+        echo_exit_message 8
         exit 1
     fi
 fi
 
 
-# #  Optional step 10 -----------------------------------------------------------
+# #  09: Check that samtools flagstat readouts are equivalent (optional) --------
 # if [[ "${flagstat}" == 1 ]]; then
-#     #  10: Check that samtools flagstat readouts are equivalent (optional) ----
 #     #TODO Insert code here
 # fi
-
-
-#  0X: Remove temporary files, move "${TMPDIR}" outfiles to "${outpath}" ------
-if [[ -f "${step_8}" && -f "${tmp_bam_2_sample_2}" ]]; then
-    echo -e "Started step X/X: Removing temporary files, moving outfiles from ${TMPDIR} to ${outpath}."
-
-    rm \
-    "${tmp_bam_1}" "${tmp_bam_2}" "${tmp_assign_ambiguous}" \
-    "${tmp_assign_sample_1}" "${tmp_assign_sample_2}" \
-    "${tmp_unique_sample_1}" "${tmp_unique_sample_2}" && \
-    mv -f "${TMPDIR}/"*.{txt.gz,bam} "${outpath}" && \
-    touch "${step_6}"
-
-    echo -e "Completed step X/X: Removing temporary files, moving outfiles from ${TMPDIR} to ${outpath}.\n"
-fi
 
 
 #  Return run time ------------------------------------------------------------
