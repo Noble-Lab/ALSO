@@ -318,11 +318,30 @@ echo -e ""
 [[ ${use_TMPDIR} == TRUE ]] &&
     {
         echo -e "Started: Copying bam infiles into \${TMPDIR}"
-        cp "${bam_1}" "${bam_2}" "${TMPDIR}"
-        echo -e "Completed: Copying bam infiles into \${TMPDIR}\n"
+        if [[ $(basename "${bam_1}") == $(basename "${bam_2}") ]]; then
+            echo -e "WARNING: bam #1 has the same basename as bam #2; to \
+            differentiate the files, will include strain information in the \
+            filename when copying bams into \${TMPDIR}"
 
-        bam_1="${TMPDIR}/$(basename "${bam_1}")"
-        bam_2="${TMPDIR}/$(basename "${bam_2}")"
+            cp_bam_1="${TMPDIR}/${bam_1%.bam}.${RANDOM}.${strain_1}.bam"
+            cp_bam_2="${TMPDIR}/${bam_2%.bam}.${RANDOM}.${strain_2}.bam"
+
+            cp "${bam_1}" "${cp_bam_1}"
+            cp "${bam_2}" "${cp_bam_2}"
+
+            bam_1="${cp_bam_1}"
+            bam_2="${cp_bam_2}"
+        else
+            cp_bam_1="${TMPDIR}/${bam_1%.bam}.${RANDOM}.bam"
+            cp_bam_2="${TMPDIR}/${bam_2%.bam}.${RANDOM}.bam"
+
+            cp "${bam_1}" "${cp_bam_1}"
+            cp "${bam_2}" "${cp_bam_2}"
+            
+            bam_1="${cp_bam_1}"
+            bam_2="${cp_bam_2}"
+        fi
+        echo -e "Completed: Copying bam infiles into \${TMPDIR}\n"
     }
 
 echo -e "Running the pipeline with the following parameters:"
@@ -754,7 +773,6 @@ fi
             rm "${bam_1}" "${bam_2}" "${bam_1}.bai" "${bam_2}.bai" &&
             echo -e "Copied outfiles from \${TMPDIR} to ${outpath}"
         fi
-
     }
 
 
