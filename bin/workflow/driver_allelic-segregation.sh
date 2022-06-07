@@ -227,7 +227,7 @@ check_dependency samtools
 #  Evaluate "${cluster}"
 case "$(echo "${cluster}" | tr '[:upper:]' '[:lower:]')" in
     true | t) echo -e "-l: \"Run on GS HPC\" is TRUE." ;;
-    false | f) echo -e "-l: \"Run on GS HPC\" is FALSE." && check_dependency picard ;;
+    false | f) echo -e "-l: \"Run on GS HPC\" is FALSE." ;; # && check_dependency picard ;;
     *) \
         echo -e "Exiting: -l \"run on GS HPC\" argument must be TRUE or FALSE.\n"
         exit 1
