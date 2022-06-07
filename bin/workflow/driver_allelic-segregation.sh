@@ -264,7 +264,7 @@ esac
     }
 
 #  Make sure "${bam_1}" and "${bam_2}" are not the same
-[[ $(basename "${bam_1}") == $(basename "${bam_2}") ]] &&
+[[ "${bam_1}" == "${bam_2}" ]] &&
     {
         echo -e "Exiting: -1 \"bam 1\" is apparently the same as -2 \"bam 2\".\n"
         exit 1
