@@ -313,18 +313,24 @@ esac
 
 echo -e ""
 
+#TBD
+bam_1="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_bam/Disteche_sample_1.dedup.mm10.corrected.bam"
+bam_2="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_bam/Disteche_sample_1.dedup.CAST.corrected.bam"
 
 #  Adjust arguments if running "-d TRUE", then report the arguments -----------
 [[ ${use_TMPDIR} == TRUE ]] &&
     {
         echo -e "Started: Copying bam infiles into \${TMPDIR}"
+        base_bam_1="$(basename "${bam_1}")"
+        base_bam_2="$(basename "${bam_2}")"
+
         if [[ $(basename "${bam_1}") == $(basename "${bam_2}") ]]; then
             echo -e "WARNING: bam #1 has the same basename as bam #2; to \
             differentiate the files, will include strain information in the \
             filename when copying bams into \${TMPDIR}"
 
-            cp_bam_1="${TMPDIR}/${bam_1%.bam}.${RANDOM}.${strain_1}.bam"
-            cp_bam_2="${TMPDIR}/${bam_2%.bam}.${RANDOM}.${strain_2}.bam"
+            cp_bam_1="${TMPDIR}/${base_bam_1%.bam}.${RANDOM}.${strain_1}.bam"
+            cp_bam_2="${TMPDIR}/${base_bam_2%.bam}.${RANDOM}.${strain_2}.bam"
 
             cp "${bam_1}" "${cp_bam_1}"
             cp "${bam_2}" "${cp_bam_2}"
@@ -332,8 +338,8 @@ echo -e ""
             bam_1="${cp_bam_1}"
             bam_2="${cp_bam_2}"
         else
-            cp_bam_1="${TMPDIR}/${bam_1%.bam}.${RANDOM}.bam"
-            cp_bam_2="${TMPDIR}/${bam_2%.bam}.${RANDOM}.bam"
+            cp_bam_1="${TMPDIR}/${base_bam_1%.bam}.${RANDOM}.bam"
+            cp_bam_2="${TMPDIR}/${base_bam_2%.bam}.${RANDOM}.bam"
 
             cp "${bam_1}" "${cp_bam_1}"
             cp "${bam_2}" "${cp_bam_2}"
