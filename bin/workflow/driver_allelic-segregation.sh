@@ -313,9 +313,6 @@ esac
 
 echo -e ""
 
-#TBD
-bam_1="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_bam/Disteche_sample_1.dedup.mm10.corrected.bam"
-bam_2="/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross/data/files_bam/Disteche_sample_1.dedup.CAST.corrected.bam"
 
 #  Adjust arguments if running "-d TRUE", then report the arguments -----------
 [[ ${use_TMPDIR} == TRUE ]] &&
