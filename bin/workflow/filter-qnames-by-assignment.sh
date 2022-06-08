@@ -286,17 +286,23 @@ if [[ ! -f "${step_2}" && -f "${step_1}" ]]; then
     echo -e "Started ${0} step 2/X: Using ${assign_ambiguous} to filter" \
     "reads in ${bam_1}, thus creating ${bam_1_ambiguous}."
 
-    retain_qname_reads_picard \
-    "${bam_1}" \
-    "${assign_ambiguous}" \
-    "${bam_1_ambiguous}" \
-    "${memory_min}" \
-    "${memory_max}" \
-    "${cluster}" && \
-    touch "${step_2}"
+    if [[ $(LC_ALL=C gzip -l "${assign_ambiguous}" | awk 'NR==2 {exit($2!=0)}') ]]; then
+        echo -e "WARNING: ${assign_ambiguous} is empty."
+        echo -e "Skipping ${0} step 2/X: Using ${assign_ambiguous} to filter" \
+        "reads in ${bam_1}, thus creating ${bam_1_ambiguous}.\n"
+    else
+        retain_qname_reads_picard \
+        "${bam_1}" \
+        "${assign_ambiguous}" \
+        "${bam_1_ambiguous}" \
+        "${memory_min}" \
+        "${memory_max}" \
+        "${cluster}" && \
+        touch "${step_2}"
 
-    echo -e "Completed ${0} step 2/X: Using ${assign_ambiguous} to filter" \
-    "reads in ${bam_1}, thus creating ${bam_1_ambiguous}.\n"
+        echo -e "Completed ${0} step 2/X: Using ${assign_ambiguous} to filter" \
+        "reads in ${bam_1}, thus creating ${bam_1_ambiguous}.\n"
+    fi
 elif [[ -f "${step_2}" && -f "${step_1}" ]]; then
     echo_completion_message 2
 else
@@ -308,19 +314,25 @@ fi
 #  03: Create a version of bam infile #2 for "ambiguous" assignments ----------
 if [[ ! -f "${step_3}" && -f "${step_2}" ]]; then
     echo -e "Started ${0} step 3/X: Using ${assign_ambiguous} to filter" \
-    "reads in ${bam_1}, thus creating ${bam_1_ambiguous}."
+    "reads in ${bam_2}, thus creating ${bam_2_ambiguous}."
 
-    retain_qname_reads_picard \
-    "${bam_2}" \
-    "${assign_ambiguous}" \
-    "${bam_2_ambiguous}" \
-    "${memory_min}" \
-    "${memory_max}" \
-    "${cluster}" && \
-    touch "${step_3}"
+    if [[ $(LC_ALL=C gzip -l "${assign_ambiguous}" | awk 'NR==2 {exit($2!=0)}') ]]; then
+        echo -e "WARNING: ${assign_ambiguous} is empty."
+        echo -e "Skipping ${0} step 3/X: Using ${assign_ambiguous} to filter" \
+        "reads in ${bam_2}, thus creating ${bam_2_ambiguous}.\n"
+    else
+        retain_qname_reads_picard \
+        "${bam_2}" \
+        "${assign_ambiguous}" \
+        "${bam_2_ambiguous}" \
+        "${memory_min}" \
+        "${memory_max}" \
+        "${cluster}" && \
+        touch "${step_3}"
 
-    echo -e "Completed ${0} step 3/X: Using ${assign_ambiguous} to filter" \
-    "reads in ${bam_1}, thus creating ${bam_1_ambiguous}.\n"
+        echo -e "Completed ${0} step 3/X: Using ${assign_ambiguous} to filter" \
+        "reads in ${bam_2}, thus creating ${bam_2_ambiguous}.\n"
+    fi
 elif [[ -f "${step_3}" && -f "${step_2}" ]]; then
     echo_completion_message 3
 else
@@ -333,18 +345,24 @@ fi
 if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
     echo -e "Started ${0} step 4/X: Using ${combined_sample_1} to filter" \
     "reads in ${bam_1}, thus creating ${bam_1_sample_1}."
+    
+    if [[ $(LC_ALL=C gzip -l "${combined_sample_1}" | awk 'NR==2 {exit($2!=0)}') ]]; then
+        echo -e "WARNING: ${combined_sample_1} is empty."
+        echo -e "Skipping ${0} step 4/X: Using ${combined_sample_1} to filter" \
+        "reads in ${bam_1}, thus creating ${bam_1_sample_1}.\n"
+    else
+        retain_qname_reads_picard \
+        "${bam_1}" \
+        "${combined_sample_1}" \
+        "${bam_1_sample_1}" \
+        "${memory_min}" \
+        "${memory_max}" \
+        "${cluster}" && \
+        touch "${step_4}"
 
-    retain_qname_reads_picard \
-    "${bam_1}" \
-    "${combined_sample_1}" \
-    "${bam_1_sample_1}" \
-    "${memory_min}" \
-    "${memory_max}" \
-    "${cluster}" && \
-    touch "${step_4}"
-
-    echo -e "Completed ${0} step 4/X: Using ${combined_sample_1} to filter" \
-    "reads in ${bam_1}, thus creating ${bam_1_sample_1}.\n"
+        echo -e "Completed ${0} step 4/X: Using ${combined_sample_1} to filter" \
+        "reads in ${bam_1}, thus creating ${bam_1_sample_1}.\n"
+    fi
 elif [[ -f "${step_4}" && -f "${step_3}" ]]; then
     echo_completion_message 4
 else
@@ -358,17 +376,23 @@ if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
     echo -e "Started ${0} step 5/X: Using ${combined_sample_1} to filter" \
     "reads in ${bam_2}, thus creating ${bam_2_sample_1}."
 
-    retain_qname_reads_picard \
-    "${bam_2}" \
-    "${combined_sample_1}" \
-    "${bam_2_sample_1}" \
-    "${memory_min}" \
-    "${memory_max}" \
-    "${cluster}" && \
-    touch "${step_5}"
+    if [[ $(LC_ALL=C gzip -l "${combined_sample_1}" | awk 'NR==2 {exit($2!=0)}') ]]; then
+        echo -e "WARNING: ${combined_sample_1} is empty."
+        echo -e "Skipping ${0} step 5/X: Using ${combined_sample_1} to filter" \
+        "reads in ${bam_2}, thus creating ${bam_2_sample_1}.\n"
+    else
+        retain_qname_reads_picard \
+        "${bam_2}" \
+        "${combined_sample_1}" \
+        "${bam_2_sample_1}" \
+        "${memory_min}" \
+        "${memory_max}" \
+        "${cluster}" && \
+        touch "${step_5}"
 
-    echo -e "Completed ${0} step 5/X: Using ${combined_sample_1} to filter" \
-    "reads in ${bam_2}, thus creating ${bam_2_sample_1}.\n"
+        echo -e "Completed ${0} step 5/X: Using ${combined_sample_1} to filter" \
+        "reads in ${bam_2}, thus creating ${bam_2_sample_1}.\n"
+    fi
 elif [[ -f "${step_5}" && -f "${step_4}" ]]; then
     echo_completion_message 5
 else
@@ -382,17 +406,23 @@ if [[ ! -f "${step_6}" && -f "${step_5}" ]]; then
     echo -e "Started ${0} step 6/X: Using ${combined_sample_2} to filter" \
     "reads in ${bam_1}, thus creating ${bam_1_sample_2}."
 
-    retain_qname_reads_picard \
-    "${bam_1}" \
-    "${combined_sample_2}" \
-    "${bam_1_sample_2}" \
-    "${memory_min}" \
-    "${memory_max}" \
-    "${cluster}" && \
-    touch "${step_6}"
+    if [[ $(LC_ALL=C gzip -l "${combined_sample_2}" | awk 'NR==2 {exit($2!=0)}') ]]; then
+        echo -e "WARNING: ${combined_sample_2} is empty."
+        echo -e "Skipping ${0} step 6/X: Using ${combined_sample_2} to filter" \
+        "reads in ${bam_1}, thus creating ${bam_1_sample_2}.\n"
+    else
+        retain_qname_reads_picard \
+        "${bam_1}" \
+        "${combined_sample_2}" \
+        "${bam_1_sample_2}" \
+        "${memory_min}" \
+        "${memory_max}" \
+        "${cluster}" && \
+        touch "${step_6}"
 
-    echo -e "Completed ${0} step 6/X: Using ${combined_sample_2} to filter" \
-    "reads in ${bam_1}, thus creating ${bam_1_sample_2}.\n"
+        echo -e "Completed ${0} step 6/X: Using ${combined_sample_2} to filter" \
+        "reads in ${bam_1}, thus creating ${bam_1_sample_2}.\n"
+    fi
 elif [[ -f "${step_6}" && -f "${step_5}" ]]; then
     echo_completion_message 6
 else
@@ -406,17 +436,23 @@ if [[ ! -f "${step_7}" && -f "${step_6}" ]]; then
     echo -e "Started ${0} step 7/X: Using ${combined_sample_2} to filter" \
     "reads in ${bam_2}, thus creating ${bam_2_sample_2}."
 
-    retain_qname_reads_picard \
-    "${bam_2}" \
-    "${combined_sample_2}" \
-    "${bam_2_sample_2}" \
-    "${memory_min}" \
-    "${memory_max}" \
-    "${cluster}" && \
-    touch "${step_7}"
+    if [[ $(LC_ALL=C gzip -l "${combined_sample_2}" | awk 'NR==2 {exit($2!=0)}') ]]; then
+        echo -e "WARNING: ${combined_sample_2} is empty."
+        echo -e "Skipping ${0} step 7/X: Using ${combined_sample_2} to filter" \
+        "reads in ${bam_2}, thus creating ${bam_2_sample_2}.\n"
+    else
+        retain_qname_reads_picard \
+        "${bam_2}" \
+        "${combined_sample_2}" \
+        "${bam_2_sample_2}" \
+        "${memory_min}" \
+        "${memory_max}" \
+        "${cluster}" && \
+        touch "${step_7}"
 
-    echo -e "Completed ${0} step 7/X: Using ${combined_sample_2} to filter" \
-    "reads in ${bam_2}, thus creating ${bam_2_sample_2}.\n"
+        echo -e "Completed ${0} step 7/X: Using ${combined_sample_2} to filter" \
+        "reads in ${bam_2}, thus creating ${bam_2_sample_2}.\n"
+    fi
 elif [[ -f "${step_7}" && -f "${step_6}" ]]; then
     echo_completion_message 7
 else
