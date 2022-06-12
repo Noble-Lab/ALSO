@@ -139,7 +139,14 @@ find_set_complement() {
     start="$(date +%s)"
 
     echo "Writing out and sorting set elements unique to $(basename "${1}") in comparison to $(basename "${2}")... "
-    grep -vxFf <(zcat -df "${2}" | cut -f1) <(zcat -df "${1}" | cut -f1) \
+    #FIXME The grep calls don't work on the GS HPC
+    # grep -vxFf <(zcat -df "${2}" | cut -f1) <(zcat -df "${1}" | cut -f1) \ 
+    # | sort \
+    # | gzip \
+    # > "${3}"
+
+    #QUESTION Does this work? Yes...
+    join -v1 <(zcat -df "${2}" | cut -f1) <(zcat -df "${1}" | cut -f1) \
     | sort \
     | gzip \
     > "${3}"

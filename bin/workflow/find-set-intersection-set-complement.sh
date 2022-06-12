@@ -177,20 +177,6 @@ if [[ ! -f "${step_1}" ]]; then
     sort_file_AS_overwrite_infile "${infile_1}" && \
     sort_file_AS_overwrite_infile "${infile_2}" && \
     touch "${step_1}"
-    # presorted_1="${infile_1%.txt.gz}.pre-sorted.txt.gz"
-    # presorted_2="${infile_2%.txt.gz}.pre-sorted.txt.gz"
-    # sorted_1="${infile_1%.txt.gz}.sorted.txt.gz"
-    # sorted_2="${infile_2%.txt.gz}.sorted.txt.gz"
-
-    # cp "${infile_1}" "${presorted_1}" && \
-    # gzip -dk "${infile_1}" && \
-    # sort -k1,1 -k2n "${infile_1%.gz}" | gzip > "${sorted_1}" && \
-    # mv -f "${sorted_1}" "${infile_1}" && \
-    # cp "${infile_2}" "${presorted_2}" && \
-    # gzip -dk "${infile_2}" && \
-    # sort -k1,1 -k2n "${infile_2%.gz}" | gzip > "${sorted_2}" && \
-    # mv -f "${sorted_2}" "${infile_2}" && \
-    # touch "${step_1}"
 
     echo -e "Completed step 1/5: Sorting ${infile_1} and" "${infile_2}."
 else
