@@ -21,7 +21,7 @@ bin/miscellaneous_learning/*
 bin/miscellaneous_not-used/*
 
 data/*
-!data/drivers/
+data/drivers/
 !data/files_bam_test/
 !data/files_chain/
 data/files_bam_test/hg38.chrom.sizes
@@ -30,6 +30,7 @@ doc/*
 
 log/*
 
+results/*
 results/kga0/*
 !results/kga0/drivers/
 results/gangliuw/*

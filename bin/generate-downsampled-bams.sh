@@ -57,8 +57,8 @@ print_usage() {
     echo "-i  deduplicated bam infile, including path [chr]"
     echo "-o  path for downsampled bam file [chr]; path will be made if it"
     echo "    does not exist"
-    echo "-d  number of paired-end reads to sample down to [even int >= 2];"
-    echo "    default: 300000"
+    echo "-d  number of paired-end reads to sample down to [even int >= 2;"
+    echo "    default: 300000]"
     echo "-x  prefix for downsampled paired-end bam outfiles [chr, optional];"
     echo "    if \"-x\" is blank, then prefix is derived from the name of the"
     echo "    infile"
@@ -68,7 +68,7 @@ print_usage() {
     exit
 }
 
-interactive=TRUE  # Hardcode TRUE for interactive testing; FALSE for CLI
+interactive=FALSE  # Hardcode TRUE for interactive testing; FALSE for CLI
 if [[ "${interactive}" == TRUE ]]; then
     safe_mode=FALSE
     infile="./data/files_bam/Disteche_sample_1.dedup.CAST.corrected.bam"
