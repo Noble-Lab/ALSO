@@ -380,7 +380,7 @@ cat(paste0("Started: Sorting ", arguments$outdir, "/", outname, "\n"))
 
 command_sort <- paste0(
     "echo \"",
-    "sort -k1,2 <(gzip -dk ",
+    "sort -k1,2 <(gunzip -c ",
     arguments$outdir, "/", outname,
     ") | gzip > ",
     arguments$outdir, "/", outname_tmp,
