@@ -375,24 +375,24 @@ cat(paste0("Completed: Processing ", arguments$bam, "\n"))
 cat(paste0("Have written out ", arguments$outdir, "/", outname, "\n"))
 
 
-#  Sort the AS.txt.gz file ----------------------------------------------------
-cat(paste0("Started: Sorting ", arguments$outdir, "/", outname, "\n"))
-
-command_sort <- paste0(
-    "echo \"",
-    "sort -k1,2 <(gunzip -c ",
-    arguments$outdir, "/", outname,
-    ") | gzip > ",
-    arguments$outdir, "/", outname_tmp,
-    " && mv -f ",
-    arguments$outdir, "/", outname_tmp,
-    " ",
-    arguments$outdir, "/", outname,
-    "\" | bash"
-)
-system(command_sort)
-
-cat(paste0("Completed: Sorting ", arguments$outdir, "/", outname, "\n"))
+# #  Sort the AS.txt.gz file ----------------------------------------------------
+# cat(paste0("Started: Sorting ", arguments$outdir, "/", outname, "\n"))
+#
+# command_sort <- paste0(
+#     "echo \"",
+#     "sort -k1,2 <(gunzip -c ",
+#     arguments$outdir, "/", outname,
+#     ") | gzip > ",
+#     arguments$outdir, "/", outname_tmp,
+#     " && mv -f ",
+#     arguments$outdir, "/", outname_tmp,
+#     " ",
+#     arguments$outdir, "/", outname,
+#     "\" | bash"
+# )
+# system(command_sort)
+#
+# cat(paste0("Completed: Sorting ", arguments$outdir, "/", outname, "\n"))
 
 
 #  End the script -------------------------------------------------------------
