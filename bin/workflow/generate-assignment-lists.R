@@ -59,6 +59,12 @@ count_records <- function(x) {
 }
 
 
+denote_outfile <- function(x) {
+    #TODO Documentation...
+    paste0(arguments$outdir, "/", arguments$outprefix, ".", x, ".txt.gz")
+}
+
+
 import_library <- function(x) {
     # Suppress messages when loading libraries into the R session
     # 
@@ -378,11 +384,6 @@ cat(paste0(
 ))
 n <- ceiling(rec_total / rec_n) %>% as.integer()
 bar <- utils::txtProgressBar(min = 0, max = n, initial = 0, style = 3)
-
-denote_outfile <- function(x) {
-    #TODO Documentation...
-    paste0(arguments$outdir, "/", arguments$outprefix, ".", x, ".txt.gz")
-}
 
 connection <- file(arguments$intersection, "r")
 for(i in 1:n) {

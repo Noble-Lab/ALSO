@@ -150,10 +150,8 @@ if [[ "${interactive}" == "TRUE" ]]; then
     memory_max="4096m"
     strain_1="mm10"
     strain_2="CAST"
-    # bam_1="./data/files_bam/Disteche_sample_1.dedup.mm10.corrected.downsample-3000000.bam"
-    # bam_2="./data/files_bam/Disteche_sample_1.dedup.CAST.corrected.downsample-3000000.bam"
-    bam_1="./data/files_bam/Disteche_sample_1.dedup.mm10.corrected.bam"
-    bam_2="./data/files_bam/Disteche_sample_1.dedup.CAST.corrected.bam"
+    bam_1="./data/files_bam_test/${strain_1}/Disteche_sample_1.dedup.${strain_1}.corrected.bam"
+    bam_2="./data/files_bam_test/${strain_2}/Disteche_sample_1.dedup.${strain_2}.corrected.bam"
     prefix="Disteche_sample_1"
     outpath="./results/kga0/2022-0604_allelic-segregation"
     chunk_step_1=100000

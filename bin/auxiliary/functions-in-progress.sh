@@ -26,6 +26,12 @@ check_file_sorted() {
 }
 
 
+check_file_sorted_unzipped() {
+    # Check if file is sorted or not
+    sort -C <(cat "${1}") || printf "%s" "not "; echo "sorted"
+}
+
+
 count_lines_gzip() {
     # Count number of records in a gzipped file
     #
@@ -60,7 +66,8 @@ evaluate_run_up_to() {
     # :param 2: current step (int)
     [[ "${1}" -eq "${2}" ]] &&
         {
-            echo -e "Exiting: script has run up to step ${2}, the step specified in argument -n.\n\n"
+            echo -e "Exiting: script has run up to step ${2}, the step " \
+            "specified in argument -n.\n\n"
             exit 0
         }
 }
@@ -146,7 +153,7 @@ find_set_complement() {
     # > "${3}"
 
     #QUESTION Does this work? Yes...
-    join -v1 <(zcat -df "${2}" | cut -f1) <(zcat -df "${1}" | cut -f1) \
+    join -v1 <(zcat -df "${1}" | cut -f1) <(zcat -df "${2}" | cut -f1) \
     | sort \
     | gzip \
     > "${3}"
