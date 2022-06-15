@@ -83,36 +83,60 @@ exclude_qname_reads_picard() {
     #           infile) (chr)
     # :param 4: initial memory allocation pool for JVM (chr)
     # :param 5: maximum memory allocation pool for JVM (chr)
-    # :param 6: use the picard.jar available on the GS grid system (logical)
     start="$(date +%s)"
-    dir_picard="/net/gs/vol3/software/modules-sw/picard/2.26.4/Linux/CentOS7/x86_64"
 
-    case "$(echo "${6}" | tr '[:upper:]' '[:lower:]')" in
-        true | t) \
-            java -jar -Xms"${4}" -Xmx"${5}" \
-            "${dir_picard}"/picard.jar FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="excludeReadList"
-            ;;
-        false | f) \
-            picard -Xms"${4}" -Xmx"${5}" FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="excludeReadList"
-            ;;
-        *) \
-            echo "Exiting: Parameter 6 is not \"TRUE\" or \"FALSE\"."
-            return 1
-            ;;
-    esac
+    picard "${4}" "${5}" FilterSamReads \
+    I="${1}" \
+    O="${3}" \
+    READ_LIST_FILE="${2}" \
+    FILTER="excludeReadList"
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
     "Exclude reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
 }
+
+
+# exclude_qname_reads_picard() {
+#     # Filter a bam infile to exclude reads with QNAMEs listed in a txt file;
+#     # write the filtered results to a bam outfile
+#     #
+#     # :param 1: name of bam infile, including path (chr)
+#     # :param 2: name of txt QNAME list, including path (chr)
+#     # :param 3: name of bam outfile, including path (cannot be same as bam
+#     #           infile) (chr)
+#     # :param 4: initial memory allocation pool for JVM (chr)
+#     # :param 5: maximum memory allocation pool for JVM (chr)
+#     # :param 6: use the picard.jar available on the GS grid system (logical)
+#     start="$(date +%s)"
+#     dir_picard="/net/gs/vol3/software/modules-sw/picard/2.26.4/Linux/CentOS7/x86_64"
+#
+#     case "$(echo "${6}" | tr '[:upper:]' '[:lower:]')" in
+#         true | t) \
+#             java -jar -Xms"${4}" -Xmx"${5}" \
+#             "${dir_picard}"/picard.jar FilterSamReads \
+#             I="${1}" \
+#             O="${3}" \
+#             READ_LIST_FILE="${2}" \
+#             FILTER="excludeReadList"
+#             ;;
+#         false | f) \
+#             picard -Xms"${4}" -Xmx"${5}" FilterSamReads \
+#             I="${1}" \
+#             O="${3}" \
+#             READ_LIST_FILE="${2}" \
+#             FILTER="excludeReadList"
+#             ;;
+#         *) \
+#             echo "Exiting: Parameter 6 is not \"TRUE\" or \"FALSE\"."
+#             return 1
+#             ;;
+#     esac
+#
+#     end="$(date +%s)"
+#     calculate_run_time "${start}" "${end}" \
+#     "Exclude reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
+# }
 
 
 filter_duplicate_qnames_gzip(){
@@ -226,7 +250,7 @@ identify_qnames_updated() {
             str="lt"
             ;;
         *) \
-            echo "Parameter 1 is not \"eq\", \"gt\", or \"lt\""
+            echo "WARNING: Parameter 1 is not \"eq\", \"gt\", or \"lt\""
             echo "Setting parameter 1 to \"eq\""
             comp="'\$1 == 2'"
             str="eq"
@@ -380,36 +404,60 @@ retain_qname_reads_picard() {
     #           infile) (chr)
     # :param 4: initial memory allocation pool for JVM (chr)
     # :param 5: maximum memory allocation pool for JVM (chr)
-    # :param 6: use the picard.jar available on the GS grid system (logical)
     start="$(date +%s)"
-    dir_picard="/net/gs/vol3/software/modules-sw/picard/2.26.4/Linux/CentOS7/x86_64"
 
-    case "$(echo "${6}" | tr '[:upper:]' '[:lower:]')" in
-        true | t) \
-            java -jar -Xms"${4}" -Xmx"${5}" \
-            "${dir_picard}"/picard.jar FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="includeReadList"
-            ;;
-        false | f) \
-            picard -Xms"${4}" -Xmx"${5}" FilterSamReads \
-            I="${1}" \
-            O="${3}" \
-            READ_LIST_FILE="${2}" \
-            FILTER="includeReadList"
-            ;;
-        *) \
-            echo "Exiting: Parameter 6 is not \"TRUE\" or \"FALSE\"."
-            return 1
-            ;;
-    esac
+    picard -Xms"${4}" -Xmx"${5}" FilterSamReads \
+    I="${1}" \
+    O="${3}" \
+    READ_LIST_FILE="${2}" \
+    FILTER="includeReadList"
 
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
     "Exclude reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
 }
+
+
+# retain_qname_reads_picard() {
+#     # Filter a bam infile to retain reads with QNAMEs listed in a txt file;
+#     # write the filtered results to a bam outfile
+#     #
+#     # :param 1: name of bam infile, including path (chr)
+#     # :param 2: name of txt QNAME list, including path (chr)
+#     # :param 3: name of bam outfile, including path (cannot be same as bam
+#     #           infile) (chr)
+#     # :param 4: initial memory allocation pool for JVM (chr)
+#     # :param 5: maximum memory allocation pool for JVM (chr)
+#     # :param 6: use the picard.jar available on the GS grid system (logical)
+#     start="$(date +%s)"
+#     dir_picard="/net/gs/vol3/software/modules-sw/picard/2.26.4/Linux/CentOS7/x86_64"
+#
+#     case "$(echo "${6}" | tr '[:upper:]' '[:lower:]')" in
+#         true | t) \
+#             java -jar -Xms"${4}" -Xmx"${5}" \
+#             "${dir_picard}"/picard.jar FilterSamReads \
+#             I="${1}" \
+#             O="${3}" \
+#             READ_LIST_FILE="${2}" \
+#             FILTER="includeReadList"
+#             ;;
+#         false | f) \
+#             picard -Xms"${4}" -Xmx"${5}" FilterSamReads \
+#             I="${1}" \
+#             O="${3}" \
+#             READ_LIST_FILE="${2}" \
+#             FILTER="includeReadList"
+#             ;;
+#         *) \
+#             echo "Exiting: Parameter 6 is not \"TRUE\" or \"FALSE\"."
+#             return 1
+#             ;;
+#     esac
+#
+#     end="$(date +%s)"
+#     calculate_run_time "${start}" "${end}" \
+#     "Exclude reads in $(basename "${1}") based on QNAMEs in $(basename "${2}")."
+# }
 
 
 tail_10() { zcat -d "${1}" | tail -10; }

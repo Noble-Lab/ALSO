@@ -71,7 +71,6 @@ print_usage() {
     echo "Arguments:"
     echo "-h  print this help message and exit"
     echo "-s  use safe mode: \"TRUE\" or \"FALSE\" [logical]"
-    echo "-l  run on GS HPC: \"TRUE\" or \"FALSE\" [logical]"
     echo "-m  initial memory allocation pool for JVM [chr; default \"512m\"]"
     echo "-x  maximum memory allocation pool for JVM [chr; default \"4096,\"]"
     echo "-b  bam infile #1, including path [chr]"
@@ -91,11 +90,10 @@ print_usage() {
 }
 
 
-while getopts "h:s:l:m:x:b:c:a:i:j:u:v:1:2:o:p:n:" opt; do
+while getopts "h:s:m:x:b:c:a:i:j:u:v:1:2:o:p:n:" opt; do
     case "${opt}" in
         h) print_usage ;;
         s) safe_mode="${OPTARG}" ;;
-        l) cluster="${OPTARG}" ;;
         m) memory_min="${OPTARG}" ;;
         x) memory_max="${OPTARG}" ;;
         b) bam_1="${OPTARG}" ;;
@@ -115,7 +113,6 @@ while getopts "h:s:l:m:x:b:c:a:i:j:u:v:1:2:o:p:n:" opt; do
 done
 
 [[ -z "${safe_mode}" ]] && print_usage
-[[ -z "${cluster}" ]] && print_usage
 [[ -x "${memory_min}" ]] && memory_min="512m"
 [[ -x "${memory_max}" ]] && memory_max="4096m"
 [[ -z "${bam_1}" ]] && print_usage
@@ -329,8 +326,7 @@ if [[ ! -f "${step_2}" && -f "${step_1}" ]]; then
         "${assign_ambiguous}" \
         "${bam_1_ambiguous}" \
         "${memory_min}" \
-        "${memory_max}" \
-        "${cluster}" && \
+        "${memory_max}" && \
         touch "${step_2}"
 
         echo -e "Completed ${0} step 2/X:" \
@@ -362,8 +358,7 @@ if [[ ! -f "${step_3}" && -f "${step_2}" ]]; then
         "${assign_ambiguous}" \
         "${bam_2_ambiguous}" \
         "${memory_min}" \
-        "${memory_max}" \
-        "${cluster}" && \
+        "${memory_max}" && \
         touch "${step_3}"
 
         echo -e "Completed ${0} step 3/X:" \
@@ -395,8 +390,7 @@ if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
         "${combined_sample_1}" \
         "${bam_1_sample_1}" \
         "${memory_min}" \
-        "${memory_max}" \
-        "${cluster}" && \
+        "${memory_max}" && \
         touch "${step_4}"
 
         echo -e "Completed ${0} step 4/X:" \
@@ -428,8 +422,7 @@ if [[ ! -f "${step_5}" && -f "${step_4}" ]]; then
         "${combined_sample_1}" \
         "${bam_2_sample_1}" \
         "${memory_min}" \
-        "${memory_max}" \
-        "${cluster}" && \
+        "${memory_max}" && \
         touch "${step_5}"
 
         echo -e "Completed ${0} step 5/X:" \
@@ -461,8 +454,7 @@ if [[ ! -f "${step_6}" && -f "${step_5}" ]]; then
         "${combined_sample_2}" \
         "${bam_1_sample_2}" \
         "${memory_min}" \
-        "${memory_max}" \
-        "${cluster}" && \
+        "${memory_max}" && \
         touch "${step_6}"
 
         echo -e "Completed ${0} step 6/X:" \
@@ -494,8 +486,7 @@ if [[ ! -f "${step_7}" && -f "${step_6}" ]]; then
         "${combined_sample_2}" \
         "${bam_2_sample_2}" \
         "${memory_min}" \
-        "${memory_max}" \
-        "${cluster}" && \
+        "${memory_max}" && \
         touch "${step_7}"
 
         echo -e "Completed ${0} step 7/X:" \

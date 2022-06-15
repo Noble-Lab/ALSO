@@ -112,7 +112,6 @@ print_usage() {
     echo "Arguments:"
     echo "-h  print this help message and exit"
     echo "-u  use safe mode: TRUE or FALSE [logical; default: FALSE]"
-    echo "-l  run on GS HPC: TRUE or FALSE [logical; default: FALSE]"
     echo "-d  run pipeline in \${TMPDIR}: TRUE or FALSE [logical; default:"
     echo "    TRUE]"
     echo "-m  initial memory allocation pool for JVM [chr; default: \"512m\"]"
@@ -144,7 +143,6 @@ print_usage() {
 interactive=FALSE  # Hardcode TRUE for interactive testing; FALSE for CL usage
 if [[ "${interactive}" == "TRUE" ]]; then
     safe_mode=FALSE
-    cluster=FALSE
     use_TMPDIR=TRUE
     memory_min="512m"
     memory_max="4096m"
@@ -160,11 +158,10 @@ if [[ "${interactive}" == "TRUE" ]]; then
     count=TRUE
     run_up_to=4
 else
-    while getopts "h:u:l:d:m:x:r:s:1:2:p:o:b:c:t:a:n:" opt; do
+    while getopts "h:u:d:m:x:r:s:1:2:p:o:b:c:t:a:n:" opt; do
         case "${opt}" in
             h) print_usage ;;
             u) safe_mode="${OPTARG}" ;;
-            l) cluster="${OPTARG}" ;;
             d) use_TMPDIR="${OPTARG}" ;;
             m) memory_min="${OPTARG}" ;;
             x) memory_max="${OPTARG}" ;;
@@ -185,7 +182,6 @@ else
 fi
 
 [[ -z "${safe_mode}" ]] && safe_mode=FALSE
-[[ -z "${cluster}" ]] && cluster=FALSE
 [[ -z "${use_TMPDIR}" ]] && use_TMPDIR=TRUE
 [[ -z "${memory_min}" ]] && memory_min="512m"
 [[ -z "${memory_max}" ]] && memory_max="4096m"
@@ -221,16 +217,7 @@ esac
 check_dependency R
 check_dependency samtools
 
-#  Evaluate "${cluster}"
-case "$(echo "${cluster}" | tr '[:upper:]' '[:lower:]')" in
-    true | t) echo -e "-l: \"Run on GS HPC\" is TRUE." ;;
-    false | f) echo -e "-l: \"Run on GS HPC\" is FALSE." && check_dependency picard ;;
-    *) \
-        echo -e "Exiting: -l \"run on GS HPC\" argument must be TRUE or FALSE.\n"
-        exit 1
-        ;;
-esac
-
+#  Evaluate "${use_TMPDIR}"  #REMOVE
 case "$(echo "${use_TMPDIR}" | tr '[:upper:]' '[:lower:]')" in
     true | t) echo -e "-d: \"Run in \${TMPDIR}\" is TRUE." && use_TMPDIR=TRUE ;;
     false | f) echo -e "-d: \"Run in \${TMPDIR}\" is FALSE." && use_TMPDIR=FALSE ;;
@@ -347,7 +334,6 @@ echo -e ""
 
 echo -e "Running the pipeline with the following parameters:"
 echo -e "  -u ${safe_mode}"
-echo -e "  -l ${cluster}"
 echo -e "  -d ${use_TMPDIR}"
 echo -e "  -m ${memory_min}"
 echo -e "  -x ${memory_max}"
@@ -680,7 +666,6 @@ evaluate_run_up_to "${run_up_to}" 3
 #  Step 4 ---------------------------------------------------------------------
 # -h print this help message and exit
 # -s use safe mode: TRUE or FALSE (logical)
-# -l run on GS HPC: TRUE or FALSE (logical)
 # -m initial memory allocation pool for JVM (chr; default "512m")
 # -x maximum memory allocation pool for JVM (chr; default "1g")
 # -b bam infile #1, including path (chr)
@@ -710,7 +695,6 @@ if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
         Running...\n \
         bash \"${script_4}\"\n \
         -s \"${safe_mode}\"\n \
-        -l \"${cluster}\"\n \
         -m \"${memory_min}\"\n \
         -x \"${memory_max}\"\n \
         -b \"${bam_1}\"\n \
@@ -728,7 +712,6 @@ if [[ ! -f "${step_4}" && -f "${step_3}" ]]; then
 
         bash "${script_4}" \
         -s "${safe_mode}" \
-        -l "${cluster}" \
         -m "${memory_min}" \
         -x "${memory_max}" \
         -b "${bam_1}" \
