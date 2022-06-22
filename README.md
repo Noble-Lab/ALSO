@@ -10,7 +10,9 @@ The three most recent updates are shown here; a complete list of updates can be 
 
 * 2022-06-15
   - Update `README.md` and `log.md` files
+  - `#TODO` Troubleshoot max memory for JVM when running `picard FilterSamReads`
   - `#TODO` Consolidate shell, R functions into one script for each language
+  - `#TODO` Remove harcoded path to GS installation of `picard` from scripts `#DONE`
 
 * 2022-06-04
   + Pipeline is completed; passed local unit tests with small files; can call it with `driver_allelic-segregation.sh`

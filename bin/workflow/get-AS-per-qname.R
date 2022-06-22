@@ -197,7 +197,7 @@ ap <- add_argument(
 
 
 #  Parse the arguments --------------------------------------------------------
-test_in_RStudio <- FALSE  # Hardcode TRUE for interactive testing; FALSE for CLI
+test_in_RStudio <- FALSE  # Hardcode TRUE for interactive testing; FALSE: CLI
 if(isTRUE(test_in_RStudio)) {
     #  RStudio-interactive work
     dir_base <- "."
@@ -368,11 +368,10 @@ for(i in 1:n) {
 }
 
 
+#  End the script -------------------------------------------------------------
 cat(paste0("Completed: Processing ", arguments$bam, "\n"))
 cat(paste0("Have written out ", arguments$outdir, "/", outname, "\n"))
 
-
-#  End the script -------------------------------------------------------------
 time_end <- Sys.time()
 cat("\n")
 cat(paste0(script, " completed: ", time_end, "\n"))

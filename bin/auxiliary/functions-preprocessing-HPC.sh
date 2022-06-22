@@ -113,6 +113,15 @@ display_spinning_icon() {
 }
 
 
+duplicate_records_in_txt_gz() {
+    # #TODO Description of function
+    #
+    # :param 1: gzipped text infile for which to duplicate each records
+    # :param 2: gzipped text outfile in which each record is duplicated
+    sed -e p <(zcat "${1}") | gzip > "${2}"
+}
+
+
 echo_completion_message() {
     # #TODO Description of function
     #
@@ -596,6 +605,25 @@ run_flagstat_auto() {
 }
 
 
+sort_bam_coordinate_picard() {
+    # Run picard samsort SORT_ORDER="coordinate" on a bam infile; user defines
+    # bam outfile
+    # 
+    # :param 1: Name of bam infile, including path (chr)
+    # :param 2: Name of bam outfile, including path (chr)
+    start="$(date +%s)"
+
+    picard SortSam \
+    I="${1}" \
+    O="${2}" \
+    SORT_ORDER="coordinate"
+    
+    end="$(date +%s)"
+    calculate_run_time "${start}" "${end}" \
+    "Run picard SortSam SORT_ORDER=\"coordinate\" on $(basename "${1}")."
+}  #UNTESTED
+
+
 sort_bam_coordinate_samtools() {
     # Run samtools sort on a bam infile; user defines bam outfile
     # 
@@ -646,7 +674,7 @@ sort_bam_coordinate_samtools_overwrite_infile() {
 }
 
 
-sort_bam_coordinate_picard() {
+sort_bam_qname_picard() {
     # Run picard samsort SORT_ORDER="coordinate" on a bam infile; user defines
     # bam outfile
     # 
@@ -657,12 +685,32 @@ sort_bam_coordinate_picard() {
     picard SortSam \
     I="${1}" \
     O="${2}" \
-    SORT_ORDER="coordinate"
+    SORT_ORDER="queryname"
     
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
-    "Run picard SortSam SORT_ORDER=\"coordinate\" on $(basename "${1}")."
-}  #UNTESTED
+    "Run picard SortSam SORT_ORDER=\"queryname\" on $(basename "${1}")."
+}
+
+
+#LOOK
+sort_bam_qname_picard_auto() {
+    # Run picard samsort SORT_ORDER="coordinate" on a bam infile; user defines
+    # bam outfile
+    # 
+    # :param 1: Name of bam infile, including path (chr)
+    # :param 2: Name of bam outfile, including path (chr)
+    start="$(date +%s)"
+
+    picard SortSam \
+    I="${1}" \
+    O="${1%.bam}.queryname.bam" \
+    SORT_ORDER="queryname"
+    
+    end="$(date +%s)"
+    calculate_run_time "${start}" "${end}" \
+    "Run picard SortSam SORT_ORDER=\"queryname\" on $(basename "${1}")."
+}
 
 
 sort_bam_qname_samtools() {
@@ -769,4 +817,29 @@ sort_file_AS_overwrite_infile() {
     end="$(date +%s)"
     calculate_run_time "${start}" "${end}" \
     "Run samtools view on $(basename "${1}")."
+}
+
+
+sort_file_qname() {
+    #TODO Write a description
+    #
+    # :param 1: txt.gz infile, including path
+    # :param 2: txt.gz outfile, including path
+    sort <(zcat "${1}") | gzip > "${2}"
+}
+
+
+sort_file_qname_auto() {
+    #TODO Write a description
+    #
+    # :param 1: txt.gz infile, including path
+    sort <(zcat "${1}") | gzip > "${1%.txt.gz}.sorted.txt.gz"
+}
+
+
+sort_file_duplicate_records_qname_auto() {
+    #TODO Write a description
+    #
+    # :param 1: txt.gz infile, including path
+    sort <(zcat "${1}") | sed -e p | gzip > "${1%.txt.gz}.sorted.duplicated.txt.gz"
 }

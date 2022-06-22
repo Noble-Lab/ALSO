@@ -397,30 +397,31 @@ for(i in 1:n) {
     sample_2 <- AS %>% dplyr::filter(assignment == arguments$sample_2)
     
     readr::write_tsv(
-        ambiguous[, 1] %>% as.data.frame(),
+        as.data.frame(ambiguous[, 1]),
         file = denote_outfile("ambiguous"),
         append = TRUE
     )
     readr::write_tsv(
-        sample_1[, 1] %>% as.data.frame(),
+        as.data.frame(sample_1[, 1]),
         file = denote_outfile(arguments$sample_1),
         append = TRUE
     )
     readr::write_tsv(
-        sample_2[, 1] %>% as.data.frame(),
+        as.data.frame(sample_2[, 1]),
         file = denote_outfile(arguments$sample_2),
         append = TRUE
     )
     utils::setTxtProgressBar(bar, i)
 }
+
+
+#  End the script -------------------------------------------------------------
 cat(paste0(
     "Completed: Processing ", basename(arguments$intersection), ", writing ",
     "out files based on assignments to \"", arguments$sample_1, "\", \"",
     arguments$sample_2, "\", or \"ambiguous\".\n"
 ))
 
-
-#  End the script -------------------------------------------------------------
 time_end <- Sys.time()
 cat("\n")
 cat(paste0(script, " completed: ", time_end, "\n"))
