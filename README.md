@@ -2,11 +2,15 @@
 
 ### *ALSO* *AL*lele *S*egregati*O*n Pipeline
 
-This ALSO pipeline is used to segregate NGS alignments to alleles of origin based on alignment scores.
+Composed of a small set of Python, Shell, and R scripts, the ALSO pipeline segregates NGS alignments to alleles of origin based on alignment scores.
 
 ## News and Updates
 
 The three most recent updates are shown here; a complete list of updates can be found [here](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/log.md).
+
+* 2022-06-16-25
+  - Developed Python implementation for filtering bam files by txt-file lists of `QNAMEs`
+  - Rewrote/refactored code to handle input for Python-implemented filtering
 
 * 2022-06-15
   - Update `README.md` and `log.md` files
@@ -32,12 +36,15 @@ The three most recent updates are shown here; a complete list of updates can be 
   + [bedtools](https://bedtools.readthedocs.io/en/latest/) >= 2.29.0
   + [parallel](https://www.gnu.org/software/parallel/) >= 20200101
   + [Picard](https://broadinstitute.github.io/picard/) >= 2.26.4
+  + [pigz](https://zlib.net/pigz/) >= 2.3
+  + [pysam](https://pypi.org/project/pysam/) >= 0.19  `# exclude-reads-from-bam.py`
   + [R](https://www.r-project.org/) >= 4.0
   + [Rsamtools](https://bioconductor.org/packages/release/bioc/html/Rsamtools.html) = 2.8.0
   + [samtools](http://www.htslib.org/) >= 1.13
   + [scales](https://scales.r-lib.org/) >= 1.1.1
   + [subread](http://subread.sourceforge.net/) = 2.0.1
   + [Tidyverse](https://www.tidyverse.org/) = 1.3.1
+  + [tqdm](https://pypi.org/project/tqdm/) >= 4.64.0  `# exclude-reads-from-bam.py`
 
 ## Workflow
 
@@ -215,7 +222,8 @@ This ALSO pipeline takes as input two paired parental bam files (one aligned to 
 
 ## Proposed changes to ALSO
 
-1. When setting `-d TRUE`, instead of copying files into and running all steps in `${TMPDIR}`, make it so that only certain programs make use of `${TMPDIR}`, e.g., Picard, Samtools; steps will be run in and files will be written to `-o "./path/to/directory/for/results"`
-2. Index bam outfiles while writing them out with Picard: `--CREATE_INDEX <Boolean>`
-3. Set Picard FilterSamReads `--MAX_RECORDS_IN_RAM <Integer>`; but seems applicable to only sorting output, which we currently do not do
-4. 
+1. Regarding setting `-d TRUE` in various ALSO scripts: instead of copying files into and running all steps in `${TMPDIR}`, make it so that only certain programs make use of `${TMPDIR}`, e.g., Picard, Samtools; steps will be run in and files will be written to `-o "./path/to/directory/for/results"`
+2. ~~Index bam outfiles while writing them out with Picard: `--CREATE_INDEX <Boolean>`~~
+3. ~~Set Picard FilterSamReads `--MAX_RECORDS_IN_RAM <Integer>`; but seems applicable to only sorting output, which we currently do not do...~~
+4. Remove use of Picard FilterSamReads
+5. For using `exclude-reads-from-bam.py`, reverse-sort QNAME lists and sort bams with `picard SortSam SORT_ORDER=queryname`

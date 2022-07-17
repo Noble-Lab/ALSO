@@ -837,6 +837,58 @@ sort_file_qname_auto() {
 }
 
 
+parsort_file_qname_auto() {
+    # Sort a gzipped txt file of QNAMEs (single column)
+    #
+    # :param 1: txt.gz infile, including path
+    # :param 2: remove infile [logical; default: FALSE]
+    no_gz="${1%.gz}"
+    no_gz_sort="${no_gz%.txt}.srt.txt"
+    gz_sort="${no_gz_sort}.gz"
+
+    [[ ! -f "${no_gz}" ]] && pigz -dk "${1}"
+    LC_ALL=C parsort "${no_gz}" > "${no_gz_sort}"
+    pigz "${no_gz_sort}"
+    
+    [[ -f "${gz_sort}" ]] && rm "${no_gz}"
+
+    case "$(echo "${2:-"FALSE"}" | tr '[:upper:]' '[:lower:]')" in
+        false | f) : ;;
+        true | t) rm "${2}" ;;
+    esac
+}
+
+
+sort_file_qname_reverse_auto() {
+    #TODO Write a description
+    #
+    # :param 1: txt.gz infile, including path
+    sort -r <(zcat "${1}") | gzip > "${1%.txt.gz}.reverse-sorted.txt.gz"
+}
+
+
+parsort_file_qname_reverse_auto() {
+    # Sort a gzipped txt file of QNAMEs (single column)
+    #
+    # :param 1: txt.gz infile, including path
+    # :param 2: remove infile [logical; default: FALSE]
+    no_gz="${1%.gz}"
+    no_gz_sort="${no_gz%.txt}.rv-srt.txt"
+    gz_sort="${no_gz_sort}.gz"
+
+    [[ ! -f "${no_gz}" ]] && pigz -dk "${1}"
+    LC_ALL=C parsort -r "${no_gz}" > "${no_gz_sort}"
+    pigz "${no_gz_sort}"
+    
+    [[ -f "${gz_sort}" ]] && rm "${no_gz}"
+
+    case "$(echo "${2:-"FALSE"}" | tr '[:upper:]' '[:lower:]')" in
+        false | f) : ;;
+        true | t) rm "${2}" ;;
+    esac
+}
+
+
 sort_file_duplicate_records_qname_auto() {
     #TODO Write a description
     #
