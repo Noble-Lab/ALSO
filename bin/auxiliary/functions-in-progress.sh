@@ -158,6 +158,7 @@ filter_duplicate_qnames_gzip(){
 }
 
 
+#KEEP
 #QUESTION Depending on the order of inputs here, what is in the output?
 find_set_complement() {
     # Find, list, and sort the set complement between AS.txt.gz files for
@@ -188,6 +189,7 @@ find_set_complement() {
 }
 
 
+#KEEP
 find_set_intersection() {
     # Find, list, and sort the set intersection elements between AS.txt.gz
     # files for samples #1 and #2

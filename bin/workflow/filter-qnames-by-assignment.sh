@@ -291,6 +291,9 @@ step_8="$(echo_completion_file_filter "${outpath}" 8 "${prefix}")"
 
 
 #  01: Combine "assign" and "unique" files into "combined" files --------------
+#TODO Move to new script, which includes commands for reverse-sorting files
+#TODO New script also includes command for reverse-sorting ambiguous
+#TODO New script (maybe the same) for picard SortSam SORT_ORDER=queryname
 if [[ ! -f "${step_1}" ]]; then
     echo -e "Started ${0} step 1/X:" \
     "Combining \"assign\" and \"unique\" files into \"combined\" files."
@@ -309,7 +312,7 @@ else
 fi
 
 
-#  03: Create a version of bam infile #1 for "ambiguous" assignments ----------
+#  02: Create a version of bam infile #1 for "ambiguous" assignments ----------
 if [[ ! -f "${step_2}" && -f "${step_1}" ]]; then
     echo -e "Started ${0} step 2/X:" \
     "Using ${assign_ambiguous} to filter reads in ${bam_1}, thus creating" \

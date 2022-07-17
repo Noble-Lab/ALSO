@@ -12,6 +12,7 @@ import gzip
 import os
 import pysam
 import subprocess
+import sys
 from tqdm import tqdm
 
 
@@ -74,7 +75,7 @@ def detect_filetype_from_path(file):
 
 def write_alignment(alignment, outfile=None):
     """
-    Print alignment to outfile or, if none is supplied, STDOUT .
+    Print alignment to outfile or, if none is supplied, STDOUT.
 
     Parameters
     ----------
@@ -124,41 +125,68 @@ def generate_bam_by_excluding_qnames(infile, qnames, outfile=None):
 
     # Evaluate QNAME file, read in QNAMEs to be removed, then sort QNAMEs to
     # match BAM for efficient processing
+    print("Started: Running 'file_type = detect_filetype_from_path(qnames)'")
     file_type = detect_filetype_from_path(qnames)
-    if file_type == 'qnames':
+    print("Completed: Running 'file_type = detect_filetype_from_path(qnames)'")
+    print("")
+    if file_type == 'txt':
         ids = list(set(
             [i.rstrip() for i in open(qnames, "r").readlines()]
         ))
         ids.sort(key=str.lower, reverse=True)
     elif file_type == 'txt.gz':
+        print("Started: Running 'ids = list(set(...))'")
         ids = list(set(
             [i.decode().rstrip() for i in gzip.open(qnames, "r").readlines()]
         ))
-        ids.sort(key=str.lower, reverse=True)  # Sort in reverse
+        print("Completed: Running 'ids = list(set(...))'")
+        print("")
+        # print("Started: Running 'ids.sort(key=str.lower, reverse=True)'")
+        # # #TODO Sorting in reverse takes a long time, so we can potentially
+        # #       mitigate this by reverse sorting the QNAMEs file prior to
+        # #       running this script; use the -r, --reverse flag
+        # ids.sort(key=str.lower, reverse=True)
+        # print("Completed: Running 'ids.sort(key=str.lower, reverse=True)'")
+        # print("")
     else:
         raise ValueError("Unknown format for `qnames`: {}".format(qnames))
     n_ids = len(ids)
 
     #  Set up progress bar that draws on total alignment counts
+    print("Started: Running 'pbar = tqdm()'")
     pbar = tqdm()
+    print("Completed: Running 'pbar = tqdm()'")
+    print("")
 
     #  Set up and assign variables needed in while loop
+    print("Started: Running 'bam.fetch(until_eof=True)'")
     reads = bam.fetch(until_eof=True)
+    print("Completed: Running 'bam.fetch(until_eof=True)'")
+    print("")
+    print("Started: Running 'next(reads)'")
     read = next(reads)
+    print("Completed: Running 'next(reads)'")
+    print("")
+    print("Started: Running 'last_list_qname = ids[0]'")
     last_list_qname = ids[0]
+    print("Completed: Running 'last_list_qname = ids[0]'")
+    print("")
+    print("Started: Running 'last_bam_qname = get_final_bam_qname(infile)'")
     last_bam_qname = get_final_bam_qname(infile)
+    print("Completed: Running 'last_bam_qname = get_final_bam_qname(infile)'")
+    print("")
 
     #  If first read QNAME is greater than last list QNAME, throw error
     if read.query_name > last_list_qname:
         raise ValueError(
-            "Alignment file appears to be unsorted: {} > {}".
+            "Bam appears to be unsorted: {} > {}".
             format(read.query_name, last_list_qname)
         )
 
     #  If first read QNAME is greater than last bam QNAME, throw error
     if read.query_name > last_bam_qname:
         raise ValueError(
-            "Alignment file appears to be unsorted: {} > {}".
+            "Bam appears to be unsorted: {} > {}".
             format(read.query_name, last_bam_qname)
         )
 
@@ -190,7 +218,7 @@ def generate_bam_by_excluding_qnames(infile, qnames, outfile=None):
                 read = next(reads)
         #  If bam QNAME is less than top of stack, write read and move on
         else:
-            #  If reach final list QNAME, handle any extra bam QNAMEs
+            #  If list QNAME is final list QNAME, handle any extra reads
             if n_ids == 1:
                 outfile.write(read)
                 #  If bam QNAME is final bam QNAME, write and break
@@ -205,6 +233,7 @@ def generate_bam_by_excluding_qnames(infile, qnames, outfile=None):
             else:
                 outfile.write(read)
                 read = next(reads)
+        #  Update progress bar
         pbar.update()
     outfile.close()
 
@@ -243,6 +272,10 @@ def main():
         help="bam outfile, including path"
     )
 
+    #  Print description if no arguments are passed
+    #  stackoverflow.com/questions/4042452
+    ap.parse_args(args=None if sys.argv[1:] else ['--help'])
+
     #  Parse arguments
     arguments = ap.parse_args()
     bam_in = arguments.bam_in
@@ -250,6 +283,7 @@ def main():
     bam_out_name = arguments.bam_out
     qnames = arguments.qnames
 
+    #  Reports details, what's happening
     print("\n")
     print("Started: Processing **" + os.path.basename(bam_in) + "**")
     print(" - Excluding reads in **" + os.path.basename(qnames) + "**")
@@ -264,38 +298,3 @@ def main():
 
 
 main()
-
-
-# os.chdir("/Users/kalavattam/Dropbox/UW/projects-etc/2021_kga0_4dn-mouse-cross")
-# os.getcwd()
-
-# path_main = "./data/files_bam_test/"
-# # path_CAST = path_main + "CAST/"
-# path_mm10 = path_main + "mm10/"
-
-# infile = path_CAST + "Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.queryname.bam"
-# qnames = path_main + "Disteche_sample_11.CAST-and-mm10.combined.sorted.duplicated.txt.gz"  # CAST.ambiguous
-# outfile = path_main + "python.Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.CAST.ambiguous.bam"
-
-# infile = path_CAST + "Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.queryname.bam"
-# qnames = path_main + "Disteche_sample_11.ambiguous-and-CAST.combined.sorted.txt.gz"  # CAST.mm10
-# outfile = path_main + "python.Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.CAST.mm10.bam"
-
-# infile = path_CAST + "Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.queryname.bam"
-# qnames = path_main + "Disteche_sample_11.ambiguous-and-mm10.combined.sorted.txt.gz"  # CAST.CAST
-# outfile = path_main + "python.Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.CAST.CAST.bam"
-
-# infile = path_mm10 + "Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.queryname.bam"
-# qnames = path_main + "Disteche_sample_11.CAST-and-mm10.combined.sorted.duplicated.txt.gz"  # mm10.ambiguous
-# outfile = path_main + "python.Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.mm10.ambiguous.bam"
-
-# infile = path_mm10 + "Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.queryname.bam"
-# qnames = path_main + "Disteche_sample_11.ambiguous-and-CAST.combined.sorted.txt.gz"  # mm10.mm10
-# outfile = path_main + "python.Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.mm10.mm10.bam"
-
-# infile = path_mm10 + "Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.queryname.bam"
-# qnames = path_main + "Disteche_sample_11.ambiguous-and-mm10.combined.sorted.txt.gz"  # mm10.CAST
-# outfile = path_main + "python.Disteche_sample_11.dedup.corrected.corrected.downsample-6000000.mm10.CAST.bam"
-
-# os.path.isfile(infile)
-# os.path.isfile(qnames)
