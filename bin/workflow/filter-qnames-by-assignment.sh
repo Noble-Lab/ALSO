@@ -113,8 +113,8 @@ while getopts "h:s:m:x:b:c:a:i:j:u:v:1:2:o:p:n:" opt; do
 done
 
 [[ -z "${safe_mode}" ]] && print_usage
-[[ -x "${memory_min}" ]] && memory_min="512m"
-[[ -x "${memory_max}" ]] && memory_max="4096m"
+[[ -x "${memory_min}" ]] && memory_min="-Xms512m"
+[[ -x "${memory_max}" ]] && memory_max="-Xmx4096m"
 [[ -z "${bam_1}" ]] && print_usage
 [[ -z "${bam_2}" ]] && print_usage
 [[ -z "${assign_ambiguous}" ]] && print_usage

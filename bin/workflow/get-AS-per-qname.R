@@ -188,6 +188,17 @@ ap <- add_argument(
 )
 ap <- add_argument(
     ap,
+    short = "-e",
+    arg = "--end",
+    type = "character",
+    default = "paired",
+    help = "
+        reads from paired- or single-end sequencing run: \"paired\" or
+        \"single\" <chr>
+    "
+)
+ap <- add_argument(
+    ap,
     short = "-c",
     arg = "--chunk",
     type = "integer",
@@ -204,15 +215,29 @@ if(isTRUE(test_in_RStudio)) {
     dir_data <- "data"
     dir_in <- paste0(dir_base, "/", dir_data, "/", "files_bam")
     dir_out <- paste0(dir_base, "/", dir_data, "/", "files_bam")
-    bam <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam")
-    bai <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam.bai")
-    strain <- "CAST"
+    
+    # bam <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam")
+    # bai <- paste0(dir_in, "/", "Disteche_sample_1.dedup.CAST.corrected.bam.bai")
+    # end <- "paired"
+    # strain <- "CAST"
+    
+    # bam <- paste0(dir_in, "/", "brain_rep_2.SRR1525407.SPRET-EiJ.Aligned.sortedByCoord.out.primary.rm.bam")
+    # bai <- paste0(dir_in, "/", "brain_rep_2.SRR1525407.SPRET-EiJ.Aligned.sortedByCoord.out.primary.rm.bam.bai")
+    # end <- "single"
+    # strain <- "SPRET"
+    
+    bam <- paste0(dir_in, "/", "brain_rep_2.SRR1525407.mm11.Aligned.sortedByCoord.out.primary.rm.bam")
+    bai <- paste0(dir_in, "/", "brain_rep_2.SRR1525407.mm11.Aligned.sortedByCoord.out.primary.rm.bam.bai")
+    end <- "single"
+    strain <- "mm11"
+    
     chunk <- 100000
     cl <- c(
         "--bam", bam,
         "--bai", bai,
-        "--strain", strain,
         "--outdir", dir_out,
+        "--strain", strain,
+        "--end", end,
         "--chunk", chunk
     )
     arguments <- parse_args(ap, cl)
@@ -233,6 +258,9 @@ rm(test_in_RStudio)
 #  Check on the arguments that were supplied ----------------------------------
 stopifnot(file.exists(arguments$bam))
 stopifnot(file.exists(arguments$bai))
+stopifnot(arguments$end == "paired" | arguments$end == "single")
+if(arguments$end == "") stop("--end is an empty string.")
+if(is.na(arguments$end)) stop("--end is NA.")
 if(arguments$strain == "") stop("--strain is an empty string.")
 if(is.na(arguments$strain)) stop("--strain is NA.")
 stopifnot(arguments$chunk != 0)
@@ -283,80 +311,102 @@ cat(paste0("Number of records: ", scales::comma(rec_total), "\n"))
 cat("\n")
 
 #  Iterate through bam file in chunks
-bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = TRUE)
+if(arguments$end == "paired") {
+    bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = TRUE)
+} else if(arguments$end == "single") {
+    bam <- Rsamtools::BamFile(arguments$bam, index = arguments$bai, asMates = FALSE)
+}
 Rsamtools::yieldSize(bam) <- arguments$chunk
 open(bam)
 
 cat(paste0("Started: Processing ", basename(arguments$bam), "\n"))
-n <- ceiling((rec_total / 2) / rec_n) %>% as.integer()
+if(arguments$end == "paired") {
+    n <- ceiling((rec_total / 2) / rec_n) %>% as.integer()
+} else if(arguments$end == "single") {
+    n <- ceiling(rec_total / rec_n) %>% as.integer()
+}
 bar <- utils::txtProgressBar(min = 0, max = n, initial = 0, style = 3)
 
 for(i in 1:n) {
     #  Using Rsamtools, load in qname, mate_status, and AS fields
     pertinent <- load_fields(bam)
     
-    #  Determine which mate_status levels are present in the data, then create
-    #+ objects for them
-    mate_status <- pertinent$mate_status %>%
-        table() %>%
-        dplyr::as_tibble() %>%
-        dplyr::rename("mate_status" = ".")
-    
-    #  Throw warning if "unmated" reads are found
-    if(mate_status[mate_status$mate_status == "unmated", 2] != 0) {
-        cat(paste0(
-            "WARNING: Iteration ", i, "/", n, ": ",
-            mate_status[mate_status$mate_status == "unmated", 2],
-            " 'unmated' reads detected.\n"
-        ))
-    }
-    
-    #  Throw warning if "ambiguous" reads are found
-    if(mate_status[mate_status$mate_status == "ambiguous", 2] != 0) {
-        cat(paste0(
-            "WARNING: Iteration ", i, "/", n, ": ",
-            mate_status[mate_status$mate_status == "ambiguous", 2],
-            " 'ambiguous' reads detected.\n"
-        ))
-    }
-    
-    #  Throw warning if no "mated" reads are found; otherwise, collect mated
-    #+ read fields into a tibble
-    if(mate_status[mate_status$mate_status == "mated", 2] == 0) {
-        cat(paste0(
-            "WARNING: Iteration ", i, "/", n, ": ",
-            "No 'mated' reads detected.\n"
-        ))
-    } else if(mate_status[mate_status$mate_status == "mated", 2] > 0) {
-        pertinent <- pertinent[pertinent$mate_status == "mated", ]
+    if(arguments$end == "paired") {
+        #  Determine which mate_status levels are present in the data, then
+        #+ create objects for them
+        mate_status <- pertinent$mate_status %>%
+            table() %>%
+            dplyr::as_tibble() %>%
+            dplyr::rename("mate_status" = ".")
         
-        #  Clean up the tibble
-        pertinent <- dplyr::select(pertinent, -mate_status)
+        #  Throw warning if "unmated" reads are found
+        if(mate_status[mate_status$mate_status == "unmated", 2] != 0) {
+            cat(paste0(
+                "WARNING: Iteration ", i, "/", n, ": ",
+                mate_status[mate_status$mate_status == "unmated", 2],
+                " 'unmated' reads detected.\n"
+            ))
+        }
+        
+        #  Throw warning if "ambiguous" reads are found
+        if(mate_status[mate_status$mate_status == "ambiguous", 2] != 0) {
+            cat(paste0(
+                "WARNING: Iteration ", i, "/", n, ": ",
+                mate_status[mate_status$mate_status == "ambiguous", 2],
+                " 'ambiguous' reads detected.\n"
+            ))
+        }
+        #  Throw warning if no "mated" reads are found; otherwise, collect
+        #+ mated read fields into a tibble
+        if(mate_status[mate_status$mate_status == "mated", 2] == 0) {
+            cat(paste0(
+                "WARNING: Iteration ", i, "/", n, ": ",
+                "No 'mated' reads detected.\n"
+            ))
+        } else if(mate_status[mate_status$mate_status == "mated", 2] > 0) {
+            pertinent <- pertinent[pertinent$mate_status == "mated", ]
+            
+            #  Clean up the tibble; rename the AS column to include strain
+            #+ information too
+            pertinent <- dplyr::select(pertinent, -mate_status)
+            colnames(pertinent)[-1] <- paste0(
+                colnames(pertinent)[-1], ".", arguments$strain
+            )
+            
+            #  Organize mated reads into one row per mate pair
+            pertinent <- collapse_mates_into_one_row("pertinent", "pos") %>%
+                dplyr::select(-c(qname.even, groupid.odd, groupid.even)) %>%
+                dplyr::rename(qname = qname.odd) %>%
+                dplyr::select(-c(colnames(.)[3], colnames(.)[5]))
+                
+            #  Take the AS min for each mate pair: Taking the AS min via pmin()
+            #+ gives us the worst AS score per read pair; our logic is that the
+            #+ read pair should be represented by the worst of its two alignment
+            #+ scores
+            pertinent$pmin <- pmin(pertinent[, 2][[1]], pertinent[, 3][[1]])
+            
+            #  Rename, reorder, remove columns
+            string <- colnames(pertinent)[[2]] %>%
+                stringr::str_split("\\.") %>%
+                unlist()
+            colnames(pertinent)[4] <- paste0(string[1], ".", string[2], ".pmin")
+            pertinent <- pertinent %>% dplyr::select(-c(
+                colnames(pertinent)[2], colnames(pertinent)[3]
+            ))
+    
+            #  Write out QNAMEs and AS's to txt.gz file
+            readr::write_tsv(
+                pertinent,
+                paste0(arguments$outdir, "/", outname),
+                append = TRUE
+            )
+        }
+    } else if(arguments$end == "single") {
+        #  Rename the AS column to include strain information
         colnames(pertinent)[-1] <- paste0(
             colnames(pertinent)[-1], ".", arguments$strain
         )
         
-        #  Organize mated reads into one row per mate pair
-        pertinent <- collapse_mates_into_one_row("pertinent", "pos") %>%
-            dplyr::select(-c(qname.even, groupid.odd, groupid.even)) %>%
-            dplyr::rename(qname = qname.odd) %>%
-            dplyr::select(-c(colnames(.)[3], colnames(.)[5]))
-            
-        #  Take the AS min for each mate pair: Taking the AS min via pmin()
-        #+ gives us the worst AS score per read pair; our logic is that the
-        #+ read pair should be represented by the worst of its two alignment
-        #+ scores
-        pertinent$pmin <- pmin(pertinent[, 2][[1]], pertinent[, 3][[1]])
-        
-        #  Rename, reorder, remove columns
-        string <- colnames(pertinent)[[2]] %>%
-            stringr::str_split("\\.") %>%
-            unlist()
-        colnames(pertinent)[4] <- paste0(string[1], ".", string[2], ".pmin")
-        pertinent <- pertinent %>% dplyr::select(-c(
-            colnames(pertinent)[2], colnames(pertinent)[3]
-        ))
-
         #  Write out QNAMEs and AS's to txt.gz file
         readr::write_tsv(
             pertinent,
@@ -364,6 +414,7 @@ for(i in 1:n) {
             append = TRUE
         )
     }
+    
     utils::setTxtProgressBar(bar, i)
 }
 

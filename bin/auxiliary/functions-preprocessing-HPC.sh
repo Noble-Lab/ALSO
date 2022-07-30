@@ -327,11 +327,11 @@ list_tally_qnames() {
     start="$(date +%s)"
     
     samtools view "${1}" \
-    | cut -f 1 \
-    | sort \
-    | uniq -c \
-    | sort -nr \
-    > "${1/.bam/.QNAME.tmp.txt}"
+        | cut -f 1 \
+        | sort \
+        | uniq -c \
+        | sort -nr \
+        > "${1/.bam/.QNAME.tmp.txt}"
 
     #  Trim leading whitespaces
     if [[ -f "${1/.bam/.QNAME.tmp.txt}" ]]; then
@@ -367,11 +367,11 @@ list_tally_qnames_gzip() {
     start="$(date +%s)"
     
     samtools view "${1}" \
-    | cut -f 1 \
-    | sort \
-    | uniq -c \
-    | sort -nr \
-    > "${1/.bam/.QNAME.tmp.txt}"
+        | cut -f 1 \
+        | sort \
+        | uniq -c \
+        | sort -nr \
+        > "${1/.bam/.QNAME.tmp.txt}"
 
     #  Trim leading whitespaces
     if [[ -f "${1/.bam/.QNAME.tmp.txt}" ]]; then
@@ -407,11 +407,11 @@ list_tally_qnames_trans() {
     start="$(date +%s)"
 
     samtools view "${1}" \
-    | awk '($3 != $7 && $7 != "=")' \
-    | cut -f 1 \
-    | sort \
-    | uniq -c \
-    > "${1/.bam/.trans-QNAME.txt}"
+        | awk '($3 != $7 && $7 != "=")' \
+        | cut -f 1 \
+        | sort \
+        | uniq -c \
+        > "${1/.bam/.trans-QNAME.txt}"
 
     # #  Trim leading whitespaces
     # if [[ -f "${1/.bam/.trans-QNAME.tmp.txt}" ]]; then
@@ -442,8 +442,8 @@ list_tally_qnames_trans_simple() {
     # :param 1: 
 
     samtools view "${1}" \
-    | awk '($3 != $7 && $7 != "=")' \
-    > "${1/.bam/.trans-QNAME.txt}"
+        | awk '($3 != $7 && $7 != "=")' \
+        > "${1/.bam/.trans-QNAME.txt}"
 }
 
 
@@ -563,8 +563,8 @@ retain_qname_reads_samtools() {
     start="$(date +%s)"
     
     samtools view -hN "${2}" "${1}" \
-    | samtools view -b - \
-    > "${3}"
+        | samtools view -b - \
+        > "${3}"
 
     end="$(date +%s)"
     echo ""
@@ -791,8 +791,8 @@ sort_file_AS() {
     start="$(date +%s)"
     
     sort -k1,1 -k2n <(gunzip -c "${1}") \
-    | gzip \
-    > "${1/.txt.gz/.tmp.txt.gz}"
+        | gzip \
+        > "${1/.txt.gz/.tmp.txt.gz}"
     
     mv -f "${1/.txt.gz/.tmp.txt.gz}" "${2}"
     
@@ -809,8 +809,8 @@ sort_file_AS_overwrite_infile() {
     start="$(date +%s)"
 
     sort -k1,1 -k2n <(gunzip -c "${1}") \
-    | gzip \
-    > "${1/.txt.gz/.tmp.txt.gz}"
+        | gzip \
+        > "${1/.txt.gz/.tmp.txt.gz}"
 
     mv -f "${1/.txt.gz/.tmp.txt.gz}" "${1}"
 

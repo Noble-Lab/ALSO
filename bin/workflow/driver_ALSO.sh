@@ -7,7 +7,7 @@
 time_start="$(date +%s)"
 
 #TODO (   ) Messaging for when a step has started and completed
-#TODO (   ) Replace use non-"*_updated" with use of "*_updated" functions
+#TODO (   ) Replace use of non-"*_updated" with use of "*_updated" functions
 #  Source functions into environment ------------------------------------------
 # shellcheck disable=1091
 if [[ -f "./bin/auxiliary/functions-preprocessing-HPC.sh" ]]; then
@@ -97,7 +97,7 @@ print_usage() {
     echo "  - argparser >= #TODO"
     echo "  - bedtools >= 2.29.0"
     echo "  - GNU echo >= #TODO"
-    echo "  - GNU find >= #TODO #TODO Does BSD work also?"
+    echo "  - GNU find >= #TODO Does BSD work also?"
     echo "  - GNU zcat >= 1.09 #TODO Check on this..."
     echo "  - picard >= 2.27.1"
     echo "  - R >= 4.0"
@@ -111,31 +111,33 @@ print_usage() {
     echo ""
     echo "Arguments:"
     echo "-h  print this help message and exit"
-    echo "-u  use safe mode: TRUE or FALSE [logical; default: FALSE]"
-    echo "-d  run pipeline in \${TMPDIR}: TRUE or FALSE [logical; default:"
+    echo "-u  use safe mode: TRUE or FALSE <logical> [default: FALSE]"
+    echo "-d  run pipeline in \${TMPDIR}: TRUE or FALSE <logical> [default:"
     echo "    TRUE]"
-    echo "-m  initial memory allocation pool for JVM [chr; default: \"512m\"]"
-    echo "-x  maximum memory allocation pool for JVM [chr; default: \"4096m\"]"
-    echo "-r  string for \"sample #1\" [chr]"
-    echo "-s  string for \"sample #2\" [chr]"
-    echo "-1  bam infile #1, including path [chr]"
-    echo "-2  bam infile #2, including path [chr]"
-    echo "-p  prefix for outfiles [chr]"
-    echo "-o  results directory for outfiles [chr]; path will be made if it"
+    echo "-m  initial memory allocation pool (JVM) <chr> [default: \"512m\"]"
+    echo "-x  maximum memory allocation pool (JVM) <chr> [default: \"4096m\"]"
+    echo "-r  string for \"sample #1\" <chr>"
+    echo "-s  string for \"sample #2\" <chr>"
+    echo "-1  bam infile #1, including path <chr>"
+    echo "-2  bam infile #2, including path <chr>"
+    echo "-p  prefix for outfiles <chr>"
+    echo "-o  results directory for outfiles <chr>; path will be made if it"
     echo "    does not exist"
+    echo "-e  reads from paired- or single-end sequencing run: \"paired\" or"
+    echo "    \"single\" <chr> [default: \"paired\"]"
     echo "-b  number of records to read into memory at one time when running"
-    echo "    the script for Part #1, get-AS-per-qname.R [int > 0; default:"
+    echo "    the script for Part #1, get-AS-per-qname.R <int > 0> [default:"
     echo "    100000]"
     echo "-c  number of records to read into memory at one time when running"
-    echo "    the script for Part #3, generate-assignment-lists.R [int > 0;"
-    echo "    default: 1000000]"
-    echo "-t  alignment score threshold [int >= 0; default: 0]; the absolute"
+    echo "    the script for Part #3, generate-assignment-lists.R <int > 0>"
+    echo "    [default: 1000000]"
+    echo "-t  alignment score threshold <int >= 0> [default: 0]; the absolute"
     echo "    value of the difference in alignment scores between \"sample"
     echo "    #1\" and \"sample #2\" must be greater than this value in order"
     echo "    for a sample-specific assignment to be made; if not greater than"
     echo "    this value, then the assignment will be \"ambiguous\""
-    echo "-a  count lines: TRUE or FALSE [logical; default: TRUE]"
-    echo "-n  step in pipeline to run up to [int 1-4; default: 4]"
+    echo "-a  count lines: TRUE or FALSE <logical> [default: TRUE]"
+    echo "-n  step in pipeline to run up to <int 1-4> [default: 4]"
     exit
 }
 
@@ -146,19 +148,30 @@ if [[ "${interactive}" == "TRUE" ]]; then
     use_TMPDIR=TRUE
     memory_min="512m"
     memory_max="4096m"
-    strain_1="mm10"
-    strain_2="CAST"
-    bam_1="./data/files_bam_test/${strain_1}/Disteche_sample_1.dedup.${strain_1}.corrected.bam"
-    bam_2="./data/files_bam_test/${strain_2}/Disteche_sample_1.dedup.${strain_2}.corrected.bam"
-    prefix="Disteche_sample_1"
-    outpath="./results/kga0/2022-0604_allelic-segregation"
+    
+    # strain_1="mm10"
+    # strain_2="CAST"
+    # bam_1="./data/files_bam_test/${strain_1}/Disteche_sample_1.dedup.${strain_1}.corrected.bam"
+    # bam_2="./data/files_bam_test/${strain_2}/Disteche_sample_1.dedup.${strain_2}.corrected.bam"
+    # prefix="Disteche_sample_1"
+    # outpath="./results/kga0/2022-0604_allelic-segregation"
+    # end="paired"
+
+    strain_1="mm11"
+    strain_2="SPRET"
+    bam_1="./data/files_bam/${strain_1}/brain_rep_2.SRR1525407.mm11.Aligned.sortedByCoord.out.primary.rm.bam"
+    bam_2="./data/files_bam/${strain_2}/brain_rep_2.SRR1525407.SPRET-EiJ.Aligned.sortedByCoord.out.primary.rm.bam"
+    prefix="brain_rep_2"
+    outpath="./results/kga0/2022-0730_allelic-segregation_brain-rep-2"
+    end="single"
+
     chunk_step_1=100000
     chunk_step_3=1000000
     threshold=0
     count=TRUE
     run_up_to=4
 else
-    while getopts "h:u:d:m:x:r:s:1:2:p:o:b:c:t:a:n:" opt; do
+    while getopts "h:u:d:m:x:r:s:1:2:p:o:e:b:c:t:a:n:" opt; do
         case "${opt}" in
             h) print_usage ;;
             u) safe_mode="${OPTARG}" ;;
@@ -171,6 +184,7 @@ else
             2) bam_2="${OPTARG}" ;;
             p) prefix="${OPTARG}" ;;
             o) outpath="${OPTARG}" ;;
+            e) end="${OPTARG}" ;;
             b) chunk_step_1="${OPTARG}" ;;
             c) chunk_step_3="${OPTARG}" ;;
             t) threshold="${OPTARG}" ;;
@@ -183,14 +197,15 @@ fi
 
 [[ -z "${safe_mode}" ]] && safe_mode=FALSE
 [[ -z "${use_TMPDIR}" ]] && use_TMPDIR=TRUE
-[[ -z "${memory_min}" ]] && memory_min="512m"
-[[ -z "${memory_max}" ]] && memory_max="4096m"
+[[ -z "${memory_min}" ]] && memory_min="-Xms512m"
+[[ -z "${memory_max}" ]] && memory_max="-Xmx4096m"
 [[ -z "${strain_1}" ]] && print_usage
 [[ -z "${strain_2}" ]] && print_usage
 [[ -z "${bam_1}" ]] && print_usage
 [[ -z "${bam_2}" ]] && print_usage
 [[ -z "${prefix}" ]] && print_usage
 [[ -z "${outpath}" ]] && print_usage
+[[ -z "${end}" ]] && end="paired"
 [[ -z "${chunk_step_1}" ]] && chunk_step_1=100000
 [[ -z "${chunk_step_3}" ]] && chunk_step_3=1000000
 [[ -z "${threshold}" ]] && threshold=0
@@ -216,6 +231,13 @@ esac
 #  Check for necessary dependencies; exit if not found
 check_dependency R
 check_dependency samtools
+
+version=$(zcat -V 2>&1 | sed 1q | cut -d " " -f 2)
+if (( $(bc <<< "${version} < 1.09") )); then
+    echo "Exiting: zcat (gzip) must be >= version 1.09."
+    exit 1
+fi
+unset version
 
 #  Evaluate "${use_TMPDIR}"  #REMOVE
 case "$(echo "${use_TMPDIR}" | tr '[:upper:]' '[:lower:]')" in
@@ -308,8 +330,8 @@ echo -e ""
 
         if [[ $(basename "${bam_1}") == $(basename "${bam_2}") ]]; then
             echo -e "WARNING: bam #1 has the same basename as bam #2; to \
-            differentiate the files, will include strain information in the \
-            filename when copying bams into \${TMPDIR}"
+            differentiate the files, this script will add strain \
+            information in the filename when copying bams into \${TMPDIR}"
 
             cp_bam_1="${TMPDIR}/${base_bam_1%.bam}.${RANDOM}.${strain_1}.bam"
             cp_bam_2="${TMPDIR}/${base_bam_2%.bam}.${RANDOM}.${strain_2}.bam"
@@ -343,6 +365,7 @@ echo -e "  -1 ${bam_1}"
 echo -e "  -2 ${bam_2}"
 echo -e "  -p ${prefix}"
 echo -e "  -o ${outpath}"
+echo -e "  -e ${end}"
 echo -e "  -b ${chunk_step_1}"
 echo -e "  -c ${chunk_step_3}"
 echo -e "  -t ${threshold}"
@@ -463,12 +486,14 @@ evaluate_run_up_to "${run_up_to}" 0
 
 
 #  Step 1 ---------------------------------------------------------------------
-#   -b, --bam     bam infile, including path <chr>
-#   -i, --bai     bam index, including path <chr>
-#   -o, --outdir  directory for saving rds outfile, including path <chr>
-#   -s, --strain  strain name to be appended to rds outfile columns <chr>
-#   -c, --chunk   number of records to read into memory at a single time
-#                 <even int> [default: 100000]
+# -b, --bam     bam infile, including path <chr>
+# -i, --bai     bam index, including path <chr>
+# -o, --outdir  directory for saving rds outfile, including path <chr>
+# -s, --strain  strain name to be appended to rds outfile columns <chr>
+# -e, --end     reads from paired- or single-end sequencing run:
+#               "paired" or "single" <chr> [default: paired]
+# -c, --chunk   number of records to read into memory at a single time
+#               <even int> [default: 100000]
 
 # script_1="./get-AS-per-qname.R"
 # dir_experiment_1="${outpath}/run_get-AS-per-qname"
@@ -496,6 +521,7 @@ if [[ ! -f "${step_1}" ]]; then
             Rscript \"${script_1}\"\n \
             --bam \"${bam}\"\n \
             --bai \"${bai}\"\n \
+            --end \"${end}\"\n \
             --outdir \"${dir_experiment_1}\"\n \
             --strain \"${strain}\"\n \
             --chunk \"${chunk_step_1}\"\n"
@@ -503,6 +529,7 @@ if [[ ! -f "${step_1}" ]]; then
             Rscript "${script_1}" \
             --bam "${bam}" \
             --bai "${bai}" \
+            --end "${end}" \
             --outdir "${dir_experiment_1}" \
             --strain "${strain}" \
             --chunk "${chunk_step_1}"

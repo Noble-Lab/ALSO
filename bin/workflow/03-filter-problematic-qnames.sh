@@ -17,7 +17,7 @@ if [[ -f "./bin/auxiliary/functions-preprocessing-HPC.sh" ]]; then
 
     . ./bin/auxiliary/functions-in-progress.sh ||
         {
-            echo "Exiting: Unable to source 'functions-preprocessing-HPC.sh'."
+            echo "Exiting: Unable to source 'functions-in-progress.sh'."
             exit 1
         }
 elif [[ -f "./functions-preprocessing-HPC.sh" ]]; then
