@@ -11,13 +11,15 @@ h_rt="${2:-"6:00:00"}"
 mfree="${3:-"2G"}"
 pe_serial="${4:-"2"}"
 queue="${5:-"sage-short.q"}"
-inpath="${6:-"./alignments_None/alignments_primary"}"
+# inpath="${6:-"./alignments_None/alignments_primary"}"
+inpath="${6:-"./Berletch_Fang/alignments_primary/mapped"}"
 
 unset infiles
 typeset -a infiles
 while IFS=" " read -r -d $'\0'; do
     infiles+=( "${REPLY}" )
-done < <(find "${inpath}" -type f -maxdepth 1 -name "*.primary.bam" -print0)
+done < <(find "${inpath}" -type f -maxdepth 1 -name "*.mapped.bam" -print0 | sort -z)
+# done < <(find "${inpath}" -type f -maxdepth 1 -name "*.primary.bam" -print0)
 for i in "${infiles[@]}"; do echo "${i}"; done
 
 

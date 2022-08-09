@@ -288,18 +288,20 @@ if(isTRUE(test_in_RStudio)) {
     #  RStudio-interactive work
     dir_base <- "."
     dir_in <- paste0(
-        dir_base, "/results/kga0/2022-0519_run_join-work"
+        dir_base,
+        "/results/kga0/2022-0730_ALSO_brain_rep_2/brain_rep_2",
+        "/02_run_find-set-inter-set-complement"
     )
     dir_out <- paste0(
-        dir_base, "/results/kga0/2022-0519_run_make-AS-assignment"
+        dir_base,
+        "/results/kga0/2022-0730_ALSO_brain_rep_2/brain_rep_2",
+        "/03_run_generate-assignment-lists"
     )
     intersection <- paste0(
-        # dir_in, "/", "Disteche_sample_1.dedup.intersection.AS.txt.gz"
-        dir_in, "/",
-        "Disteche_sample_1.dedup.intersection.AS.no-header.txt.gz"
+        dir_in, "/", "brain_rep_2.mm11-SPRET.intersection.txt.gz"
     )
-    sample_1 <- "mm10"
-    sample_2 <- "CAST"
+    sample_1 <- "mm11"
+    sample_2 <- "SPRET"
     outprefix <- unlist(stringr::str_split(basename(intersection), "\\."))[1]
     threshold <- 0
     chunk <- 1000000L

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#  exclude_non-primary-alignments.sh
+#  split_bams_mapped-unmapped.sh
 #  KA
 
 
@@ -19,7 +19,7 @@ check_dependency() {
 
 check_exit() {
     # Check the exit code of a child process
-    #
+    # 
     # :param 1:
     # :param 2:
     if [ "${1}" == "0" ]; then
@@ -32,7 +32,7 @@ check_exit() {
 
 err() {
     # Print an error meassage, then exit with code 1
-    #
+    # 
     # :param 1:
     echo "${1} exited unexpectedly"
     exit 1
@@ -49,11 +49,11 @@ print_usage() {
 #  Handle arguments, assign variables -----------------------------------------
 help="""
 ${0}:
-Exclude non-primary alignments from bam infile. Name of bam outfile will be
-derived from the infile.
+Split bam infile into two separate bam outfiles: one for mapped reads, the
+other for unmapped reads. Names of outfiles will be derived from the infile.
 
 Dependencies:
-  - samtools >= 1.14
+  - samtools >= 1.9
 
 Arguments:
   -h print this help message and exit
@@ -151,34 +151,55 @@ echo ""
 
 #  Assign variables needed for the pipeline -----------------------------------
 base="$(basename "${infile}")"
-outfile="${base%.bam}.primary.bam"
+outfile_m="${base%.bam}.mapped.bam"
+outfile_u="${base%.bam}.unmapped.bam"
+outpath_m="${outpath}/mapped"
+outpath_u="${outpath}/unmapped"
 
 
-#  Make subdirectories for primary-alignment outfiles -------------------------
-mkdir -p "${outpath}"
+#  Make subdirectories for mapped and unmapped outfiles -----------------------
+mkdir -p "${outpath_m}"
+mkdir -p "${outpath_u}"
 
 
-#  Exclude primary alignments from a bam infile; write a bam outfile ----------
+#  Split bam infile into mapped bam outfile and unmapped bam outfile ----------
 echo "[info] Separating bam files..."
 
+#  -F  Do not output alignments with any bits set in FLAG present in the FLAG field
 samtools view \
 -@ "${parallelize}" \
--b -F 256 "${infile}" \
--o "${outpath}/${outfile}"
+-b -F 4 "${infile}" \
+-o "${outpath_m}/${outfile_m}"
+check_exit $? "samtools"
+
+#  -f  Only output alignments with all bits set in FLAG present in the FLAG field
+samtools view \
+-@ "${parallelize}" \
+-b -f 4 "${infile}" \
+-o "${outpath_u}/${outfile_u}"
 check_exit $? "samtools"
 
 
-#  Run flagstat on primary alignment bam outfiles -----------------------------
+#  Run flagstat on mapped and unmapped outfiles -------------------------------
 if [[ $((flagstat)) -eq 1 ]]; then
     #  Make subdirectories
-    flag_m="${outpath}/flagstat"
+    flag_m="${outpath_m}/flagstat"
+    flag_u="${outpath_u}/flagstat"
     mkdir -p "${flag_m}"
+    mkdir -p "${flag_u}"
 
     #  Mapped
     samtools flagstat \
     -@ "${parallelize}" \
-    "${outpath}/${outfile}" \
-        > "${flag_m}/${outfile%.bam}.flagstat.txt" &
+    "${outpath_m}/${outfile_m}" \
+        > "${flag_m}/${outfile_m%.bam}.flagstat.txt" &
+    check_exit $? "samtools"
+
+    #  Unmapped
+    samtools flagstat \
+    -@ "${parallelize}" \
+    "${outpath_u}/${outfile_u}" \
+        > "${flag_u}/${outfile_u%.bam}.flagstat.txt" &
     check_exit $? "samtools"
 
     wait

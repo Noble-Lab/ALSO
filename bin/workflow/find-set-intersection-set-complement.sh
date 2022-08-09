@@ -38,9 +38,9 @@ fi
 echo_completion_file_sets() {
     # #TODO Description of function
     #
-    # :param 1: outpath (chr)
-    # :param 2: step number (int)
-    # :param 3: sample descriptor (chr)
+    # :param 1: outpath <chr>
+    # :param 2: step number <int>
+    # :param 3: sample descriptor <chr>
     echo "${1}/$(basename "${0}" ".sh").${3}.step-${2}.txt"
 }
 

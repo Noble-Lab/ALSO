@@ -11,8 +11,8 @@ h_rt="${2:-"7:59:59"}"
 mfree="${3:-"2G"}"
 pe_serial="${4:-"2"}"
 queue="${5:-"sage-short.q"}"
-inpath="${6:-"./alignments"}"
-outpath="${7:-"./splits"}"
+inpath="${6:-"./Berletch_Fang/alignments_primary"}"
+outpath="${7:-"./Berletch_Fang/alignments_primary"}"
 
 
 #  Infiles
@@ -27,14 +27,33 @@ done < <(find "${inpath}" -type f -name "*.bam" -print0)
 module load samtools/1.14
 
 
+#  Echo test
+# for i in "${infiles[@]}"; do
+#     echo "Submitting job for ${i}"
+#
+#     echo -e "qsub\n \
+#     -S \"/bin/bash\"\n \
+#     -R \"y\"\n \
+#     -P \"${project}\"\n \
+#     -l h_rt=\"${h_rt}\"\n \
+#     -l mfree=\"${mfree}\"\n \
+#     -l gpgpu=FALSE\n \
+#     -pe serial \"${pe_serial}\"\n \
+#     -q \"${queue}\"\n \
+#     -cwd\n \
+#     \"${script}\"\n \
+#     -u FALSE\n \
+#     -i \"${i}\"\n \
+#     -o \"${outpath}\"\n \
+#     -f TRUE\n \
+#     -p \"${pe_serial}\"\n
+#     "
+#
+#     echo ""
+# done
+
 #  Submit jobs
 for i in "${infiles[@]}"; do
-    # prefix="$(basename "${script}" ".sh")"
-    # suffix="$(basename "${i}" ".Aligned.out.bam")"
-    # job_err_out="${prefix}.${suffix}"
-    # -o "${job_err_out}" \
-    # -e "${job_err_out}" \
-
     echo "Submitting job for ${i}"
 
     qsub \
