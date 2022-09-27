@@ -1,0 +1,378 @@
+### ALSO 
+
+ssh grid
+qlogin 
+#-l 
+#mfree=12G -pe serial 4 
+#,cuda=1,gpgpu=TRUE
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-06-06-ALSO
+module add samtools/1.14
+
+## check vol
+df -kh /net/noble/vol6
+df -kh /net/noble/vol8
+
+
+######################
+## set up to vol6 ####
+######################
+
+# cd /net/noble/vol6
+# mkdir /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-06-06
+
+ln -s /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-05-04 input
+ln -s /net/noble/vol6/user/gangliuw/mouse-cross/results/2022-06-06 results
+
+
+## GIT configuration
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-06-06-ALSO
+
+## get authentication
+# https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+# git config --global user.name “GangLiTarheel”
+# git config --global user.email “frankleegangli@gmail.com”
+# git config --global color.ui auto
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/bin
+git clone https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross.git
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-06-06-ALSO
+ln -s /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/bin/2021_kga0_4dn-mouse-cross/bin/ bin
+
+chmod 751 bin/*.sh
+chmod 751 bin/auxiliary/*.sh
+
+##############################
+## Test on one sample ########
+##############################
+ls -lah input/mm10-preprocessed/Disteche_sample_*.dedup.corrected.corrected.bam
+
+module load picard/2.26.4
+
+Date="06-07"
+i=13
+Job_name="ALSO"_$i
+chmod 751 *.sh
+qsub -l mfree=50G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+echo "Submitted."
+
+# 12 GB does not work
+qstat -u gangliuw
+
+## 06.14 Kris fixed the issue and updated the repo
+# /net/noble/vol8/kga0/2021_kga0_4dn-mouse-cross/results/2022-0613_test_driver_allelic-segregation_Disteche-sample-13_has-complement-mistake
+
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/bin/2021_kga0_4dn-mouse-cross
+git reset --hard
+git pull
+
+
+Date="06-14"
+i=13
+Job_name="ALSO"_$i
+chmod 751 *.sh
+qsub -l mfree=6G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+echo "Submitted."
+
+qstat -u gangliuw
+
+## passed the test!
+# Gang get the same results as Kris.
+# 06.14
+# Test the largest sample we have.
+# 
+
+Date="06-14"
+i=11
+Job_name="ALSO"_$i
+chmod 751 *.sh
+qsub -l mfree=20G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+echo "Submitted."
+
+## 06-21
+# -n 3 for all samples
+
+# (base) [gangliuw@n026 2022-06-06-ALSO]$ df -kh /net/noble/vol6
+# Filesystem      Size  Used Avail Use% Mounted on
+# gs2             5.0T  4.0T  1.1T  80% /net/noble/vol6
+
+Date="06-21"
+for i in {1..22} # 1..10, 12, 14..22
+do 
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=20G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+## Step 4
+# set up jobs to complete step 4 using picard
+
+# Group 1: 1, 13, 6, 3, 7;
+# Group 2: 14, 2,17,8,18;
+# Group 3 16,15,19,4;
+# Group 4: 22, 20;
+# Group 5: 5, 21;
+# Group 6: 10, 12,9;
+# Sample 11
+
+# Group 1: 12GB
+# Group 2: 24
+# Group 3: 36
+# Group 4: 48
+# Group 5: 60
+# Group 6: 72 GB (to be safe)
+# Try 84GB for sample 11
+
+# -l mfree=74GB  # memory for '-x' plus 2GB (change per group)
+# -m "512m"  # don't change
+# -x "72g"  # change per group
+# -n 4  # don't change
+Date="06-27"
+
+## rename step3 .e.o
+for i in {1..22} # 1..10, 12, 14..22
+do 
+    echo $i
+    mv results/ALSO_${i}.e.txt results/ALSO_${i}.step1-3.e.txt
+    mv results/ALSO_${i}.o.txt results/ALSO_${i}.step1-3.o.txt
+done
+
+ls results/ALSO_*.txt 
+
+# group 1
+for i in 1  13  6  3  7
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=14G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+qmod -c 287350220
+qdel 287350220
+# group 2
+for i in 14 2 17 8 18
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=26G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+## debug
+mkdir results/log/
+# change output path in submit.sh
+i=13
+Job_name="ALSO"_$i
+echo $Job_name
+chmod 751 *.sh
+qsub -l mfree=14G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/log/2022-${Date}-ALSO-${i}.submit
+echo "Submitted."
+
+# only add log to stderr
+i=1
+Job_name="ALSO"_$i
+echo $Job_name
+chmod 751 *.sh
+qsub -l mfree=14G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/log/2022-${Date}-ALSO-${i}.submit
+echo "Submitted."
+
+
+# group 1
+for i in 13  6  3  7 #1
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=14G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/log/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+# 13 complete?
+
+less results/log/ALSO_13.o.txt 
+# completed before? Yes. Are they the same version of ALSO.
+
+# group 2
+for i in 14 2 17 8 18
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=26G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/log/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+# group 3
+for i in 16 15 19 4
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=38G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/log/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+
+# group 6 
+# 10 finished ; 12 still running 
+# need to fix 9
+#
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-06-06-ALSO/results/Disteche_sample_9_ALSO/04_run_filter-qnames-by-assignment
+Date="07-02"
+for i in 9
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=74G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/log/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+# group 5
+for i in 5 21
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=50G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/log/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+# group 4
+for i in 22 20
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=50G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/log/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+qstat -u gangliuw
+
+# fix sample 11
+# should run large sample first? Since it takes longer for them to finish.
+# sample 11
+for i in 11
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=74G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/log/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+## 07.07
+# all finished.
+cd /net/noble/vol1/home/gangliuw/proj/2022-01-mouse-cross/src/2022-06-06-ALSO/
+
+## 07.19 fix missing samples...
+# survivor: 1,4,5,6,9,12,15,17,20 (double check with Kris..)
+# need to redo: 2,3,7,8,10,11,13,14,16,18,19,21,22
+Date="07-19"
+# group 1
+i=13
+Job_name="ALSO"_$i
+echo $Job_name
+chmod 751 *.sh
+qsub -l mfree=14G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+echo "Submitted."
+
+for i in  3  7
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=14G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+# group 2
+for i in 14 2 8 18
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=26G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+# group 3
+for i in 16 19
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=38G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+
+
+# group 4
+for i in 22 
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=50G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+
+# group 5
+for i in 21
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=62G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+# group 6 
+# 10 ,9,12
+for i in 10
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=74G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+# group 7
+
+for i in 11
+do 
+    echo $i
+    Job_name="ALSO"_$i
+    echo $Job_name
+    chmod 751 *.sh
+    qsub -l mfree=84G -m bea -M gangliuw@uw.edu -N $Job_name submit.sh $i > results/2022-${Date}-ALSO-${i}.submit
+    echo "Submitted."
+done
+
+
+### END
