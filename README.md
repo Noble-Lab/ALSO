@@ -1,4 +1,4 @@
-# *ALSO*: ALlele Segregation Pipeline
+# ALSO: Allele Segregation Pipeline
 
 Composed of a small set of Python, Shell, and R scripts, the ALSO pipeline segregates next-generation sequencing alignments to alleles of origin based on alignment scores.
 
