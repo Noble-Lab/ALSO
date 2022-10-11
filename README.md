@@ -1,10 +1,10 @@
-# *ALSO* *AL*lele *S*egregati*O*n Pipeline
+# *ALSO*: ALlele Segregation Pipeline
 
-Composed of a small set of Python, Shell, and R scripts, the ALSO pipeline segregates NGS alignments to alleles of origin based on alignment scores.
+Composed of a small set of Python, Shell, and R scripts, the ALSO pipeline segregates next-generation sequencing alignments to alleles of origin based on alignment scores.
 
 ## News and Updates
 
-The three most recent updates are shown here; a complete list of updates can be found [here](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/log.md).
+The three most recent updates are shown below; a complete list of updates can be found [here](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/log.md).
 
 * 2022-06-16-25
   - Developed Python implementation for filtering bam files by txt-file lists of `QNAMEs`
