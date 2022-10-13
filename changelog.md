@@ -6,16 +6,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- main workflow figure for ALSO.
+- readthedocs.
+
 
 ## [0.9.8] - 2022-10-13
 ### changed
 - changelog format from [@GangLiTarheel](https://github.com/Noble-Lab/ALSO/changelog.md).
 
+## [0.9.4] - 2022-06-25
+### added
+  - Developed Python implementation for filtering bam files by txt-file lists of `QNAMEs`
+  - Rewrote/refactored code to handle input for Python-implemented filtering
+
+## [0.9.3] - 2022-06-15
+### fixed
+  - Update `README.md` and `log.md` files
+## [Unreleased]
+  - `#TODO` Troubleshoot max memory for JVM when running `picard FilterSamReads`
+  - `#TODO` Consolidate shell, R functions into one script for each language
+  - `#TODO` Remove harcoded path to GS installation of `picard` from scripts `#DONE`
+
+## [0.9.2] - 2022-06-04
+- Pipeline is completed; passed local unit tests with small files; can call it with `driver_allelic-segregation.sh`
+- Adding instructions for using `driver_allelic-segregation.sh` to `README`.
+## [Unreleased]
+- `#TODO` Test on the GS HPC with large files: Do we need to increase max heap memory to the JVM when running `picard`?
+- `#TODO` Clean up messages output by the driver
+- `#TODO` Determine and list all dependencies
+
+## [0.9.1] - 2022-05-23
+- Addressing error in preprocessing pipeline in which some duplicate QNAMEs persist in processed bam.
+- Adding instructions for using the correction script, `03-remove-duplicate-qnames.sh`.
+- `#TODO` Add corrections in `03-remove-duplicate-qnames.sh` to the initial preprocessing script: `03-filter-problematic-qnames-HPC.sh` `#DONE`
+
+
 ## [0.8.9] - 2022-05-11
 ### fixed
 - Cleaned up old example code from [@Kris] (https://github.com/Noble-Lab/ALSO/XX).
 
-### unreleased
+## [Unreleased]
 - Will create a pull request to move `03-remove-duplicate-qnames.sh` from the ALSO repo to the Shendure-Lab sciatac pipeline repo after the allele score comparison module is completed
 - Kris will work on the allele score comparison module
 

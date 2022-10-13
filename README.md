@@ -8,27 +8,9 @@ Composed of a small set of Python, Shell, and R scripts, the ALSO pipeline segre
 
 The three most recent updates are shown here; a complete list of updates can be found [here](https://github.com/Noble-Lab/2021_kga0_4dn-mouse-cross/blob/main/log.md).
 
-* 2022-06-16-25
-  - Developed Python implementation for filtering bam files by txt-file lists of `QNAMEs`
-  - Rewrote/refactored code to handle input for Python-implemented filtering
-
-* 2022-06-15
-  - Update `README.md` and `log.md` files
-  - `#TODO` Troubleshoot max memory for JVM when running `picard FilterSamReads`
-  - `#TODO` Consolidate shell, R functions into one script for each language
-  - `#TODO` Remove harcoded path to GS installation of `picard` from scripts `#DONE`
-
-* 2022-06-04
-  + Pipeline is completed; passed local unit tests with small files; can call it with `driver_allelic-segregation.sh`
-  + Adding instructions for using `driver_allelic-segregation.sh` to `README`.
-  + `#TODO` Test on the GS HPC with large files: Do we need to increase max heap memory to the JVM when running `picard`?
-  + `#TODO` Clean up messages output by the driver
-  + `#TODO` Determine and list all dependencies
-
-* 2022-05-23
-  + Addressing error in preprocessing pipeline in which some duplicate QNAMEs persist in processed bam.
-  + Adding instructions for using the correction script, `03-remove-duplicate-qnames.sh`.
-  + `#TODO` Add corrections in `03-remove-duplicate-qnames.sh` to the initial preprocessing script: `03-filter-problematic-qnames-HPC.sh` `#DONE`
+## [0.9.8] - 2022-10-13
+### changed
+- changelog format from [@GangLiTarheel](https://github.com/Noble-Lab/ALSO/changelog.md).
 
 ## Installation
 
