@@ -75,7 +75,7 @@ gwasResults$truth = sapply(strsplit(as.character(gwasResults$SNP), ".",2) ,"[[",
 new_gwas = gwasResults %>% filter(truth=="SRR1409990")  %>% group_by(CHR,BP) %>% summarise(COUNT = n())
 
 head(new_gwas)
-dim(new_gwas)
+dim(new_gwas) # 3472722       3
 
 
 # Make the Manhattan plot on the gwasResults dataset
@@ -104,6 +104,122 @@ manhattan(temp, chr="CHR", bp="BP", p="COUNT",logp= FALSE) #, chrlabs = c(1:19, 
 dev.off()
 
 ```
+
+## find an example reads
+```{r}
+chr = 1
+temp = new_gwas %>% filter(CHR==chr)
+dim(temp) # 236661      3
+ind_s = which(temp$COUNT == max(temp$COUNT))
+print(temp[ind_s,])
+
+ind_s2 = which(gwasResults$BP == temp$BP[ind_s])
+gwasResults[ind_s2,]
+
+
+```
+497460   1 55594666 SRR1409990.56184411 79 SRR1409990
+497461   1 55594666 SRR1409990.56192967 77 SRR1409990
+497462   1 55594666 SRR1409990.56202050 73 SRR1409990
+497463   1 55594666 SRR1409990.56204101 81 SRR1409990
+497464   1 55594666 SRR1409990.56238145 77 SRR1409990
+497465   1 55594666 SRR1409990.56246231 77 SRR1409990
+
+# plots of reads; check position
+samtools view -h --no-header sim_data/SRR1409989_SRR1409990.CAST.Aligned.sortedByCoord.out.paired.primary.mm10.bam | grep SRR1409990.56184411
+
+SRR1409990.56184411     163     1       55594583        255     50M     =       55594666        133     ACAGACCTGTTATTGCTCAATCTCGGGTGGCTGAACGCCACTTGTCCCTC      @@B?DFFFHFDFHJIIHIIJIHGJCGE2:D>;BDFE@<G0?BGC==FGE@      NH:i:1  HI:i:1  NM:i:2  MD:Z:8A15A25    AS:i:79
+SRR1409990.56184411     83      1       55594666        255     50M     =       55594583        -133    CGCTCGGGGGTCGCGTAACTAGTTAGCATGCCAGAGTCTC
+
+samtools view -h --no-header sim_data/SRR1409989_SRR1409990.CAST.Aligned.sortedByCoord.out.paired.primary.mm10.bam | grep SRR1409990.56192967
+SRR1409990.56192967     163     1       55594531        255     50M     =       55594666        185     CGCTGAGCCAGTCAGTGTAGCGCGCGTGCAGCCCCGGACATCTAAGGGCA      CCCFFFFFHHHHHJJHJGJJJJIJJJIJJIJJJJJJJJHHFFFFFFEEDD      NH:i:1  HI:i:1  NM:i:3  MD:Z:23A11A1G12 AS:i:77
+SRR1409990.56192967     83      1       55594666        255     50M     =       55594531        -185    CGCTCGGGGGTCGCGTAACTAGTTAGCATGCCAGAGTCTCGTTCGTTATC      DDDFFHJJJIJIHFIGGJJJJJIJJJJJJIJJJJJJGHHHHHFFFFFCCC      NH:i:1  HI:i:1  NM:i:13 MD:Z:2T0G0N0N0N0N0N0N0N0N0N0N0N35       AS:i:77
+
+
+
+## I might flipped the names
+```{r}
+
+new_gwas = gwasResults %>% filter(truth=="SRR1409989")  %>% group_by(CHR,BP) %>% summarise(COUNT = n())
+
+head(new_gwas)
+dim(new_gwas) # 410912      3
+
+
+# Make the Manhattan plot on the gwasResults dataset
+for (chr in c(1:20)){
+    print(chr)
+    temp = new_gwas %>% filter(CHR==chr)
+    print(dim(temp))
+
+    png(paste0("results/CAST_position_ALSO_mm10_truth_CAST_ref_",chr,".png"))
+    #p <- ggplot(data = temp, aes(x=BP, y=COUNT)) + geom_area(aes(fill=CHR))
+    #ggsave(p, file=paste0("results/position_ref_",ind,".png"), width = 14, height = 10, units = "cm", device = "png")
+
+
+    plot(temp$BP, temp$COUNT,xlab="Genomic position", ylab = "Counts of mis-aligned reads",col = chr, main = paste0("chr ",chr))
+    #p + facet_wrap(~ CHR, ncol=3)
+    #p
+    dev.off()
+}
+```
+
+## find another example
+```{r}
+chr = 1
+temp = new_gwas %>% filter(CHR==chr)
+dim(temp) # 24166     3
+ind_s = which(temp$COUNT == max(temp$COUNT))
+print(temp[ind_s,])
+
+ind_s2 = which(gwasResults$BP == temp$BP[ind_s])
+table(gwasResults$truth[ind_s2]) 
+
+gwasResults[ind_s2,]  %>% filter(truth=="SRR1409989")
+```
+
+# SRR1409989 SRR1409990 
+#      5560       4211 
+
+650773   1 62302174 SRR1409990.62806306  97 SRR1409990
+650774   1 62302174 SRR1409990.62852803  95 SRR1409990
+650775   1 62302174 SRR1409990.62861969  99 SRR1409990
+
+5557   1 62302174 SRR1409989.63867386  99 SRR1409989
+5558   1 62302174 SRR1409989.63895862  99 SRR1409989
+
+
+# CIGAR
+M	Match 		Exact match of x positions
+N	Alignment gap 	Next x positions on ref don’t match
+D	Deletion 	Next x positions on ref don’t match
+I	Insertion 	Next x positions on query don’t match
+
+# NM	i	Edit distance to the reference, including ambiguous bases but excluding clipping
+# MD	Z	String for mismatching positions.
+# https://vincebuffalo.com/notes/2014/01/17/md-tags-in-bam-files.html
+
+# plots of reads; check position
+## corrected assigned examples
+samtools view -h --no-header sim_data/SRR1409989_SRR1409990.CAST.Aligned.sortedByCoord.out.paired.primary.mm10.bam | grep SRR1409990.62806306
+
+SRR1409990.62806306     99      1       62302116        255     50M     =       62302174        1252    TCTGGTCCACCACCTGCTGACCTGTGTCATGCCCTACGTTGGCATAATCA    ?=?=BD;==D?DA:<;@:3<A:A2<CEHEHAA@GFCF>GGIE*?FGDEB#      NH:i:1  HI:i:1  NM:i:1  MD:Z:42T7       AS:i:97 XS:A:+
+SRR1409990.62806306     147     1       62302174        255     22M1144N28M     =       62302116        -1252   CGTATGAAAAAGAAAAGGCCAGCCTGCCGGGAGTGAAGAAATCTTTGGGC    GCF=<BAGB*?8EFD?)))?:8<E@)<3;C:DF>CA,?A:BDDEDDB@<@      NH:i:1  HI:i:1  NM:i:0  MD:Z:50 AS:i:97 XS:A:+
+
+samtools view -h --no-header sim_data/SRR1409989_SRR1409990.CAST.Aligned.sortedByCoord.out.paired.primary.mm10.bam | grep SRR1409990.62852803
+SRR1409990.62852803     99      1       62302107        255     50M     =       62302174        1261    GTAGCAGTTTCTGGTCCTCCACCTGCTGACCTGTGTCATGCCCTACGTTG    ;::=DDEDFHFBBF?EEBHIGHICEHII@GICAC>GHEHIDFFGEEHBBF      NH:i:1  HI:i:1  NM:i:2  MD:Z:1A15A32    AS:i:95 XS:A:+
+SRR1409990.62852803     147     1       62302174        255     22M1144N28M     =       62302107        -1261   CGTATGAAAAAGAAAAGGCCAGCCTGCCGGGAGTGAAGAAATCTTTGGGC    JIGG@HIHFGGGIIHGHEHCFF6FAF@AF>IDGDFBGHHHHBDFFFFCB@      NH:i:1  HI:i:1  NM:i:0  MD:Z:50 AS:i:95 XS:A:+
+
+## mis aligned examples
+samtools view -h --no-header sim_data/SRR1409989_SRR1409990.CAST.Aligned.sortedByCoord.out.paired.primary.mm10.bam | grep SRR1409989.63867386
+
+SRR1409989.63867386     99      1       62302099        255     50M     =       62302174        1269    CAGTATTTGAAGCAGTTTCTGGTCCACCACCTGCTGACCTGTGTCATGCC    8?@BDDFFHGHGFIJFEHJJFJGHH@FHGIGAFEDHGGHIIHHFHGEDII      NH:i:1  HI:i:1  NM:i:0  MD:Z:50 AS:i:99 XS:A:+
+SRR1409989.63867386     147     1       62302174        255     22M1144N28M     =       62302099        -1269   CGTATGAAAAAGAAAAGGCCAGCCTGCCGGGAGTGAAGAAATCTTTGGGC    @FB4IHJIFIGIIIIGHCGGGJIGGGEGJJIGGHIIGHHHFFFDFFFBB@      NH:i:1  HI:i:1  NM:i:0  MD:Z:50 AS:i:99 XS:A:+
+
+samtools view -h --no-header sim_data/SRR1409989_SRR1409990.CAST.Aligned.sortedByCoord.out.paired.primary.mm10.bam | grep SRR1409989.63895862
+SRR1409989.63895862     99      1       62302099        255     50M     =       62302174        1269    CAGTATTTGAAGCAGTTTCTGGTCCACCACCTGCTGACCTGTGTCATGCC    @@@BDDFFHGFDAHIIJJIJJGIJGGGGEHIGGIGIAFGG>??BFGHGJJ      NH:i:1  HI:i:1  NM:i:0  MD:Z:50 AS:i:99 XS:A:+
+SRR1409989.63895862     147     1       62302174        255     22M1144N28M     =       62302099        -1269   CGTATGAAAAAGAAAAGGCCAGCCTGCCGGGAGTGAAGAAATCTTTGGGC    IGEEFBJJIIEGIIGIEGGF>IJJIJJIGIIIGGGIIHDH?DFAFDD<CB      NH:i:1  HI:i:1  NM:i:0  MD:Z:50 AS:i:99 XS:A:+
+
 
 
 ## Kris created bg files for fast extracting information.
