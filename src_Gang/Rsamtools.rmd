@@ -1,0 +1,139 @@
+---
+title: "Rsamtools"
+author: "Gang Li"
+date: "2023-01-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Rsamtools
+
+
+
+```{r workdir}
+setwd("~/proj/2022-01-mouse-cross/src/2023-01-18-ALSO-sim")
+library(Rsamtools)
+```
+
+## Reading bam file
+
+```{r readbam, echo=FALSE}
+bamPath <- system.file("sim_data", "SRR1409989_SRR1409990.CAST.Aligned.sortedByCoord.out.mm10.bam", package="Rsamtools")
+bamFile <- BamFile(bamPath)
+#bamFile <- BamFile("sim_data/SRR1409989_SRR1409990.CAST.Aligned.sortedByCoord.out.mm10.bam")
+bamFile
+```
+
+# ref: https://kasperdanielhansen.github.io/genbioconductor/html/Rsamtools.html
+```{r}
+bam <- paste0("sim_data/SRR1409989_SRR1409990.CAST.Aligned.sortedByCoord.out.paired.primary.mm10.bam")
+
+vars <- c("qname", "rname", "strand","pos","qwidth")
+y=Rsamtools::scanBam(bam, param = ScanBamParam(what = vars, tag = "AS"))
+aln <- y[[1]]
+```
+
+```{r}
+library(qqman)
+
+
+names(aln)
+#lapply(aln, function(xx) xx[1])
+
+qname <- aln[1]$qname
+rname <- aln[2]$rname
+pos <- aln[4]$pos
+as <- aln[6]$tag$AS
+#lapply(aln, function(xx) xx[1])
+
+gwasResults<-data.frame(CHR=rname, BP=pos, SNP=qname, P=as)
+
+# filter based on chr column # CHR has to be numeric; keep the 19 autosome and 20 for X chromsome;
+# 
+temp = as.numeric(aln[2]$rname)
+ind = which(temp<21)
+length(ind)/length(temp) #0.990863
+
+gwasResults$CHR = temp
+gwasResults = gwasResults[ind,]
+
+dim(gwasResults) #28893558        4
+
+## filter the mis aligned reads
+
+library(stringr)
+library(dplyr)
+
+gwasResults$truth = sapply(strsplit(as.character(gwasResults$SNP), ".",2) ,"[[", 1)
+
+#library(tidyr)
+#new_gwas[1:5,] %>% separate(SNP, c("qname", "qname2"), ".")
+
+new_gwas = gwasResults %>% filter(truth=="SRR1409990")  %>% group_by(CHR,BP) %>% summarise(COUNT = n())
+
+head(new_gwas)
+dim(new_gwas)
+
+
+# Make the Manhattan plot on the gwasResults dataset
+for (chr in c(1:20)){
+    print(chr)
+    temp = new_gwas %>% filter(CHR==chr)
+    print(dim(temp))
+
+    png(paste0("results/position_ref_",chr,".png"))
+    #p <- ggplot(data = temp, aes(x=BP, y=COUNT)) + geom_area(aes(fill=CHR))
+    #ggsave(p, file=paste0("results/position_ref_",ind,".png"), width = 14, height = 10, units = "cm", device = "png")
+
+
+    plot(temp$BP, temp$COUNT,xlab="Genomic position", ylab = "Counts of mis-aligned reads",col = chr, main = paste0("chr ",chr))
+    #p + facet_wrap(~ CHR, ncol=3)
+    #p
+    dev.off()
+}
+    
+
+
+temp =  gwasResults %>% filter(CHR<"20") %>% filter(truth=="SRR1409990")  %>% group_by(CHR,BP) %>% summarise(COUNT = n())
+temp$CHR = factor(temp$CHR)
+png("mahhatan.png")
+manhattan(temp, chr="CHR", bp="BP", p="COUNT",logp= FALSE) #, chrlabs = c(1:19, "X"))
+dev.off()
+
+```
+
+
+## Kris created bg files for fast extracting information.
+# The bedgraph and bigwig files contain information for non-normalized coverage*. 
+# For example, we can use the bedgraph and bigwig files to perform the suggested experiments where we look for spikes in coverage associated with underlying faults in the reference genomes. 
+# And we can use the bams to plot distributions of alignment scores for combinations of prediction and truth assignments
+
+```{r}
+list.files("/net/noble/vol6/user/kga0/2022_ALSO-post-Noble/results/2023-0119/ALSO-by-truth_bedgraphs_2023-0119")
+
+mis1 <- read.table(paste0("/net/noble/vol6/user/kga0/2022_ALSO-post-Noble/results/2023-0119/ALSO-by-truth_bedgraphs_2023-0119/",
+    "align-mm10.ALSO-mm10.truth-CAST.bg" ))
+
+dim(mis1) # 1202238       4
+sum(mis1$V4) #326626210
+head(mis1)
+
+require(ggplot2)
+
+table(mis1$V1)
+
+ind = which( mis1$V1 %in% c(1:19,"X","Y","MT"))
+head(ind)
+length(ind)
+mis1 = mis1[ind,]
+
+png("coverage.png")
+p <- ggplot(data = mis1, aes(x=V2, y=V4)) + geom_area(aes(fill=V1))
+p + facet_wrap(~ V1, ncol=1)
+dev.off()
+
+```
+
