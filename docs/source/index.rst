@@ -18,7 +18,7 @@ how to :ref:`installation` the project.
 *ALSO* is maintained by Kris Alavattam [kalavattam@gmail.com] and Gang Li [gangliuw@uw.edu].
 
 *News and Updates*
-All notable changes to this project will be documented in [this file](https://github.com/GangLiTarheel/DeepGWAS/blob/main/changelog.md).
+All notable changes to this project will be documented in [this file](https://github.com/Noble-Lab/ALSO/blob/main/changelog.md).
   
 
 *Citation*
