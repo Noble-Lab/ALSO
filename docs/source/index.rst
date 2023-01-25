@@ -5,7 +5,7 @@ Welcome to ALSO's documentation!
 
 Composed of a small set of Python, Shell, and R scripts, the ALSO pipeline segregates NGS alignments to alleles of origin based on alignment scores.
 
-.. image::  ../../ALSO.jpg
+.. image::  ../../ALSO.png
   :width: 800
 
 Check out the :doc:`usage` section for further information, including
