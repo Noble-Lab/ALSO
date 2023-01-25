@@ -18,4 +18,4 @@ Allele segregation
 For example:
 .. code-block:: console
 
-   (.venv) $  ./ALSO.sh ref1.bam ref2.bam 
+   (.venv) $  ./ALSO.sh ref1.bam ref2.bam -output-prefix
